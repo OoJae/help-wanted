@@ -1,0 +1,65 @@
+{
+  "name": "hires",
+  "title": "Hires: IMD transfers to the swarm's fee payee, per day (every Transfer log, zero-value ones included)",
+  "feedId": "0xfde22d9c1b97b7ce9763dff388a66366f9012d4ba7c57c3239377a75532bee4d",
+  "feedIdRule": "keccak256(abi.encode(params, keccak256(qPrefix), keccak256(tail)))",
+  "params": {
+    "action": "0x6f7261636c652e72657175657374406f7261636c652d31000000000000000000",
+    "chainId": 1,
+    "answerType": 3,
+    "panelSize": 7,
+    "quorum": 5,
+    "minAgreed": 5,
+    "validFor": 86400,
+    "cadenceBlocks": 7000,
+    "maxWindowBlocks": 21600,
+    "lagBlocks": 12,
+    "contiguous": true,
+    "pinHash": true,
+    "maxPrice": "2000000000000000000",
+    "tip": "50000000000000000",
+    "gateCmp": 0,
+    "gateTarget": "0x0000000000000000000000000000000000000000",
+    "gateThreshold": "0",
+    "gateData": "0x"
+  },
+  "qPrefix": "{\"answerType\":\"uint256\",\"chainId\":1,\"definitions\":{\"recipe\":\"{\\\"kind\\\":\\\"log-count\\\",\\\"address\\\":\\\"0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7\\\",\\\"event\\\":\\\"event Transfer(address indexed from, address indexed to, uint256 value)\\\",\\\"filter\\\":{\\\"to\\\":\\\"0x4e0fa57bde726079356537e2f34d671e9f41adbc\\\"}} - write recipe exactly this, event text included.\"},\"question\":\"How many Transfer(address indexed from, address indexed to, uint256 value) events did the token contract 0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7 emit whose to argument is 0x4e0fa57bde726079356537e2f34d671e9f41adbc in the window?\",\"v\":1,\"window\":{\"fromBlock\":",
+  "qPrefixHex": "0x7b22616e7377657254797065223a2275696e74323536222c22636861696e4964223a312c22646566696e6974696f6e73223a7b22726563697065223a227b5c226b696e645c223a5c226c6f672d636f756e745c222c5c22616464726573735c223a5c223078643334613939626330663637616531626264363363363630653664306230646430336532363362375c222c5c226576656e745c223a5c226576656e74205472616e73666572286164647265737320696e64657865642066726f6d2c206164647265737320696e646578656420746f2c2075696e743235362076616c7565295c222c5c2266696c7465725c223a7b5c22746f5c223a5c223078346530666135376264653732363037393335363533376532663334643637316539663431616462635c227d7d202d207772697465207265636970652065786163746c7920746869732c206576656e74207465787420696e636c756465642e227d2c227175657374696f6e223a22486f77206d616e79205472616e73666572286164647265737320696e64657865642066726f6d2c206164647265737320696e646578656420746f2c2075696e743235362076616c756529206576656e7473206469642074686520746f6b656e20636f6e74726163742030786433346139396263306636376165316262643633633636306536643062306464303365323633623720656d69742077686f736520746f20617267756d656e742069732030783465306661353762646537323630373933353635333765326633346436373165396634316164626320696e207468652077696e646f773f222c2276223a312c2277696e646f77223a7b2266726f6d426c6f636b223a",
+  "tail": ",\"evidence\":\"chain\",\"panelSize\":7,\"quorum\":5,\"toleranceBps\":0,\"validForSeconds\":86400}",
+  "tailHex": "0x2c2265766964656e6365223a22636861696e222c2270616e656c53697a65223a372c2271756f72756d223a352c22746f6c6572616e6365427073223a302c2276616c6964466f725365636f6e6473223a38363430307d",
+  "example": {
+    "requestBlock": 26164239,
+    "fromBlock": 26157228,
+    "toBlock": 26164227,
+    "body": "{\"answerType\":\"uint256\",\"chainId\":1,\"definitions\":{\"recipe\":\"{\\\"kind\\\":\\\"log-count\\\",\\\"address\\\":\\\"0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7\\\",\\\"event\\\":\\\"event Transfer(address indexed from, address indexed to, uint256 value)\\\",\\\"filter\\\":{\\\"to\\\":\\\"0x4e0fa57bde726079356537e2f34d671e9f41adbc\\\"}} - write recipe exactly this, event text included.\"},\"question\":\"How many Transfer(address indexed from, address indexed to, uint256 value) events did the token contract 0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7 emit whose to argument is 0x4e0fa57bde726079356537e2f34d671e9f41adbc in the window?\",\"v\":1,\"window\":{\"fromBlock\":26157228,\"toBlock\":26164227},\"evidence\":\"chain\",\"panelSize\":7,\"quorum\":5,\"toleranceBps\":0,\"validForSeconds\":86400}",
+    "bodyHex": "0x7b22616e7377657254797065223a2275696e74323536222c22636861696e4964223a312c22646566696e6974696f6e73223a7b22726563697065223a227b5c226b696e645c223a5c226c6f672d636f756e745c222c5c22616464726573735c223a5c223078643334613939626330663637616531626264363363363630653664306230646430336532363362375c222c5c226576656e745c223a5c226576656e74205472616e73666572286164647265737320696e64657865642066726f6d2c206164647265737320696e646578656420746f2c2075696e743235362076616c7565295c222c5c2266696c7465725c223a7b5c22746f5c223a5c223078346530666135376264653732363037393335363533376532663334643637316539663431616462635c227d7d202d207772697465207265636970652065786163746c7920746869732c206576656e74207465787420696e636c756465642e227d2c227175657374696f6e223a22486f77206d616e79205472616e73666572286164647265737320696e64657865642066726f6d2c206164647265737320696e646578656420746f2c2075696e743235362076616c756529206576656e7473206469642074686520746f6b656e20636f6e74726163742030786433346139396263306636376165316262643633633636306536643062306464303365323633623720656d69742077686f736520746f20617267756d656e742069732030783465306661353762646537323630373933353635333765326633346436373165396634316164626320696e207468652077696e646f773f222c2276223a312c2277696e646f77223a7b2266726f6d426c6f636b223a32363135373232382c22746f426c6f636b223a32363136343232377d2c2265766964656e6365223a22636861696e222c2270616e656c53697a65223a372c2271756f72756d223a352c22746f6c6572616e6365427073223a302c2276616c6964466f725365636f6e6473223a38363430307d",
+    "questionHash": "0x43edb88873f73a6652e6e8cc47494a78d80936362a35ae5d17d130f28ecae01d"
+  },
+  "notes": {
+    "what": "A log-count of the same transfers: how many IMD Transfer logs name the fee payee as recipient, zero-value transfers included. It is a count of transfers, not of paid actions. Same windows as payrolls when both are requested in the same block.",
+    "modelledOn": "recipe: dcc0a889-47e2-4320-972e-6543c96eb98d (log-count with a filter on an indexed argument, Ethereum mainnet) and 54d11aa3 (log-count of Transfer events); sentence: the shape of dbcac6c2",
+    "confirmed": [
+      "questionHash rule: rebuilt for 23 attested requests and for 3 bodies read back from Intake Requested events (test/fixtures/questions/requests, intake/requested.json)",
+      "pinning a recipe in definitions.recipe with the sentence '- write recipe exactly this, event text included.': attested requests dbcac6c2 and c5e21f11",
+      "a contract building this kind of body on chain and buying it through the Intake with an explicit {fromBlock,toBlock} window: dbcac6c2 (Robinhood Chain, payer and consumer 0x3c81384a...), body bytes in intake/requested.json",
+      "panelSize 7, quorum 5, validForSeconds 86400, evidence chain: the values of dbcac6c2, attested with agreed 5",
+      "log-count recipe {kind, address, event, filter} with a filter on an indexed argument, answer uint256, toleranceBps 0: dcc0a889 (Ethereum mainnet)",
+      "log-count of ERC-20 Transfer events: 54d11aa3 (Robinhood Chain)"
+    ],
+    "unconfirmed": [
+      "this exact body has not been through the protocol's free POST /requests/check and no request with it has been bought; do both from a wallet before funding the meter (a refused body costs 0.5 IMD)",
+      "a filter on the Transfer event's indexed `to` argument: attested samples filter on `from` (Transfer) and on `id` (Uniswap v4 Swap)",
+      "the Ethereum IMD token as the log source",
+      "body key order: this body is in canonical key order followed by the tail; the three bodies read back from the chain are in another order, which JSON parsing should not care about",
+      "the question sentence is new wording (the attested counts name their block numbers in the sentence, which a standing question cannot)",
+      "window length: the attested log-count windows in the fixtures are 299 blocks on Ethereum and 8,851 on Robinhood Chain"
+    ],
+    "limits": [
+      "zero-value transfers are counted (build brief, section 11, decision 12): the recipe counts every Transfer log whose `to` is the fee payee. A log-count filter reaches indexed arguments only (the protocol's documentation: 'optionally filtered by indexed fields'), `value` is not indexed, and no attested recipe shape excludes a transfer by its value. Anyone can therefore raise this count by one, for gas alone, with a zero-value IMD transfer to the fee payee; the payrolls sum does not move when they do",
+      "an unofficial tally (the indexer, the web page) must count the same way, every Transfer log to the fee payee with zero-value ones included, or the two numbers will not agree",
+      "any IMD transfer to the fee payee is included, whatever it was for: the chain does not say which transfers bought an action from the swarm",
+      "the feeds' own purchases are included: every request the Questions contract buys from the Intake is itself an IMD Transfer from Questions to the fee payee, so it adds to the sum and to the count, and the Questions address can appear in the ranking",
+      "after a failed or a late round one count covers more than a day (up to 21,600 blocks, three days): take each count's period from its own fromBlock and toBlock"
+    ]
+  }
+}

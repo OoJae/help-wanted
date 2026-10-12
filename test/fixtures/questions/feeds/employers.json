@@ -1,0 +1,67 @@
+{
+  "name": "employers",
+  "title": "Employers of the Week: who paid the swarm the most IMD in the last seven days",
+  "feedId": "0xc09b49435a17cb78599285e972df2f6f095b0f49658a8279812f653670633817",
+  "feedIdRule": "keccak256(abi.encode(params, keccak256(qPrefix), keccak256(tail)))",
+  "params": {
+    "action": "0x6f7261636c652e72657175657374406f7261636c652d31000000000000000000",
+    "chainId": 1,
+    "answerType": 4,
+    "panelSize": 7,
+    "quorum": 5,
+    "minAgreed": 5,
+    "validFor": 86400,
+    "cadenceBlocks": 49000,
+    "maxWindowBlocks": 50400,
+    "lagBlocks": 12,
+    "contiguous": false,
+    "pinHash": true,
+    "maxPrice": "2000000000000000000",
+    "tip": "50000000000000000",
+    "gateCmp": 0,
+    "gateTarget": "0x0000000000000000000000000000000000000000",
+    "gateThreshold": "0",
+    "gateData": "0x"
+  },
+  "qPrefix": "{\"answerType\":\"address[]\",\"chainId\":1,\"definitions\":{\"recipe\":\"{\\\"kind\\\":\\\"log-rank\\\",\\\"address\\\":\\\"0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7\\\",\\\"event\\\":\\\"event Transfer(address indexed from, address indexed to, uint256 value)\\\",\\\"sumArg\\\":\\\"value\\\",\\\"abs\\\":false,\\\"groupBy\\\":\\\"from\\\",\\\"topN\\\":5,\\\"filter\\\":{\\\"to\\\":\\\"0x4e0fa57bde726079356537e2f34d671e9f41adbc\\\"}} - write recipe exactly this, event text included.\"},\"head\":3,\"question\":\"Which addresses sent the most IMD (token contract 0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7) to 0x4e0fa57bde726079356537e2f34d671e9f41adbc on Ethereum mainnet in the window? Rank senders by the sum of value over Transfer(address indexed from, address indexed to, uint256 value) events of that contract whose to argument is 0x4e0fa57bde726079356537e2f34d671e9f41adbc, grouped by from; answer the top 5, largest first, ties by ascending address.\",\"v\":1,\"window\":{\"fromBlock\":",
+  "qPrefixHex": "0x7b22616e7377657254797065223a22616464726573735b5d222c22636861696e4964223a312c22646566696e6974696f6e73223a7b22726563697065223a227b5c226b696e645c223a5c226c6f672d72616e6b5c222c5c22616464726573735c223a5c223078643334613939626330663637616531626264363363363630653664306230646430336532363362375c222c5c226576656e745c223a5c226576656e74205472616e73666572286164647265737320696e64657865642066726f6d2c206164647265737320696e646578656420746f2c2075696e743235362076616c7565295c222c5c2273756d4172675c223a5c2276616c75655c222c5c226162735c223a66616c73652c5c2267726f757042795c223a5c2266726f6d5c222c5c22746f704e5c223a352c5c2266696c7465725c223a7b5c22746f5c223a5c223078346530666135376264653732363037393335363533376532663334643637316539663431616462635c227d7d202d207772697465207265636970652065786163746c7920746869732c206576656e74207465787420696e636c756465642e227d2c2268656164223a332c227175657374696f6e223a225768696368206164647265737365732073656e7420746865206d6f737420494d442028746f6b656e20636f6e7472616374203078643334613939626330663637616531626264363363363630653664306230646430336532363362372920746f20307834653066613537626465373236303739333536353337653266333464363731653966343161646263206f6e20457468657265756d206d61696e6e657420696e207468652077696e646f773f2052616e6b2073656e64657273206279207468652073756d206f662076616c7565206f766572205472616e73666572286164647265737320696e64657865642066726f6d2c206164647265737320696e646578656420746f2c2075696e743235362076616c756529206576656e7473206f66207468617420636f6e74726163742077686f736520746f20617267756d656e74206973203078346530666135376264653732363037393335363533376532663334643637316539663431616462632c2067726f757065642062792066726f6d3b20616e737765722074686520746f7020352c206c6172676573742066697273742c207469657320627920617363656e64696e6720616464726573732e222c2276223a312c2277696e646f77223a7b2266726f6d426c6f636b223a",
+  "tail": ",\"evidence\":\"chain\",\"panelSize\":7,\"quorum\":5,\"validForSeconds\":86400}",
+  "tailHex": "0x2c2265766964656e6365223a22636861696e222c2270616e656c53697a65223a372c2271756f72756d223a352c2276616c6964466f725365636f6e6473223a38363430307d",
+  "example": {
+    "requestBlock": 26164239,
+    "fromBlock": 26113828,
+    "toBlock": 26164227,
+    "body": "{\"answerType\":\"address[]\",\"chainId\":1,\"definitions\":{\"recipe\":\"{\\\"kind\\\":\\\"log-rank\\\",\\\"address\\\":\\\"0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7\\\",\\\"event\\\":\\\"event Transfer(address indexed from, address indexed to, uint256 value)\\\",\\\"sumArg\\\":\\\"value\\\",\\\"abs\\\":false,\\\"groupBy\\\":\\\"from\\\",\\\"topN\\\":5,\\\"filter\\\":{\\\"to\\\":\\\"0x4e0fa57bde726079356537e2f34d671e9f41adbc\\\"}} - write recipe exactly this, event text included.\"},\"head\":3,\"question\":\"Which addresses sent the most IMD (token contract 0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7) to 0x4e0fa57bde726079356537e2f34d671e9f41adbc on Ethereum mainnet in the window? Rank senders by the sum of value over Transfer(address indexed from, address indexed to, uint256 value) events of that contract whose to argument is 0x4e0fa57bde726079356537e2f34d671e9f41adbc, grouped by from; answer the top 5, largest first, ties by ascending address.\",\"v\":1,\"window\":{\"fromBlock\":26113828,\"toBlock\":26164227},\"evidence\":\"chain\",\"panelSize\":7,\"quorum\":5,\"validForSeconds\":86400}",
+    "bodyHex": "0x7b22616e7377657254797065223a22616464726573735b5d222c22636861696e4964223a312c22646566696e6974696f6e73223a7b22726563697065223a227b5c226b696e645c223a5c226c6f672d72616e6b5c222c5c22616464726573735c223a5c223078643334613939626330663637616531626264363363363630653664306230646430336532363362375c222c5c226576656e745c223a5c226576656e74205472616e73666572286164647265737320696e64657865642066726f6d2c206164647265737320696e646578656420746f2c2075696e743235362076616c7565295c222c5c2273756d4172675c223a5c2276616c75655c222c5c226162735c223a66616c73652c5c2267726f757042795c223a5c2266726f6d5c222c5c22746f704e5c223a352c5c2266696c7465725c223a7b5c22746f5c223a5c223078346530666135376264653732363037393335363533376532663334643637316539663431616462635c227d7d202d207772697465207265636970652065786163746c7920746869732c206576656e74207465787420696e636c756465642e227d2c2268656164223a332c227175657374696f6e223a225768696368206164647265737365732073656e7420746865206d6f737420494d442028746f6b656e20636f6e7472616374203078643334613939626330663637616531626264363363363630653664306230646430336532363362372920746f20307834653066613537626465373236303739333536353337653266333464363731653966343161646263206f6e20457468657265756d206d61696e6e657420696e207468652077696e646f773f2052616e6b2073656e64657273206279207468652073756d206f662076616c7565206f766572205472616e73666572286164647265737320696e64657865642066726f6d2c206164647265737320696e646578656420746f2c2075696e743235362076616c756529206576656e7473206f66207468617420636f6e74726163742077686f736520746f20617267756d656e74206973203078346530666135376264653732363037393335363533376532663334643637316539663431616462632c2067726f757065642062792066726f6d3b20616e737765722074686520746f7020352c206c6172676573742066697273742c207469657320627920617363656e64696e6720616464726573732e222c2276223a312c2277696e646f77223a7b2266726f6d426c6f636b223a32363131333832382c22746f426c6f636b223a32363136343232377d2c2265766964656e6365223a22636861696e222c2270616e656c53697a65223a372c2271756f72756d223a352c2276616c6964466f725365636f6e6473223a38363430307d",
+    "questionHash": "0x0a233daf72ce46e743cf78d52731c0309a71127133299bc294f87683c721950a"
+  },
+  "notes": {
+    "what": "A log-rank of the same transfers by sender over the newest 50,400 blocks (seven days), asked about once a week. Not contiguous: a ranking is of a period, not a running total, and a fresh closing block keeps its hash checkable. `head` is 3: the first three entries must agree and are what the signed list holds.",
+    "modelledOn": "a4d33e90-1c2c-49bd-a4aa-2d8e3f6570f3 (which address sent the most PEPE, ranked by the sum of Transfer value grouped by from, top 5): its sentence, and the recipe its panel agreed on with a filter added",
+    "confirmed": [
+      "questionHash rule: rebuilt for 23 attested requests and for 3 bodies read back from Intake Requested events (test/fixtures/questions/requests, intake/requested.json)",
+      "log-rank recipe {kind, address, event, sumArg, abs, groupBy: from, topN: 5} over ERC-20 Transfer, answer address[]: a4d33e90 (Ethereum mainnet), 05ce467c (Robinhood Chain)",
+      "`head` is part of the hashed question document: all 5 list-typed fixtures (a4d33e90, 05ce467c, 13766f38, 18b11d16, 954eba86)",
+      "a log-rank over 7,200 Ethereum blocks: 954eba86",
+      "the signed list holds `head` entries, not topN: every list-typed fixture has head 1 and one signed entry beside five computed"
+    ],
+    "unconfirmed": [
+      "this exact body has not been through the protocol's free POST /requests/check and no request with it has been bought; do both from a wallet before funding the meter (a refused body costs 0.5 IMD)",
+      "a filter on the Transfer event's indexed `to` argument: attested samples filter on `from` (Transfer) and on `id` (Uniswap v4 Swap)",
+      "the Ethereum IMD token as the log source",
+      "body key order: this body is in canonical key order followed by the tail; the three bodies read back from the chain are in another order, which JSON parsing should not care about",
+      "a `filter` inside a log-rank recipe: no attested sample has one. If the recipe engine refuses it every round fails; the fallback is a feed without the filter clause, which is a different feed id",
+      "pinning a log-rank recipe through definitions.recipe: in the attested samples the panel derived the recipe from the sentence",
+      "head 3: every attested sample has head 1 (the protocol's documentation shows a ranking with head 3)",
+      "no list-typed request attested after the attestation moved to domain version 2 on 30 Sep was found (all five samples are from 21 to 27 Sep), so neither the `head` hash rule nor panelSize/quorum/agreed on a list answer is confirmed since then. A wrong pinned hash would fail every round: buy one canary request with this body before launch and compare its attested questionHash with the one the builder gives for its window; if they differ, set pinHash to false (a different feed id; `submit` is then unavailable)",
+      "a 50,400-block window on Ethereum"
+    ],
+    "limits": [
+      "any IMD transfer to the fee payee is included, whatever it was for: the chain does not say which transfers bought an action from the swarm",
+      "the feeds' own purchases are included: every request the Questions contract buys from the Intake is itself an IMD Transfer from Questions to the fee payee, so it adds to the sum and to the count, and the Questions address can appear in the ranking",
+      "a sender whose transfers to the fee payee were all zero-value is a group with a sum of zero: in a week with fewer than three paying senders it can take a place in the list (the recipe cannot exclude a transfer by its value; see hires)",
+      "the windows of two rounds overlap or leave a gap when the feed is not asked exactly once every 50,400 blocks: each list is of the round's own fromBlock to toBlock, not of a calendar week",
+      "nothing may depend on this feed (build brief, section 11, decision 13): its body is the least certain of the three, and the Jobs Report is complete without it"
+    ]
+  }
+}
