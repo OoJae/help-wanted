@@ -52,7 +52,7 @@ import {QuestionBody} from "./QuestionBody.sol";
 /// - The Intake serves one request per transaction. `request` refuses a second one of its own in
 ///   the same transaction, but it cannot see a request its caller bought elsewhere earlier in the
 ///   same transaction. This contract's request is then paid for and never served. The meter loses
-///   the price; the round stays pending until `abandon` closes it, six hours later unless the
+///   the price; the round stays pending until `abandon` closes it, twelve hours later unless the
 ///   Intake completes it sooner; and the feed's cadence doubles. The caller is paid nothing for
 ///   it: the keeper tip is only set aside when a round is opened, it is earned when the round is
 ///   answered, and a round that fails gives it back to the meter. A caller that wins the first
@@ -61,12 +61,20 @@ import {QuestionBody} from "./QuestionBody.sol";
 ///   transaction from an honest one, so this is disclosed and not prevented. What limits it: a
 ///   keeper sends `request` as a transaction of its own, never in a batch or a shared bundle; and
 ///   for a feed that `submit` is open to, anyone who buys the same question from the oracle for
-///   this contract can hand the answer in two hours after the request, which answers the round,
-///   leaves the cadence as it was, and earns that person the round's tip.
+///   this contract can hand the answer in thirty minutes after the request, which answers the
+///   round, leaves the cadence as it was, and earns that person the round's tip.
+/// - The Intake's callback can be hours late. The oracle signs within minutes and its signed
+///   answer is public from then on; the Intake's writer has been seen to deliver one more than
+///   four hours after its request. That is why `submit` opens thirty minutes after a request the
+///   Intake has not completed, and why a round can be closed only twelve hours after its request.
+///   What remains: until its round is answered or closed a feed cannot ask again, so a request
+///   the Intake never serves holds a feed that `submit` is not open to for those twelve hours;
+///   such a feed gets its answer only if the callback comes within them; and once they are up
+///   anyone may call `abandon`, whether or not an answer is on its way.
 /// - `submit` takes any answer the oracle signed for this contract to the feed's question about
 ///   the round's blocks, from a panel at least as large as the feed's, once the Intake has
-///   completed the feed's own request and nothing was stored, or two hours after the request if
-///   the Intake has still not completed it. Chain evidence with the recipe pinned in the
+///   completed the feed's own request and nothing was stored, or thirty minutes after the request
+///   if the Intake has still not completed it. Chain evidence with the recipe pinned in the
 ///   definitions has one answer, whoever asks, so it does not matter whose request it came from.
 ///   A feed whose question a panel judges cannot use `submit` at all. A chain-evidence feed that
 ///   leaves the recipe to the panel can be answered differently by two panels: once `submit` is
@@ -426,11 +434,14 @@ contract Questions is IQuestions, OracleAttestationConsumer, ReentrancyGuardTran
     /// Intake keeps no completion time, so the wait starts when the completion is first seen here.
     uint256 public constant ABANDON_AFTER_COMPLETED = 30 minutes;
     /// @notice Any pending round may be abandoned this long after it was requested, whatever the
-    /// Intake says about it.
-    uint256 public constant ABANDON_AFTER_SILENCE = 6 hours;
-    /// @notice `submit` opens this long after a request the Intake has still not completed: well
-    /// past the time the oracle usually takes, and four hours before the round can be abandoned.
-    uint256 public constant SUBMIT_AFTER_SILENCE = 2 hours;
+    /// Intake says about it: about three times the longest the Intake's writer had been seen to
+    /// take over a delivery when this was fixed (a little over four hours).
+    uint256 public constant ABANDON_AFTER_SILENCE = 12 hours;
+    /// @notice `submit` opens this long after a request the Intake has still not completed. The
+    /// callback has that half hour to itself: the oracle signs a chain-evidence answer within
+    /// minutes, and the Intake's writer can take hours to deliver it. It is eleven and a half
+    /// hours before the round can be abandoned.
+    uint256 public constant SUBMIT_AFTER_SILENCE = 30 minutes;
     /// @notice The largest panel a feed may ask for: the protocol's own limit.
     uint256 public constant MAX_PANEL_SIZE = 300;
     /// @notice After this many failed rounds in a row the cadence stops doubling (2^5 = 32 times).
@@ -792,9 +803,9 @@ contract Questions is IQuestions, OracleAttestationConsumer, ReentrancyGuardTran
         _settle(feedId, requestId, a, signature, address(0));
     }
 
-    /// @notice Hands in an attestation the callback missed. Anyone may call, once the Intake has
-    /// completed the round's own request and nothing was stored, or two hours after the request
-    /// if the Intake has still not completed it.
+    /// @notice Hands in an attestation the callback missed or has not brought. Anyone may call,
+    /// once the Intake has completed the round's own request and nothing was stored, or thirty
+    /// minutes after the request if the Intake has still not completed it.
     /// @dev The same checks as the callback. Three conditions come first, each with its reason:
     ///
     /// - The feed pins its question (`SubmitNeedsPinnedQuestion`). With the question hash checked,
@@ -805,11 +816,15 @@ contract Questions is IQuestions, OracleAttestationConsumer, ReentrancyGuardTran
     ///   contract a request names, so anyone can buy answers of their own to a feed's question,
     ///   addressed here. Two panels can judge one question differently, and whoever submits would
     ///   choose between them. Only the Intake delivers to such a feed.
-    /// - The Intake has completed the round's own request, or two hours have passed since it was
-    ///   made (`SubmitTooEarly`). The callback goes first, so the answer the meter paid for is the
-    ///   one stored whenever it arrives in ordinary time. The two hours are there for a request
-    ///   the Intake never serves (see the contract's notice: a caller that asked elsewhere first in
-    ///   the same transaction) or serves very late: without them such a round could only fail. An
+    /// - The Intake has completed the round's own request, or thirty minutes have passed since it
+    ///   was made (`SubmitTooEarly`). The callback goes first for that half hour, so the answer
+    ///   the meter paid for is the one stored whenever the Intake delivers it in that time. After
+    ///   it, whoever holds a signed answer may hand it in. That is there for a request the Intake
+    ///   never serves (see the contract's notice: a caller that asked elsewhere first in the same
+    ///   transaction), whose round could otherwise only fail, and for an answer the oracle has
+    ///   signed and the Intake's writer has not delivered, which has been seen to take hours.
+    ///   Thirty minutes can be less than the oracle itself takes: an answer somebody else bought
+    ///   to the same question may then be stored before the one the meter paid for exists. An
     ///   Intake that cannot be read counts as not having completed anything.
     ///
     /// What is left is disclosed in the contract's notice: once `submit` is open, any answer the
@@ -818,9 +833,9 @@ contract Questions is IQuestions, OracleAttestationConsumer, ReentrancyGuardTran
     ///
     /// The round's tip goes to the caller, not to whoever opened the round, unless they are the
     /// same: the tip is for the answer, and here the caller is the one who brought it. A keeper
-    /// whose own request was served and whose callback failed hands the answer in itself and is
-    /// paid as usual; a caller that opened a round in a way that left it unserved earns nothing
-    /// when somebody else answers it.
+    /// whose own request was served and whose callback failed or is late hands the answer in
+    /// itself and is paid as usual, if it is the first to do so; a caller that opened a round in a
+    /// way that left it unserved earns nothing when somebody else answers it.
     function submit(bytes32 feedId, OracleAttestation.Attestation calldata a, bytes calldata signature)
         external
         nonReentrant
@@ -838,7 +853,8 @@ contract Questions is IQuestions, OracleAttestationConsumer, ReentrancyGuardTran
     /// Anyone may call.
     /// @dev Two rules, whichever allows it first:
     ///
-    /// - Six hours after the request, whatever the Intake says: one call closes the round.
+    /// - Twelve hours after the request, whatever the Intake says: one call closes the round, even
+    ///   one whose answer is on its way. An answer that comes after that is refused.
     /// - Thirty minutes after `abandon` first found the Intake's request completed (refused, no
     ///   answer, or an answer whose callback failed). That takes two calls. The first records the
     ///   time, emits `CompletionSeen`, changes nothing else and returns false; the second, thirty
@@ -1080,7 +1096,7 @@ contract Questions is IQuestions, OracleAttestationConsumer, ReentrancyGuardTran
 
     /// @notice Whether `submit` is open for a feed right now: the feed pins its question, a panel
     /// does not judge it, a round is pending, and either the Intake has completed that round's
-    /// request or two hours have passed since it was made. False for an unknown feed.
+    /// request or thirty minutes have passed since it was made. False for an unknown feed.
     function canSubmit(bytes32 feedId) external view returns (bool) {
         Feed storage f = _feeds[feedId];
         FeedState memory s = f.state;
@@ -1152,18 +1168,19 @@ contract Questions is IQuestions, OracleAttestationConsumer, ReentrancyGuardTran
     }
 
     /// @dev Whether `submit` may be used on a pending round as far as time goes: the Intake has
-    /// completed the round's request, or the request is two hours old.
+    /// completed the round's request, or the request is thirty minutes old.
     function _submitOpen(Round storage r) internal view returns (bool) {
         // forge-lint: disable-next-line(block-timestamp)
         return block.timestamp >= uint256(r.requestedAt) + SUBMIT_AFTER_SILENCE || _intakeCompleted(r.requestId);
     }
 
     /// @dev The one place that decides what `abandon` does with a pending round, used by `abandon`
-    /// and by `canAbandon`. The round is closable six hours after its request, or thirty minutes
+    /// and by `canAbandon`. The round is closable twelve hours after its request, or thirty minutes
     /// after its completion was first recorded here, whichever is sooner. A completion recorded
     /// earlier counts only while the Intake still reports the request completed. `closableAt` is
     /// when the round becomes closable; for `StartWait`, when it will be if the wait starts now.
-    /// The waits are half an hour and six hours; the seconds a validator can shift do not matter.
+    /// The waits are half an hour and twelve hours; the seconds a validator can shift do not
+    /// matter.
     function _abandonStep(FeedState memory s, Round storage r)
         internal
         view

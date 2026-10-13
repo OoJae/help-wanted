@@ -5,8 +5,26 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {Payroll} from "../../src/payroll/Payroll.sol";
 import {PayrollSetup} from "./PayrollSetup.sol";
-import {MockSIMD} from "./mocks/MockTokens.sol";
+import {MockIMD, MockSIMD, HoldlessSIMD} from "./mocks/MockTokens.sol";
 import {RawResponder} from "./mocks/MockSeats.sol";
+
+/// @dev A whole visit to a staking vault as one transaction, paid for with somebody else's IMD:
+/// borrow, stake, make Payroll drip, leave, repay, keep the difference. Possible only against a vault
+/// with no hold on fresh deposits, which the real sIMD is not.
+contract LoanedVisit {
+    function visit(MockIMD imd, HoldlessSIMD vault, Payroll payroll, address lender, uint256 amount)
+        external
+        returns (uint256 gain)
+    {
+        imd.transferFrom(lender, address(this), amount);
+        imd.approve(address(vault), amount);
+        uint256 shares = vault.deposit(amount, address(this));
+        payroll.drip();
+        uint256 back = vault.redeem(shares, address(this), address(this));
+        imd.transfer(lender, amount);
+        gain = back - amount;
+    }
+}
 
 /// @dev The staker stream: vesting over seven days, the weighted end time a booking gives it, and
 /// `drip`.
@@ -129,8 +147,9 @@ contract PayrollStreamTest is PayrollSetup {
         assertBooksBalance();
     }
 
-    /// @dev The old money is never made to wait longer by a booking, and the new money never waits
-    /// longer than seven days: the joint end lies between the old end and seven days from now.
+    /// @dev The joint end lies between the old end and seven days from now: the old money is never
+    /// rushed and the new money never waits longer than seven days. The old money can be made to
+    /// wait longer, up to that ceiling; `test/payroll/audit/AuditReports.t.sol` measures by how much.
     function test_booking_neverPushesTheEndPastSevenDaysOrBeforeTheOldEnd() public {
         (,, uint256 oldEnd,,,) = payroll.stream();
         skip(100 hours);
@@ -221,8 +240,8 @@ contract PayrollStreamTest is PayrollSetup {
     }
 
     /// @dev The same with bookings that are not dust: steady fee traffic. Each booking is a seventh
-    /// of a day's stream. Nothing booked waits longer than seven days for its last wei: seven days
-    /// after the last booking everything has vested.
+    /// of a day's stream. The end is never more than seven days away, and seven days after the last
+    /// booking everything has vested.
     function test_booking_steadyTrafficNeverDelaysMoneyPastSevenDays() public {
         uint256 booked = STREAM;
         for (uint256 h; h < 14 * 24; ++h) {
@@ -446,9 +465,15 @@ contract PayrollStreamTest is PayrollSetup {
         assertEq(p.book(), 0);
     }
 
-    /// @dev The reason for the cap: a wallet that stakes just before a drip and leaves just after takes
-    /// its share of one hour of stream, not of the week.
-    function test_shortVisitCollectsAtMostItsShareOfOneDrip() public {
+    // ---- a visitor to sIMD around the drips
+    //
+    // Audit job 22624be0, finding 1 (medium), acknowledged and not closed: see docs/AUDITS.md and
+    // docs/THREATS.md P2. The test that stood here, `test_shortVisitCollectsAtMostItsShareOfOneDrip`,
+    // checked one round trip and stopped. These repeat the visit over the whole stream and state
+    // what it adds up to.
+
+    /// @dev One visit takes the visitor's share of one drip, and the cap sets how large a drip is.
+    function test_visitor_oneVisitTakesItsShareOfOneCappedDrip() public {
         skip(3 days); // a three-day backlog is waiting
         address visitor = makeAddr("visitor");
         uint256 stake = 1_000e18; // as much as every other staker together
@@ -467,8 +492,161 @@ contract PayrollStreamTest is PayrollSetup {
         uint256 back = simd.redeem(shares, visitor, visitor);
 
         uint256 gain = back - stake;
-        assertLe(gain, sent / 2 + 1, "half the vault, so at most half of one capped transfer");
-        assertLt(gain, 1e18, "nowhere near its half of the 72 IMD that had vested over three days");
+        assertLe(gain, sent / 2, "half the vault, so at most half of the one transfer it attended");
+        assertApproxEqAbs(gain, sent / 2, 1e6);
+        assertLt(gain, 1e18, "not its half of the 72 IMD that had vested over three days: that takes 72 visits");
+    }
+
+    /// @dev The visit, repeated at every drip of a whole stream. The visitor holds as much as every
+    /// other staker together, stakes just before each drip (which it makes itself), and leaves one
+    /// block later: sIMD does not let it leave sooner. It collects half of the stream, which is its
+    /// pro-rata share of every drip it attended and exactly what a staker of its size who had
+    /// stayed all week would have received, and not a wei more. The staker who stayed gets the
+    /// other half where it would have had everything. Nothing in Payroll prevents this: sIMD pays
+    /// whoever holds its shares when IMD arrives.
+    function test_visitor_repeatedOverAWholeStreamTakesItsProRataShareAndNoMore() public {
+        address visitor = makeAddr("visitor");
+        uint256 stake = 1_000e18; // as much as every other staker together
+        imd.mint(visitor, stake);
+        vm.prank(visitor);
+        imd.approve(address(simd), type(uint256).max);
+        uint256 stayedBefore = simd.convertToAssets(simd.balanceOf(staker));
+
+        for (uint256 i; i < 168; ++i) {
+            skip(1 hours);
+            vm.roll(vm.getBlockNumber() + 1);
+            uint256 all = imd.balanceOf(visitor);
+            vm.prank(visitor);
+            uint256 shares = simd.deposit(all, visitor);
+            vm.prank(visitor);
+            assertEq(payroll.drip(), 1e18);
+            if (i == 0) {
+                // Not in the block it staked in.
+                assertEq(simd.maxRedeem(visitor), 0);
+                vm.expectRevert(MockSIMD.RedeemMoreThanMax.selector);
+                vm.prank(visitor);
+                simd.redeem(shares, visitor, visitor);
+            }
+            vm.roll(vm.getBlockNumber() + 1);
+            vm.prank(visitor);
+            simd.redeem(shares, visitor, visitor);
+        }
+
+        assertEq(payroll.ledger().dripped, STREAM, "the visitor attended every drip of the stream");
+        uint256 gain = imd.balanceOf(visitor) - stake;
+        uint256 stayed = simd.convertToAssets(simd.balanceOf(staker)) - stayedBefore;
+        emit log_named_decimal_uint("the stream (IMD)", STREAM, 18);
+        emit log_named_decimal_uint("the visitor's gain (IMD)", gain, 18);
+        emit log_named_decimal_uint("the gain of the staker who stayed (IMD)", stayed, 18);
+        assertLe(gain, STREAM / 2, "the visitor took more than its pro-rata share of the stream");
+        assertApproxEqAbs(gain, STREAM / 2, 1e6, "the visitor took something other than its pro-rata share");
+        assertApproxEqAbs(stayed, STREAM / 2, 1e6, "the staker who stayed was diluted by another amount");
+        assertLe(gain + stayed, STREAM);
+    }
+
+    /// @dev A staker of the visitor's size who simply stays receives the same: visiting earns no
+    /// more than staking, it only needs the capital for two blocks an hour and not all week.
+    function test_visitor_aStakerOfTheSameSizeWhoStaysGetsTheSame() public {
+        address second = makeAddr("second staker");
+        imd.mint(second, 1_000e18);
+        vm.startPrank(second);
+        imd.approve(address(simd), 1_000e18);
+        uint256 shares = simd.deposit(1_000e18, second);
+        vm.stopPrank();
+
+        for (uint256 i; i < 168; ++i) {
+            skip(1 hours);
+            payroll.drip();
+        }
+        vm.roll(vm.getBlockNumber() + 1);
+        vm.prank(second);
+        uint256 back = simd.redeem(shares, second, second);
+        assertApproxEqAbs(back - 1_000e18, STREAM / 2, 1e6);
+    }
+
+    /// @dev What the hold is worth. Against a vault without it, the same share of every drip is
+    /// taken with IMD borrowed for the length of one transaction: borrow, stake, drip, leave, repay.
+    /// The visitor owns nothing before and has nothing in the vault between two blocks, and still
+    /// ends with its pro-rata share of every drip: here 1,000 IMD borrowed each time against a
+    /// staker whose 1,000 grows with what it keeps, 82.27 of the 168 IMD. The real sIMD refuses
+    /// the fourth step (fork suite:
+    /// `test_fork_visit_stakeDripLeaveInOneTransactionReverts`), so there a visit needs the visitor's
+    /// own IMD, staked across at least one block boundary for every drip.
+    function test_visitor_withoutTheHoldTheSameShareNeedsNoCapitalAtAll() public {
+        HoldlessSIMD vault = new HoldlessSIMD(IERC20(address(imd)));
+        Payroll p = new Payroll(
+            address(imd),
+            address(vault),
+            address(seats),
+            SEAT_COUNT,
+            address(adapter),
+            address(questions),
+            FEED_A,
+            FEED_B,
+            FEED_C
+        );
+        address stays = makeAddr("staker of the vault without a hold");
+        address lender = makeAddr("lender");
+        imd.mint(stays, 1_000e18);
+        imd.mint(lender, 1_000e18);
+        vm.startPrank(stays);
+        imd.approve(address(vault), 1_000e18);
+        vault.deposit(1_000e18, stays);
+        vm.stopPrank();
+        vm.startPrank(payer);
+        imd.approve(address(p), type(uint256).max);
+        p.pay(STREAM * 2, bytes32(0));
+        vm.stopPrank();
+
+        LoanedVisit visit = new LoanedVisit();
+        vm.prank(lender);
+        imd.approve(address(visit), type(uint256).max);
+        assertEq(imd.balanceOf(address(visit)), 0, "the visitor owns nothing");
+
+        uint256 total;
+        uint256 proRata;
+        for (uint256 i; i < 168; ++i) {
+            skip(1 hours);
+            // C / (S + C) of this drip: the loan against what the staker who stays has in the vault.
+            proRata += (uint256(1e18) * 1_000e18) / (vault.totalAssets() + 1_000e18);
+            total += visit.visit(imd, vault, p, lender, 1_000e18);
+            assertEq(imd.balanceOf(lender), 1_000e18, "the loan was repaid inside the visit");
+            assertEq(vault.balanceOf(address(visit)), 0, "nothing of the visitor's is left in the vault");
+        }
+        assertEq(p.ledger().dripped, STREAM);
+        assertEq(imd.balanceOf(address(visit)), total);
+        emit log_named_decimal_uint("taken with borrowed IMD and no hold (IMD)", total, 18);
+        assertLe(total, proRata, "more than its pro-rata share of each drip");
+        assertApproxEqAbs(total, proRata, 1e6, "its pro-rata share of every drip, for the gas of 168 transactions");
+        assertGt(total, 82e18, "close to half of the 168 IMD stream");
+    }
+
+    /// @dev The same loaned visit against the stand-in that models the real sIMD's hold: it reverts.
+    function test_visitor_withTheHoldAStakeDripLeaveTransactionReverts() public {
+        address visitor = makeAddr("visitor");
+        imd.mint(visitor, 1_000e18);
+        skip(1 hours);
+        vm.startPrank(visitor);
+        imd.approve(address(simd), 1_000e18);
+        uint256 shares = simd.deposit(1_000e18, visitor);
+        payroll.drip();
+        vm.expectRevert(MockSIMD.RedeemMoreThanMax.selector);
+        simd.redeem(shares, visitor, visitor);
+        vm.expectRevert(MockSIMD.WithdrawMoreThanMax.selector);
+        simd.withdraw(1_000e18, visitor, visitor);
+
+        // Handing the shares to another address in the same block does not help: the stamp goes with them.
+        address second = makeAddr("second address");
+        simd.transfer(second, shares);
+        vm.stopPrank();
+        assertEq(simd.maxRedeem(second), 0);
+        vm.expectRevert(MockSIMD.RedeemMoreThanMax.selector);
+        vm.prank(second);
+        simd.redeem(shares, second, second);
+
+        vm.roll(vm.getBlockNumber() + 1);
+        vm.prank(second);
+        assertGt(simd.redeem(shares, second, second), 1_000e18);
     }
 
     function payrollWithVault(address vault) internal returns (Payroll p) {

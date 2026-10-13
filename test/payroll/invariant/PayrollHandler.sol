@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
 
-import {Payroll} from "../../../src/payroll/Payroll.sol";
+import {Payroll, IMeterPosition} from "../../../src/payroll/Payroll.sol";
 import {ISeatAdapter} from "../../../src/interfaces/external/ISeatAdapter.sol";
 import {MockIMD, MockSIMD} from "../mocks/MockTokens.sol";
 import {MockSeats, MockAdapter} from "../mocks/MockSeats.sol";
@@ -54,6 +54,9 @@ contract PayrollHandler is Test {
     uint256 public vaultIn;
     uint256 public vaultOut;
     bool internal questionsDown;
+    /// @dev True while a top-up cannot go through whole: Questions is down or refuses `fund`, or the
+    /// token moves only half of what a top-up pulls.
+    bool internal topUpsDisturbed;
 
     address internal immutable staker;
     address internal immutable stranger = makeAddr("a stranger who funds meters");
@@ -98,6 +101,7 @@ contract PayrollHandler is Test {
         moneyIn += amount;
 
         uint256 released = b.feedsReleased - a.feedsReleased;
+        if (released != 0) _flag("a booking released feed budget");
         if (b.received - a.received != amount) _flag("pay booked a different amount");
         if (b.toSeats - a.toSeats != (amount * 3_000) / 10_000) _flag("seat share is not 30%");
         if (b.toFeeds + released - a.toFeeds != (amount * 2_000) / 10_000) _flag("feed share is not 20%");
@@ -115,10 +119,12 @@ contract PayrollHandler is Test {
     function book() external {
         uint256 waiting = payroll.unbooked();
         uint256 received = payroll.ledger().received;
+        uint256 releasedBefore = payroll.ledger().feedsReleased;
         uint256 booked = payroll.book();
         if (booked != waiting) _flag("book did not book exactly what was waiting");
         if (payroll.ledger().received - received != booked) _flag("book changed received by another amount");
         if (payroll.unbooked() != 0) _flag("something was left unbooked");
+        if (payroll.ledger().feedsReleased != releasedBefore) _flag("a booking released feed budget");
     }
 
     function tip(uint256 amount, uint256 seed, uint8 count) external {
@@ -166,8 +172,11 @@ contract PayrollHandler is Test {
             reachedStakers += sent;
             if (sent != 0 && simd.totalSupply() == 0) _flag("a drip went to a vault nobody holds");
         } catch {
-            // Outside the gap, a drip may only fail because money is due and sIMD has no stakers.
-            bool vaultWaits = dueNow != 0 && simd.totalSupply() == 0;
+            // The view never promises what `drip` refuses: when it says something is due, the call
+            // goes through. A drip may fail only inside the ten-minute gap, or because sIMD has no
+            // stakers while money has vested, and in both cases the view says nothing is due.
+            if (dueNow != 0) _flag("drip reverted although the stream view said something was due");
+            bool vaultWaits = simd.totalSupply() == 0;
             if (vm.getBlockTimestamp() >= nextDripAt && !vaultWaits) _flag("drip reverted outside the ten-minute gap");
         }
     }
@@ -314,14 +323,32 @@ contract PayrollHandler is Test {
     }
 
     function fundFeeds() external {
-        (uint256 budget,,,) = payroll.feedBudget();
+        (uint256 budget,, uint256 due,) = payroll.feedBudget();
         uint256 metersBefore = _meters();
         uint256 stakersBefore = payroll.ledger().toStakers;
+        uint256[3] memory ownBefore = _positions();
         try payroll.fundFeeds() returns (uint256 funded, uint256 released) {
             if (funded + released > budget) _flag("more left the feed budget than it held");
+            if (released > due) _flag("more was released than had fallen due");
             if (!questionsDown && _meters() - metersBefore != funded) _flag("meters did not receive what was funded");
             if (payroll.ledger().toStakers - stakersBefore != released) _flag("released budget did not reach stakers");
             if (questionsDown && funded != 0) _flag("an unreachable Questions was funded");
+            if (payroll.feedBudgetDue() != 0) _flag("something due was neither placed nor released");
+            if (!questionsDown) {
+                // Payroll never holds more than one runway on a meter because of a top-up, at a cost
+                // of at most 2 IMD a request, whatever anybody else holds there.
+                uint256[3] memory own = _positions();
+                for (uint256 i; i < 3; ++i) {
+                    uint256 runway = (i == 2 ? 4 : 14) * 2e18;
+                    if (own[i] > ownBefore[i] && own[i] > runway) _flag("a top-up took Payroll past its runway");
+                }
+            }
+            // The meters come first. When every top-up can go through, budget is released (beyond
+            // the wei a proportional split rounds off) only if no meter still lacks anything.
+            if (!topUpsDisturbed && released > 2) {
+                uint256[3] memory needs = payroll.feedShortfalls();
+                if (needs[0] + needs[1] + needs[2] != 0) _flag("budget was released past a meter that lacked it");
+            }
         } catch {
             _flag("fundFeeds reverted");
         }
@@ -332,8 +359,11 @@ contract PayrollHandler is Test {
     // ---------------------------------------------------------------------------------------------
 
     /// @dev Mostly days (the stream and the feed fortnights), sometimes months (the tips' 180 days).
+    /// At least one block passes too, which ends the hold sIMD puts on whoever staked in this one.
     function wait(uint256 time) external {
-        skip(bound(time, 1, time % 3 == 0 ? 200 days : 20 days));
+        time = bound(time, 1, time % 3 == 0 ? 200 days : 20 days);
+        skip(time);
+        vm.roll(vm.getBlockNumber() + 1 + time / 12);
     }
 
     function moveSeat(uint256 seat, uint256 ownerIndex) external {
@@ -356,6 +386,7 @@ contract PayrollHandler is Test {
     function changeQuestions(uint256 mode, uint256 cost) external {
         mode = mode % 5;
         questionsDown = mode == 1;
+        topUpsDisturbed = mode == 1 || mode == 2 || mode == 3;
         // The real Questions is cut off at its address: everything (mode 1) or `fund` alone (mode 2).
         vm.clearMockedCalls();
         if (mode == 1) {
@@ -363,6 +394,7 @@ contract PayrollHandler is Test {
             _refuse(IQuestions.meterOf.selector);
             _refuse(IQuestions.sharesOf.selector);
             _refuse(IQuestions.defund.selector);
+            _refuse(IMeterPosition.redeemable.selector);
         }
         if (mode == 1 || mode == 2) _refuse(IQuestions.fund.selector);
         // The token disturbs the pull of a top-up: half of it moves (mode 3), or Payroll is called
@@ -387,7 +419,8 @@ contract PayrollHandler is Test {
         questions.spend(feeds[feedIndex % 3], bound(amount, 0, 5e18));
     }
 
-    /// @dev Somebody else puts IMD on a house meter: Payroll must count it and top up only the rest.
+    /// @dev Somebody else puts IMD on a house meter. It is not Payroll's runway: Payroll must still
+    /// keep a position of its own there (see `fundFeeds` above).
     function fundMeterAsStranger(uint256 feedIndex, uint256 amount) external {
         if (questionsDown) return;
         amount = bound(amount, 1, 30e18);
@@ -399,7 +432,7 @@ contract PayrollHandler is Test {
         vm.stopPrank();
     }
 
-    /// @dev And takes some of it back, which lowers a meter Payroll may have just filled.
+    /// @dev And takes some of it back, which must not touch what Payroll holds on the meter.
     function defundMeterAsStranger(uint256 feedIndex, uint256 shares) external {
         if (questionsDown) return;
         bytes32 feed = feeds[feedIndex % 3];
@@ -408,16 +441,21 @@ contract PayrollHandler is Test {
         shares = bound(shares, 1, held);
         uint256 metersBefore = _meters();
         uint256 payrollBefore = imd.balanceOf(address(payroll));
+        uint256 ownBefore = questions.redeemable(feed, address(payroll));
         vm.prank(stranger);
         uint256 got = questions.defund(feed, shares);
         if (metersBefore - _meters() != got) _flag("a defund moved another amount off the meters");
         if (imd.balanceOf(address(payroll)) != payrollBefore) _flag("a stranger's defund touched Payroll's IMD");
+        if (questions.redeemable(feed, address(payroll)) < ownBefore) {
+            _flag("a stranger's defund lowered Payroll's position on a meter");
+        }
     }
 
     /// @dev Every staker leaves sIMD: until somebody stakes again the stream must wait in Payroll.
     function emptyVault() external {
         uint256 shares = simd.balanceOf(staker);
-        if (shares == 0) return;
+        // Nobody leaves in the block they staked in.
+        if (shares == 0 || simd.maxRedeem(staker) == 0) return;
         vm.prank(staker);
         vaultOut += simd.redeem(shares, staker, staker);
     }
@@ -469,6 +507,14 @@ contract PayrollHandler is Test {
     function notedTips() external view returns (uint256 sum) {
         for (uint256 a; a < AGENT_COUNT; ++a) {
             sum += _noted(a);
+        }
+    }
+
+    /// @dev What Payroll could take back from each house meter. Zeros while Questions is cut off.
+    function _positions() internal view returns (uint256[3] memory own) {
+        if (questionsDown) return own;
+        for (uint256 i; i < 3; ++i) {
+            own[i] = questions.redeemable(feeds[i], address(payroll));
         }
     }
 

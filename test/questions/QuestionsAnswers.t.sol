@@ -213,7 +213,7 @@ contract QuestionsAnswersTest is QuestionsFixture {
         bytes32 intakeId = _request(feedId);
         OracleAttestation.Attestation memory a = _attestation(feedId, abi.encode(uint256(1)));
         bytes memory signature = _sign(a);
-        skip(6 hours);
+        skip(abandonAfterSilence);
         q.abandon(feedId);
         // The late answer is refused by the callback, so the Intake records it as not delivered.
         assertFalse(_complete(intakeId, a, signature));
@@ -621,8 +621,8 @@ contract QuestionsAnswersTest is QuestionsFixture {
     }
 
     /// @notice The callback goes first. Until the Intake has completed the feed's own request,
-    /// and for two hours if it has not, nobody can hand anything in: not the answer the meter paid
-    /// for, and not an answer to the same question that somebody bought for themselves and
+    /// and for thirty minutes if it has not, nobody can hand anything in: not the answer the meter
+    /// paid for, and not an answer to the same question that somebody bought for themselves and
     /// addressed to this contract.
     function test_submit_beforeTheIntakeHasCompletedTheRequest_reverts() public {
         bytes32 intakeId = _request(feedId);
@@ -632,7 +632,7 @@ contract QuestionsAnswersTest is QuestionsFixture {
         bytes memory paidForSignature = _sign(paidFor);
         bytes memory boughtSignature = _sign(bought);
         assertTrue(paidFor.requestId != bought.requestId);
-        bytes memory tooEarly = abi.encodeWithSelector(Questions.SubmitTooEarly.selector, askedAt + 2 hours);
+        bytes memory tooEarly = abi.encodeWithSelector(Questions.SubmitTooEarly.selector, askedAt + submitAfterSilence);
 
         assertFalse(q.canSubmit(feedId));
         vm.expectRevert(tooEarly);
@@ -640,13 +640,17 @@ contract QuestionsAnswersTest is QuestionsFixture {
         q.submit(feedId, bought, boughtSignature);
         vm.expectRevert(tooEarly);
         q.submit(feedId, paidFor, paidForSignature);
-        // Still closed at the oracle's slow end, an hour in, and to the last second.
-        skip(1 hours);
+        // Still closed half way through the wait, and to its last second, for both answers.
+        skip(submitAfterSilence / 2);
         assertFalse(q.canSubmit(feedId));
-        skip(1 hours - 1);
+        skip(submitAfterSilence - submitAfterSilence / 2 - 1);
+        assertEq(vm.getBlockTimestamp(), askedAt + submitAfterSilence - 1);
+        assertFalse(q.canSubmit(feedId));
         vm.expectRevert(tooEarly);
         vm.prank(bob);
         q.submit(feedId, bought, boughtSignature);
+        vm.expectRevert(tooEarly);
+        q.submit(feedId, paidFor, paidForSignature);
         _assertStillPending(feedId, bought);
 
         // The answer the meter paid for is the one that is stored.
@@ -659,24 +663,39 @@ contract QuestionsAnswersTest is QuestionsFixture {
         q.submit(feedId, bought, boughtSignature);
     }
 
-    /// @notice A request the Intake never completes does not leave its round to fail: two hours
-    /// after it was made, anyone who holds an answer to the same question about the same blocks,
-    /// signed for this contract, can hand it in. The round is answered and the cadence stays as it
-    /// was. What the Intake delivers afterwards, if it ever does, finds the round settled.
-    function test_submit_opensTwoHoursAfterARequestTheIntakeNeverCompleted() public {
+    /// @notice A request the Intake never completes does not leave its round to fail: thirty
+    /// minutes after it was made, and not one second sooner, anyone who holds an answer to the same
+    /// question about the same blocks, signed for this contract, can hand it in. The round is
+    /// answered and the cadence stays as it was. What the Intake delivers afterwards, if it ever
+    /// does, finds the round settled.
+    function test_submit_opensThirtyMinutesAfterARequestTheIntakeNeverCompleted() public {
         bytes32 intakeId = _request(feedId);
+        uint256 askedAt = vm.getBlockTimestamp();
         uint256 askedBlock = vm.getBlockNumber();
-        assertEq(q.SUBMIT_AFTER_SILENCE(), 2 hours);
+        assertEq(q.SUBMIT_AFTER_SILENCE(), 30 minutes);
         assertLt(q.SUBMIT_AFTER_SILENCE(), q.ABANDON_AFTER_SILENCE());
+        // Bought from the oracle for this contract by whoever wants the round answered. The oracle
+        // signs within minutes; the answer then waits for the half hour to be over.
+        skip(2 minutes);
+        OracleAttestation.Attestation memory bought = _attestation(feedId, abi.encode(uint256(42)));
+        bytes memory signature = _sign(bought);
 
-        skip(2 hours);
-        vm.roll(askedBlock + 600);
+        // One second before the boundary: closed.
+        skip(submitAfterSilence - 2 minutes - 1);
+        vm.roll(askedBlock + submitAfterSilence / 12 - 1);
+        assertEq(vm.getBlockTimestamp(), askedAt + submitAfterSilence - 1);
+        assertFalse(q.canSubmit(feedId));
+        vm.expectRevert(abi.encodeWithSelector(Questions.SubmitTooEarly.selector, askedAt + submitAfterSilence));
+        vm.prank(bob);
+        q.submit(feedId, bought, signature);
+
+        // At the boundary: open, with the Intake still silent.
+        skip(1);
+        vm.roll(askedBlock + submitAfterSilence / 12);
+        assertEq(vm.getBlockTimestamp(), askedAt + submitAfterSilence);
         (,,, bool completed) = intake.requests(intakeId);
         assertFalse(completed);
         assertTrue(q.canSubmit(feedId));
-        // Bought from the oracle for this contract by whoever wants the round answered.
-        OracleAttestation.Attestation memory bought = _attestation(feedId, abi.encode(uint256(42)));
-        bytes memory signature = _sign(bought);
         vm.expectEmit(address(q));
         emit RoundAnswered(feedId, 1, bought.requestId, 42, 0, 5, bought.panelJobId, bob);
         vm.prank(bob);
@@ -852,9 +871,9 @@ contract QuestionsAnswersTest is QuestionsFixture {
     }
 
     /// @notice An Intake whose `requests` getter cannot be read counts as not having completed
-    /// anything: `submit` stays closed for the two hours and then opens, so a missed callback can
-    /// still be made good on an Intake that no longer answers.
-    function test_submit_withAnIntakeThatCannotBeRead_waitsTheTwoHours() public {
+    /// anything: `submit` stays closed for the thirty minutes and then opens, so a missed callback
+    /// can still be made good on an Intake that no longer answers.
+    function test_submit_withAnIntakeThatCannotBeRead_waitsTheThirtyMinutes() public {
         OddIntake odd = new OddIntake();
         QuestionsHarness oddQ = new QuestionsHarness(address(odd), address(imd), oracle);
         bytes32 id = oddQ.createFeed(_params(), _prefix("uint256"), _tail(7, 5, 86_400));
@@ -873,17 +892,22 @@ contract QuestionsAnswersTest is QuestionsFixture {
         for (uint256 i; i < modes.length; ++i) {
             odd.setRequestsMode(modes[i]);
             assertFalse(oddQ.canSubmit(id));
-            vm.expectRevert(abi.encodeWithSelector(Questions.SubmitTooEarly.selector, askedAt + 2 hours));
+            vm.expectRevert(abi.encodeWithSelector(Questions.SubmitTooEarly.selector, askedAt + submitAfterSilence));
             oddQ.submit(id, a, "");
         }
         // With a getter that answers "completed" it is open at once.
         odd.setRequestsMode(OddIntake.Read.Normal);
         assertTrue(oddQ.canSubmit(id));
 
-        // With one that does not, it opens when the two hours are up, in every mode.
-        skip(2 hours - 1);
-        odd.setRequestsMode(OddIntake.Read.Revert);
-        assertFalse(oddQ.canSubmit(id));
+        // With one that does not, it opens when the thirty minutes are up, in every mode, and is
+        // closed in every mode one second sooner.
+        skip(submitAfterSilence - 1);
+        for (uint256 i; i < modes.length; ++i) {
+            odd.setRequestsMode(modes[i]);
+            assertFalse(oddQ.canSubmit(id));
+            vm.expectRevert(abi.encodeWithSelector(Questions.SubmitTooEarly.selector, askedAt + submitAfterSilence));
+            oddQ.submit(id, a, "");
+        }
         skip(1);
         for (uint256 i; i < modes.length; ++i) {
             odd.setRequestsMode(modes[i]);

@@ -13,9 +13,13 @@ What is followed without change comes first, because it is the larger part.
 - `src/questions/OracleAttestation.sol` is the protocol's library and base contract, copied byte
   for byte. The attestation struct, the type string and the EIP-712 domain (`IdentityMD Oracle`,
   version `2`, this chain, this contract) are the protocol's.
-- `test/questions/OracleConsumerConformance.t.sol` is the protocol's conformance test with only its
-  imports and the way the consumer is deployed adapted. It passes: our verification reproduces the
+- `test/questions/OracleConsumerConformance.t.sol` is the protocol's conformance test, in the text
+  delivered with version 2 of the Intake, with only its imports and the way the consumer is
+  deployed adapted (a script writes it from the reference and can check it:
+  `test/fixtures/questions/tools/build_conformance.py`). It passes: our verification reproduces the
   protocol's digest and accepts the protocol's signature.
+- The Intake in the manifest is version 2 (`0xa43e6f75ee006411f79ac1c84120606c2330de82`), the one
+  the guidance names for anything new.
 - The callback has the protocol's parameter types and selector (`0x510379c7`), accepts calls from
   the Intake only, only for a request this contract made and has not settled, verifies and stores,
   and acts on nothing. A "no", a zero and an empty list are stored, not reverted. It used at most
@@ -59,24 +63,54 @@ code: signatures are then checked through ERC-1271 and plain signatures stop ver
 A new action version is only half covered: new feeds can use it, but `JobsReport` and `Payroll` are
 bound to the three feed ids in their constructors and would need a new launch to follow new feeds.
 
-## D2. No failure hook
+## D2. No failure hook, although the Intake is version 2
 
-**Guidance.** Implement `onOracleFailure` for a version 2 Intake, behind an owner-set `failureHook`
-flag, "so turning the flag on after moving to a version 2 intake is one owner call". And: "every
-pending request still needs a deadline after which its requester can clear it."
+**Guidance.** "Use version 2 for anything new: it has everything version 1 has, plus
+`requestWithFailure`." Version 2 can call a second function on the callback target when a request
+is refused or ends without an answer: `onOracleFailure(requestId, status, reason, agreed,
+answered, signature)`. The reference consumer implements it behind an owner-set `failureHook` flag.
+And: "every pending request still needs a deadline after which its requester can clear it: a
+failure call can run out of gas or never come."
 
-**What we do.** There is no `onOracleFailure` and no flag. Every pending round has a deadline:
-`abandon` closes it six hours after the request whatever the Intake says, or thirty minutes after
-the Intake's completion of the request was first seen with nothing stored. Anyone may call it, not
-only the requester.
+**What we do.** `Questions` is launched against version 2 and asks with plain `request`, as it would
+against version 1. It names no failure function and has no `onOracleFailure`. Every pending round
+has a deadline instead: `abandon` closes it twelve hours after the request whatever the Intake
+says, or thirty minutes after the Intake's completion of the request was first seen with nothing
+stored. Anyone may call it, not only the requester. And for the two daily feeds anyone may `submit`
+the answer the callback missed or has not brought, from thirty minutes after the request.
 
-**Why.** The flag is owner-set and there is no owner; the Intake in the constructor is version 1,
-which has no failure call; and moving to another Intake means a new launch anyway (D1). Closing by
-deadline needs no trust in a failure message, whose values the guidance itself calls unsigned.
+**Why.**
 
-**What it costs.** A refused request is noticed thirty minutes to six hours later instead of at
-once. On a daily feed that changes nothing, because the back-off after a failed round is longer
-than that.
+- `abandon` and `submit` already cover every case the failure call would. A refused request and a
+  request whose panel did not agree are completed by the Intake with status 1 or 2; `abandon` reads
+  that completion from `Intake.requests(id)` (the fourth field, `completed`, which version 2 keeps
+  exactly as version 1 had it) and closes the round. A request that is never completed is closed
+  by the twelve-hour rule, which a failure call could not replace: the guidance itself says the
+  deadline is still needed.
+- The failure call is unsigned. The guidance: "the values are unsigned: never move money on them",
+  and "until failures are signed, `reason`, `agreed` and `answered` are the writer's word". Closing
+  a round returns its tip to the meter and doubles the feed's wait, and a failure call acted on at
+  once would do both the moment the writer said so. `abandon` gives the writer's word less: its
+  completion of a request starts thirty minutes in which, for the daily feeds, anyone can still
+  hand in the real answer, and only then may the round be closed; the twelve-hour rule needs
+  nobody's word at all.
+- There is no room for it. `Questions` is 22,963 bytes against our own gate of 23,000. A second
+  entry point for the Intake, with its sender check, its lookup and its event, does not fit in 37
+  bytes, and we would not trade a view or a check away for a message `abandon` does not need.
+- The flag in the reference is owner-set, and there is no owner (D1).
+
+**What it costs.** A refused or unanswered request is noticed thirty minutes to twelve hours later
+instead of at once. On a house feed that changes nothing, because the back-off after a failed
+round, two cadences, is longer than that. The deadline is as long as twelve hours because the
+Intake's writer can deliver an answer hours late, and a round closed before its answer comes has
+lost it (`docs/THREATS.md`, Q8). Nobody is told the reason on chain; it is in the Intake's
+`Completed` event and in IdentityMD's API.
+
+**Shown by.** `test_fork_houseFeedBuysARealRequestAndTakesTheCallback` (after our request the live
+version 2 Intake holds no failure selector for it), `test_fork_abandonReadsTheLiveIntake` (the
+writer completes with status 2 and the failure's arguments: nothing is called, `abandon` reads the
+completion and closes the round), `test_launch_stateChangingFunctionsAreExactlyTheDocumentedOnes`
+(`Questions` has no entry point beyond the documented ten).
 
 ## D3. An answer is marked used per feed, not per contract
 
@@ -106,7 +140,8 @@ rerunning the members' recipe when their answers split.
 
 **Why.** The protocol documents that case (`agreed` below `quorum` only for chain evidence), and a
 feed about plain chain facts may want it. **The three house feeds do not use it**: their
-`minAgreed` is their quorum.
+`minAgreed` is their quorum. For the employers feed, which a panel judges, nothing else would make
+sense: there is no rerun to settle a split, so the panel's own agreement is the whole answer.
 
 ## D5. `submit` is narrower than the guidance's, and wider in one way
 
@@ -115,17 +150,25 @@ attestation, so anyone can hand it over again."
 
 **What we do.** `submit` exists, with three conditions the guidance does not have. The feed must pin
 its question hash. The question must not be one a panel judges. And the Intake must have completed
-the round's own request, or two hours must have passed since the request. It is wider in one way:
-it takes any attestation the oracle signed for this contract to the same question about the same
-blocks, not only the one that answered the feed's own request.
+the round's own request, or thirty minutes must have passed since the request. It is wider in two
+ways. It takes any attestation the oracle signed for this contract to the same question about the
+same blocks, not only the one that answered the feed's own request. And after those thirty minutes
+it does not wait for the callback to have failed: it also takes an answer the Intake's writer has
+simply not delivered yet.
 
 **Why.** Nothing on chain ties an attestation to the request a round paid for (the attestation's
 id is the oracle's, not the Intake's), so "the same attestation" cannot be enforced. The three
-conditions are what makes that safe: the callback always goes first, and `submit` is closed for
-any question two panels could answer differently. The two hours exist for a request the service
-never serves, which could otherwise only fail.
+conditions are what bounds that: the callback goes first, for thirty minutes or until the Intake
+has completed the request, and `submit` is closed for any question a panel judges. The thirty
+minutes exist for a request the service never serves, which could otherwise only fail, and for an
+answer the oracle has signed that the Intake's writer is late to deliver: on 13 October 2026 the
+oracle answered within minutes and the writer was hours behind it (`docs/THREATS.md`, Q8).
 
-**What it costs.** See `docs/THREATS.md`, Q3 and Q4.
+**What it costs.** See `docs/THREATS.md`, Q3 and Q4: thirty minutes can be less than the oracle
+itself takes, and the tip of a round whose callback is late goes to whoever hands the answer in
+first. One of the three house feeds pays the second condition's price: the employers feed is
+judged by a panel (D10), so no answer to it can ever be handed in, and a round whose callback is
+missed, or comes more than twelve hours after the request, fails.
 
 ## D6. The question hash is built on chain from a rule we reconstructed
 
@@ -144,8 +187,12 @@ to the writer.
 `definitions`, `evidence` and `head` present only in certain cases) is not published as a contract.
 We reconstructed it and checked it against 23 attested requests and three bodies read back from the
 Intake's events (`test/questions/QuestionHashFixtures.t.sol`). If the oracle changes the rule, a
-feed that pins its hash refuses every answer from then on. The proof requests of `docs/LAUNCH.md`,
-section 5, check the rule once more against the live oracle before launch.
+feed that pins its hash refuses every answer from then on. The guidance now names a function of the
+protocol's own package for the same computation (`oracleQuestionHash`, for an absolute window);
+ours is the on-chain equivalent. The three proof requests of `docs/LAUNCH.md`, section 5, checked
+the rule once more against the live oracle on 12 and 13 October 2026, for each house feed's own
+text, with `definitions`, `evidence` and `head` in the hashed document: the hash built on chain was
+the hash attested, three times out of three (`test/questions/HouseFeedProofs.t.sol`).
 
 ## D7. A feed's text is its creator's, not validated as JSON on chain
 
@@ -180,3 +227,26 @@ must pass; it has no equivalent for another chain.
 The pipeline's gas-and-size step writes `.gas-snapshot` and `artifacts/gas.md` itself. This
 repository ships neither. Its measured sizes and gas figures are in `docs/LAUNCH.md` and
 `README.md`, each beside the test that prints it.
+
+## D10. One house feed rests on the panel's agreement, not on a recipe the oracle reruns
+
+**Guidance.** "`evidence` `"panel"` for facts that are not on a chain, `"chain"` (the default) for
+facts a recipe can reproduce from blocks." And, of any answer: "The truth of an answer is the
+panel's, and its signature is one hot key's. Treat it as a strong signal for moderate value." The
+brief of this build said the launch feeds use chain-evidence recipes only.
+
+**What we do.** Payrolls and hires are chain evidence with a pinned recipe. The employers feed asks
+a question about the chain, which addresses sent the fee payee the most IMD in seven days, with
+`evidence` `panel`. The method is written out in the question's `definitions`; the oracle signs
+what at least five of seven panel members agreed on and does not rerun anything.
+
+**Why.** It is the only way the oracle will answer it. The fact is on the chain, but no recipe the
+oracle offers reproduces it: its ranking recipe (`log-rank`) takes no filter, so it cannot rank
+senders among the transfers to one recipient. We found that out by buying the request
+(`docs/LAUNCH.md`, section 5): the panel agreed, the oracle's rerun without the filter did not
+reproduce the panel, and nothing was signed. The same question with `evidence` `panel` was attested
+on the first try, with the same three addresses.
+
+**What it costs.** IdentityMD does not recompute this feed's answers, and `submit` is closed for it.
+`docs/THREATS.md`, F4, says what that means and what depends on it: the weekly list of three and
+nothing else. The Jobs Report prints without it, no money moves on it, and Payroll funds it last.

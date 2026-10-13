@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {Vm} from "forge-std/Vm.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {Payroll} from "../../src/payroll/Payroll.sol";
@@ -106,16 +107,14 @@ contract PayrollFeedsTest is PayrollSetup {
     }
 
     function test_fundFeeds_unevenNeedsGetTheSameFraction() public {
-        // Feed A already holds half its runway, from somebody else.
-        imd.mint(address(this), RUNWAY / 2);
-        imd.approve(address(questions), RUNWAY / 2);
-        questions.fund(FEED_A, RUNWAY / 2);
+        // A request of feed A costs half as much, so its runway is half as long in IMD.
+        questions.setCost(FEED_A, FEED_COST / 2);
 
         pay(25e18); // 5 IMD of budget against 3.64 + 7.28 = 10.92 of need
         (uint256 funded,) = payroll.fundFeeds();
 
         uint256 needAB = RUNWAY / 2 + RUNWAY;
-        assertEq(meter(FEED_A) - RUNWAY / 2, (uint256(5e18) * (RUNWAY / 2)) / needAB);
+        assertEq(meter(FEED_A), (uint256(5e18) * (RUNWAY / 2)) / needAB);
         assertEq(meter(FEED_B), (uint256(5e18) * RUNWAY) / needAB);
         assertEq(meter(FEED_C), 0);
         assertLe(funded, 5e18);
@@ -142,15 +141,62 @@ contract PayrollFeedsTest is PayrollSetup {
         assertBooksBalance();
     }
 
-    function test_fundFeeds_countsWhatOthersAlreadyPutOnAMeter() public {
+    /// @dev Audit finding 2 (job be91e8ae), fixed. Payroll used to size a top-up from the meter's
+    /// whole balance, so IMD somebody else had put there counted as runway, and this test said so
+    /// (it was `test_fundFeeds_countsWhatOthersAlreadyPutOnAMeter` and expected Payroll to add only
+    /// 2.28 IMD to the 5 a stranger held). The stranger can take its part out again at any time,
+    /// so it is no runway: Payroll now keeps one runway of its own on the meter whatever else is there.
+    function test_fundFeeds_doesNotCountWhatOthersPutOnAMeter() public {
         imd.mint(address(this), 5e18);
         imd.approve(address(questions), 5e18);
         questions.fund(FEED_A, 5e18);
+        uint256[3] memory needs = payroll.feedShortfalls();
+        assertEq(needs[0], RUNWAY, "somebody else's IMD is not Payroll's runway");
 
         pay(200e18);
         payroll.fundFeeds();
+        assertEq(meter(FEED_A), RUNWAY + 5e18);
+        assertEq(questions.redeemable(FEED_A, address(payroll)), RUNWAY, "one runway of Payroll's own");
+        assertEq(questions.sharesOf(FEED_A, address(payroll)), RUNWAY);
+
+        // The stranger leaves. Payroll's runway is still there and nothing more is needed.
+        questions.defund(FEED_A, type(uint256).max);
+        assertEq(imd.balanceOf(address(this)), 5e18, "the stranger took out exactly what it put in");
         assertEq(meter(FEED_A), RUNWAY);
-        assertEq(questions.sharesOf(FEED_A, address(payroll)), RUNWAY - 5e18);
+        (uint256 funded,) = payroll.fundFeeds();
+        assertEq(funded, 0);
+        assertBooksBalance();
+    }
+
+    /// @dev A request is paid by everyone on the meter in proportion. Payroll replaces its own part
+    /// of what was spent and nobody else's.
+    function test_fundFeeds_replacesOnlyPayrollsPartOfWhatAMeterSpent() public {
+        pay(200e18);
+        payroll.fundFeeds();
+        // A stranger joins feed A with as much as Payroll holds there, then a request is bought.
+        imd.mint(address(this), RUNWAY);
+        imd.approve(address(questions), RUNWAY);
+        questions.fund(FEED_A, RUNWAY);
+        questions.spend(FEED_A, FEED_COST);
+        assertEq(questions.redeemable(FEED_A, address(payroll)), RUNWAY - FEED_COST / 2);
+
+        (uint256 funded,) = payroll.fundFeeds();
+        assertEq(funded, FEED_COST / 2, "half of the request was Payroll's to replace");
+        assertEq(meter(FEED_A), 2 * RUNWAY - FEED_COST / 2);
+        assertApproxEqAbs(questions.redeemable(FEED_A, address(payroll)), RUNWAY, 1);
+
+        // The meter's shares are now worth less than a wei each and the pool rounds in its own
+        // favour, so a top-up can leave the position one wei short. One wei is not a need: a second
+        // call finds nothing to place.
+        (funded,) = payroll.fundFeeds();
+        assertEq(funded, 0, "a call right after a top-up placed something");
+        needs3();
+        assertBooksBalance();
+    }
+
+    function needs3() internal view {
+        uint256[3] memory needs = payroll.feedShortfalls();
+        assertEq(needs[0] + needs[1] + needs[2], 0, "a meter Payroll just topped up still shows a need");
     }
 
     function test_fundFeeds_skipsAFeedQuestionsDoesNotKnow() public {
@@ -432,9 +478,9 @@ contract PayrollFeedsTest is PayrollSetup {
         Payroll.Ledger memory before = payroll.ledger();
 
         vm.expectEmit(address(payroll));
-        emit FeedBudgetReleased(20e18);
-        vm.expectEmit(address(payroll));
         emit FeedBudgetAged((START + 25 days) / 14 days, 0);
+        vm.expectEmit(address(payroll));
+        emit FeedBudgetReleased(20e18);
         vm.prank(keeper);
         (, released) = payroll.fundFeeds();
 
@@ -453,28 +499,169 @@ contract PayrollFeedsTest is PayrollSetup {
         assertBooksBalance();
     }
 
-    /// @dev Ageing does not depend on anyone calling `fundFeeds`, or on Questions at all.
-    function test_budget_ageingRunsInsideABooking() public {
+    /// @dev Audit finding 1 (job be91e8ae), fixed. A booking that crossed a boundary used to release
+    /// the old tranche itself, without looking at the meters, and this test said so (it was
+    /// `test_budget_ageingRunsInsideABooking` and expected `FeedBudgetReleased` from the third `pay`).
+    /// A booking now only sorts the budget into its tranches. What has fallen due waits for
+    /// `fundFeeds`, which serves the meters first; it needs nothing from Questions to release.
+    function test_budget_aBookingAgesTheBudgetAndReleasesNothing() public {
         questionsDown(true);
         pay(100e18);
         vm.warp(START + 11 days);
         pay(100e18); // rolls: first 20 becomes old, this 20 is fresh
-        (uint256 total, uint256 old,,) = payroll.feedBudget();
+        (uint256 total, uint256 old, uint256 releasableNow,) = payroll.feedBudget();
         assertEq(total, 40e18);
         assertEq(old, 20e18);
+        assertEq(releasableNow, 0);
 
         vm.warp(START + 25 days);
+        vm.recordLogs();
+        pay(100e18); // rolls again: the oldest 20 falls due, the middle 20 is now old
+        assertFalse(_logged(FeedBudgetReleased.selector), "a booking released feed budget");
+        (total, old, releasableNow,) = payroll.feedBudget();
+        assertEq(total, 60e18, "nothing left the budget");
+        assertEq(old, 20e18);
+        assertEq(releasableNow, 20e18);
+        assertEq(payroll.feedBudgetDue(), 20e18);
+        Payroll.Ledger memory l = payroll.ledger();
+        assertEq(l.feedsReleased, 0);
+        assertEq(l.toStakers, 150e18);
+        assertEq(l.toFeeds, 60e18);
+
+        // Questions is still unreachable. The release does not depend on it.
         vm.expectEmit(address(payroll));
         emit FeedBudgetReleased(20e18);
-        pay(100e18); // rolls again: the oldest 20 is released, the middle 20 is now old
-        (total, old,,) = payroll.feedBudget();
-        assertEq(total, 40e18);
-        assertEq(old, 20e18);
-        Payroll.Ledger memory l = payroll.ledger();
+        (uint256 funded, uint256 released) = payroll.fundFeeds();
+        assertEq(funded, 0);
+        assertEq(released, 20e18);
+        l = payroll.ledger();
         assertEq(l.feedsReleased, 20e18);
         assertEq(l.toStakers, 150e18 + 20e18);
         assertEq(l.toFeeds, 60e18 - 20e18);
+        assertEq(payroll.feedBudgetDue(), 0);
+        (total, old, releasableNow,) = payroll.feedBudget();
+        assertEq(total, 40e18);
+        assertEq(old, 20e18);
+        assertEq(releasableNow, 0);
         assertBooksBalance();
+    }
+
+    /// @dev The same boundary crossed by a booking first or by `fundFeeds` first ends the same way:
+    /// the meters hold their runways and only what they left has gone to stakers.
+    function test_budget_whoCrossesTheBoundaryFirstDoesNotMatter() public {
+        setFeedCosts(0);
+        pay(100e18);
+        vm.warp(START + 11 days);
+        payroll.fundFeeds(); // 20 IMD is now the old tranche
+        setFeedCosts(FEED_COST); // the feeds exist now and their meters are empty
+        vm.warp(START + 25 days);
+        uint256 snapshot = vm.snapshotState();
+
+        (uint256 funded, uint256 released) = payroll.fundFeeds();
+        assertEq(funded, FULL);
+        assertEq(released, 20e18 - FULL);
+
+        vm.revertToState(snapshot);
+        pay(1); // one wei, booked before anybody calls fundFeeds
+        assertEq(payroll.ledger().feedsReleased, 0);
+        assertEq(payroll.feedBudgetDue(), 20e18);
+        (funded, released) = payroll.fundFeeds();
+        assertEq(funded, FULL, "the meters were not served out of the tranche that had fallen due");
+        assertEq(released, 20e18 - FULL);
+        assertEq(meter(FEED_A), RUNWAY);
+        assertEq(meter(FEED_B), RUNWAY);
+        assertEq(meter(FEED_C), RUNWAY_C);
+        assertEq(budget(), 0);
+
+        vm.revertToState(snapshot);
+        vm.prank(payer);
+        imd.transfer(address(payroll), 1); // or a plain transfer picked up by `book`
+        assertEq(payroll.book(), 1);
+        assertEq(payroll.ledger().feedsReleased, 0);
+        (funded, released) = payroll.fundFeeds();
+        assertEq(funded, FULL);
+        assertEq(released, 20e18 - FULL);
+        assertBooksBalance();
+    }
+
+    /// @dev What has fallen due is spent first, then the old tranche, then the fresh one; and what
+    /// falls due keeps adding up while nobody calls `fundFeeds`.
+    function test_budget_dueIsSpentBeforeOldAndOldBeforeFresh() public {
+        setFeedCosts(0);
+        pay(10e18); // 2 IMD
+        vm.warp(START + 11 days);
+        pay(15e18); // 3 IMD; the first 2 are old
+        vm.warp(START + 25 days);
+        pay(100e18); // 20 IMD; 2 are due, 3 are old
+        assertEq(payroll.feedBudgetDue(), 2e18);
+        assertEq(oldTranche(), 3e18);
+        assertEq(budget(), 25e18);
+
+        setFeedCosts(FEED_COST);
+        (uint256 funded, uint256 released) = payroll.fundFeeds(); // 16.64 placed: 2 due, 3 old, 11.64 fresh
+        assertEq(funded, FULL);
+        assertEq(released, 0, "the meters took all that was due");
+        assertEq(payroll.feedBudgetDue(), 0);
+        assertEq(oldTranche(), 0);
+        assertEq(budget(), 25e18 - FULL);
+
+        // Two boundaries later, with nobody calling in between, all of what is left is due.
+        setFeedCosts(0);
+        vm.warp(START + 39 days);
+        pay(1e18); // 0.2 IMD; the 8.36 left over is now old
+        assertEq(payroll.feedBudgetDue(), 0);
+        assertEq(oldTranche(), 25e18 - FULL);
+        vm.warp(START + 53 days);
+        pay(1e18); // 0.2 IMD; 8.36 due, 0.2 old
+        vm.warp(START + 67 days);
+        pay(1e18); // 0.2 IMD; 8.56 due, 0.2 old
+        assertEq(payroll.feedBudgetDue(), 25e18 - FULL + 0.2e18);
+        assertEq(oldTranche(), 0.2e18);
+        (, released) = payroll.fundFeeds();
+        assertEq(released, 25e18 - FULL + 0.2e18);
+        assertEq(budget(), 0.4e18);
+        assertBooksBalance();
+    }
+
+    /// @dev A top-up Questions refuses puts what was due back where it came from, and the same call
+    /// then releases it: a meter that cannot be funded does not hold the budget back.
+    function test_budget_aRefusedTopUpDoesNotHoldBackWhatIsDue() public {
+        setFeedCosts(0);
+        pay(100e18);
+        vm.warp(START + 25 days);
+        setFeedCosts(FEED_COST);
+        questionsFundDown(true);
+
+        (uint256 funded, uint256 released) = payroll.fundFeeds();
+        assertEq(funded, 0);
+        assertEq(released, 20e18, "all of it was due and none of it could be placed");
+        assertEq(budget(), 0);
+        assertEq(payroll.ledger().feedsFunded, 0);
+        assertBooksBalance();
+    }
+
+    /// @dev Part of a top-up leaves: only that part comes out of what was due.
+    function test_budget_aPartialTopUpTakesOnlyWhatLeftOutOfWhatIsDue() public {
+        setFeedCosts(0);
+        pay(100e18);
+        vm.warp(START + 25 days);
+        setFeedCosts(FEED_COST);
+        imd.setTakeBps(2_500);
+
+        (uint256 funded, uint256 released) = payroll.fundFeeds();
+        assertEq(funded, FULL / 4);
+        assertEq(released, 20e18 - FULL / 4);
+        assertEq(payroll.ledger().feedsFunded, FULL / 4);
+        assertEq(budget(), 0);
+        assertBooksBalance();
+    }
+
+    function _logged(bytes32 topic) internal view returns (bool) {
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        for (uint256 i; i < logs.length; ++i) {
+            if (logs[i].emitter == address(payroll) && logs[i].topics[0] == topic) return true;
+        }
+        return false;
     }
 
     function test_budget_aLongSilenceReleasesAllOfIt() public {

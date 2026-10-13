@@ -142,7 +142,8 @@ contract JobsReport {
 
     /// @notice Why a round was passed over.
     /// @dev `None`: it was not; the value is never emitted. `Failed`: the round bought no answer.
-    /// `BadWindow`: the window is empty or ends at or after the block of the call. `Overlap`: the
+    /// `BadWindow`: the window is empty or ends at or after the block of the call; the Questions
+    /// contract this report reads never stores either, see `print`. `Overlap`: the
     /// window starts at or before the end of the previous entry of the same series. `OutOfRange`: the
     /// answer is too large to be a real figure.
     enum SkipReason {
@@ -283,7 +284,14 @@ contract JobsReport {
     /// calls. Each feed stops at a round that is still waiting for its answer and picks up there next
     /// time; neither feed waits for the other. A call with nothing new to read changes nothing and
     /// does not revert. It reverts only if Questions itself reverts. What ends up in the report does
-    /// not depend on who calls or when.
+    /// not depend on who calls, and against this Questions contract it does not depend on when
+    /// either. Every rule that passes a round over reads the round alone, with one exception: a
+    /// round whose window ends at or after the block of the call is passed over for good
+    /// (`BadWindow`). Questions never stores such an answer, because a window ends at least five
+    /// blocks behind the block of its request and the answer comes later still, so the rule cannot
+    /// fire here. It is kept as a guard. If such a round were ever shown to this contract, printing
+    /// it would make every later round overlap it, and waiting for it could wait for ever; passing
+    /// it over costs the report that one round.
     /// @return printed How many prints this call added.
     /// @return counted How many counts this call recorded.
     function print() external returns (uint256 printed, uint256 counted) {
@@ -393,7 +401,8 @@ contract JobsReport {
         emit CountRecorded(index, round, count, fromBlock, toBlock, sum);
     }
 
-    /// @dev Why a consumed round adds no entry, or `None` when it does.
+    /// @dev Why a consumed round adds no entry, or `None` when it does. The second half of the
+    /// `BadWindow` test is the one place a skip reads the block of the call: see `print`.
     function _unusable(
         IQuestions.RoundStatus status,
         uint256 figure,

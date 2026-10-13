@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {Vm} from "forge-std/Vm.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {Questions} from "../../../src/questions/Questions.sol";
@@ -126,7 +127,7 @@ contract LaunchAIntegrationTest is QuestionsFixture {
     // The feed budget against real meters
     // ---------------------------------------------------------------------------------------------
 
-    /// @dev `fundFeeds` reads the real `costOf` and `meterOf`, and the real `fund` takes exactly the
+    /// @dev `fundFeeds` reads the real `costOf` and `redeemable`, and the real `fund` takes exactly the
     /// shortfall: the two daily meters end at 14 requests' worth, the weekly one at 4, a bought request
     /// is replaced, and no allowance stays.
     function test_integration_fundFeedsTopsUpRealMeters() public {
@@ -202,9 +203,13 @@ contract LaunchAIntegrationTest is QuestionsFixture {
         (uint256 funded,) = noThird.fundFeeds();
         assertEq(funded, 28 * COST);
 
-        // The hires meter is full from the first top-up; the weekly one takes its four requests.
+        // The second Payroll keeps a runway of its own on the hires meter, whatever the first one
+        // holds there (each counts only its own position), and the weekly feed takes its four requests.
         (funded,) = noFirst.fundFeeds();
-        assertEq(funded, 4 * COST);
+        assertEq(funded, 18 * COST);
+        assertEq(_meter(hiresFeed), 28 * COST);
+        assertEq(q.redeemable(hiresFeed, address(noThird)), 14 * COST);
+        assertEq(q.redeemable(hiresFeed, address(noFirst)), 14 * COST);
         assertEq(_meter(employersFeed), 4 * COST);
     }
 
@@ -266,8 +271,8 @@ contract LaunchAIntegrationTest is QuestionsFixture {
         _rollTo(_dueBlock(payrollsFeed));
         _request(payrollsFeed);
         _answer(hiresFeed, abi.encode(uint256(90)));
-        skip(6 hours);
-        vm.roll(vm.getBlockNumber() + 1800);
+        // Twelve hours of silence, at twelve seconds a block.
+        _advance(abandonAfterSilence / 12);
         q.abandon(payrollsFeed);
         (printed, counted) = report.print();
         assertEq(printed, 0);
@@ -286,6 +291,35 @@ contract LaunchAIntegrationTest is QuestionsFixture {
         assertEq(report.printAt(1).amount, 61e18);
         assertEq(report.printAt(1).fromBlock, first.toBlock + 1, "nothing between the two prints was skipped");
         assertEq(report.total(), 114.5e18);
+    }
+
+    /// @dev Audit job 22624be0, finding 5 (info). The Jobs Report passes over a round whose window
+    /// ends at or after the block `print` is called in, and that is the one skip that depends on
+    /// when the call is made. Against the real Questions it cannot fire: a window ends `lagBlocks`
+    /// (at least five) behind the block of its request, so it is over before the answer can be
+    /// stored, let alone printed. Here the request, the answer and `print` all happen in one block,
+    /// the earliest a print can come, for a first window and for a catch-up window.
+    function test_integration_aRealWindowIsAlwaysOverWhenItsAnswerIsPrinted() public {
+        _fundThroughPayroll(1_000e18);
+        assertGe(q.MIN_LAG_BLOCKS(), 5);
+
+        for (uint256 day; day < 3; ++day) {
+            if (day != 0) _rollTo(_dueBlock(payrollsFeed) + (day == 2 ? 30_000 : 0)); // day 2 is asked days late
+            uint256 askedAt = vm.getBlockNumber();
+            _answer(payrollsFeed, abi.encode(uint256(50e18)));
+            (, uint64 toBlock) = _window(payrollsFeed, uint64(day + 1));
+            assertLe(uint256(toBlock) + q.MIN_LAG_BLOCKS(), askedAt, "a window ended less than five blocks back");
+
+            vm.recordLogs();
+            (uint256 printed,) = report.print();
+            assertEq(vm.getBlockNumber(), askedAt, "printed in the block of the request");
+            assertEq(printed, 1, "a real round was passed over");
+            Vm.Log[] memory logs = vm.getRecordedLogs();
+            for (uint256 i; i < logs.length; ++i) {
+                assertTrue(logs[i].topics[0] != JobsReport.RoundSkipped.selector, "a real round was skipped");
+            }
+        }
+        assertEq(report.printCount(), 3);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -398,8 +432,7 @@ contract LaunchAIntegrationTest is QuestionsFixture {
         // Nobody asks for four days (28,800 blocks). Then a failed round, then two answered ones.
         _advance(28_800);
         _request(payrollsFeed);
-        skip(6 hours);
-        vm.roll(vm.getBlockNumber() + 1800);
+        _advance(abandonAfterSilence / 12);
         q.abandon(payrollsFeed);
         _answerWhenDue(payrollsFeed, 150e18);
         _answerWhenDue(payrollsFeed, 120e18);

@@ -66,8 +66,11 @@ contract OracleConsumerConformanceTest is Test {
             VECTOR_CONSUMER
         );
         consumer = QuestionsVectorHarness(VECTOR_CONSUMER);
-        // Questions takes an answer only for a round it asked for. The vector's round is planted as
-        // pending under each request id the tests below deliver with.
+        // Whatever your consumer needs to take the vector's question as its own. The reference's
+        // example pins the question hash here. Questions takes an answer only for a round it asked
+        // for itself, and holds that round to the question hash it built when it asked, so the
+        // vector's round is planted as pending, with the vector's question hash pinned, under each
+        // request id the tests below deliver with.
         consumer.plant(keccak256("source request"), vector());
         consumer.plant(bytes32(0), vector());
     }

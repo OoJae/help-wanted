@@ -113,8 +113,9 @@ contract PayrollInvariantTest is Test {
         assertLe(l.tipsClaimed + l.tipsToSeats, l.tipsIn, "more tips left than arrived");
         assertLe(l.feedsFunded, l.toFeeds, "feeds funded beyond their budget");
         assertLe(payroll.streamUnvested(), l.toStakers - l.dripped, "more unvested than outstanding");
-        (uint256 budget, uint256 old,,) = payroll.feedBudget();
-        assertLe(old, budget, "old tranche larger than the budget");
+        (uint256 budget, uint256 old, uint256 due,) = payroll.feedBudget();
+        assertLe(old + due, budget, "the old and the due tranche together are larger than the budget");
+        assertLe(payroll.feedBudgetOld() + payroll.feedBudgetDue(), budget, "stored tranches larger than the budget");
     }
 
     /// @dev The IMD balance covers the stream remaining + the unclaimed seat pool + tips owed + the feed

@@ -347,7 +347,7 @@ contract QuestionsMeterTest is QuestionsFixture {
         assertEq(q.defund(feedId, 1e18), (2e18 - COST) / 2);
 
         // The round fails and its tip comes back onto the meter, to the shares still there.
-        skip(6 hours);
+        skip(abandonAfterSilence);
         q.abandon(feedId);
         vm.prank(alice);
         uint256 rest = q.defund(feedId, type(uint256).max);

@@ -5,7 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {IQuestions} from "../../src/interfaces/IQuestions.sol";
-import {Payroll} from "../../src/payroll/Payroll.sol";
+import {Payroll, IMeterPosition} from "../../src/payroll/Payroll.sol";
 import {MockIntake} from "../questions/mocks/MockIntake.sol";
 import {MockIMD, MockSIMD} from "./mocks/MockTokens.sol";
 import {MockSeats, MockAdapter} from "./mocks/MockSeats.sol";
@@ -131,11 +131,12 @@ abstract contract PayrollSetup is Test {
             vm.clearMockedCalls();
             return;
         }
-        bytes4[4] memory selectors = [
+        bytes4[5] memory selectors = [
             IQuestions.costOf.selector,
             IQuestions.meterOf.selector,
             IQuestions.fund.selector,
-            IQuestions.sharesOf.selector
+            IQuestions.sharesOf.selector,
+            IMeterPosition.redeemable.selector
         ];
         for (uint256 i; i < selectors.length; ++i) {
             vm.mockCallRevert(

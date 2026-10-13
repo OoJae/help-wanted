@@ -419,11 +419,11 @@ contract QuestionsHandler is Test {
         intake.complete(v.pendingRequestId, unanswered ? 2 : 1, bytes32(0), "", "");
     }
 
-    /// @dev Anyone tries to close a feed's pending round. A call that only starts the thirty
-    /// minutes closes nothing.
+    /// @dev Anyone tries to close a feed's pending round, with `wait` after the silence that lets
+    /// any round be closed. A call that only starts the thirty minutes closes nothing.
     function abandon(uint256 feedSeed, bool wait) external {
         bytes32 feedId = _feed(feedSeed);
-        if (wait) vm.warp(vm.getBlockTimestamp() + 6 hours);
+        if (wait) vm.warp(vm.getBlockTimestamp() + q.ABANDON_AFTER_SILENCE());
         (uint256 meterBefore,) = q.meterOf(feedId);
         try q.abandon(feedId) returns (bool closed) {
             if (closed) {
@@ -565,7 +565,7 @@ contract QuestionsInvariantTest is Test {
                     if (lap % 2 == 0) {
                         // Two steps: the first call starts the thirty minutes, the second closes.
                         handler.abandon(f, false);
-                        handler.pass(1, 30 minutes);
+                        handler.pass(1, q.ABANDON_AFTER_COMPLETED());
                         handler.abandon(f, false);
                     } else {
                         handler.abandon(f, true);

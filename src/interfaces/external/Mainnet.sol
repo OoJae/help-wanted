@@ -11,7 +11,12 @@ library Mainnet {
     address internal constant SEATS = 0x0000eC93127BAA929E58E97dd0095A2BFb38ec1D;
     uint256 internal constant SEAT_COUNT = 2000;
 
-    address internal constant INTAKE = 0x1397434cd35e8a9C8aC312A61D3A285EB31dea56;
+    /// @dev Version 2 of the Intake, the one IdentityMD names for anything new. It keeps every
+    /// function, event and getter of version 1 and adds `requestWithFailure`.
+    address internal constant INTAKE = 0xa43e6F75ee006411F79Ac1C84120606C2330DE82;
+    /// @dev Version 1, listed as legacy and still served. Nothing here is launched against it; the
+    /// three house feed bodies were proven through it before version 2 was adopted.
+    address internal constant INTAKE_V1 = 0x1397434cd35e8a9C8aC312A61D3A285EB31dea56;
     address internal constant INTAKE_WRITER = 0x3d3C0Df7C1a17d384545e9D7C8228897bD9625CB;
     address internal constant INTAKE_DELIVERY = 0xCE0E6a670AA75E161d02aca3C7F00B94cA428CCb;
     address internal constant ORACLE_SIGNER = 0x5598Aa9146215Bc13eb26f2c692Ad1461Fd32982;

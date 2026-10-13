@@ -135,6 +135,52 @@ contract QuestionsTipsTest is QuestionsFixture {
         assertEq(q.collectTips(), 0);
     }
 
+    /// @notice The Intake's writer is late. The oracle's signed answer to the round's own request
+    /// is public, and from thirty minutes after the request anyone may hand it in and is paid the
+    /// tip, whoever opened the round. One second sooner nobody can, and a delivery by the Intake
+    /// in that time pays the keeper as usual.
+    function test_tip_ofARoundWhoseCallbackIsLateGoesToWhoeverHandsTheAnswerInFirst() public {
+        bytes32 intakeId = _request(feedId);
+        uint256 askedAt = vm.getBlockTimestamp();
+        // The oracle signs two minutes after the request.
+        skip(2 minutes);
+        OracleAttestation.Attestation memory a = _attestation(feedId, abi.encode(uint256(7)));
+        bytes memory signature = _sign(a);
+
+        // To the last second of the half hour the answer can only come through the Intake, and
+        // then the tip is the keeper's.
+        skip(submitAfterSilence - 2 minutes - 1);
+        assertEq(vm.getBlockTimestamp(), askedAt + submitAfterSilence - 1);
+        vm.expectRevert(abi.encodeWithSelector(Questions.SubmitTooEarly.selector, askedAt + submitAfterSilence));
+        vm.prank(bob);
+        q.submit(feedId, a, signature);
+        uint256 snapshot = vm.snapshotState();
+        assertTrue(_complete(intakeId, a, signature), "a delivery inside the half hour was refused");
+        _assertTips(keeper, TIP, 0);
+        _assertTips(bob, 0, 0);
+        vm.revertToState(snapshot);
+
+        // One second later the Intake has still not delivered. Somebody else hands the same
+        // answer in and is paid; the keeper that opened the round is not.
+        skip(1);
+        _assertTips(keeper, 0, TIP);
+        vm.prank(bob);
+        q.submit(feedId, a, signature);
+        _assertTips(bob, TIP, 0);
+        _assertTips(keeper, 0, 0);
+        (uint256 value,,, uint64 round,) = q.latest(feedId);
+        assertEq(round, 1);
+        assertEq(value, 7);
+        assertEq(q.totalTips(), TIP);
+        _assertCovered();
+
+        // The writer's call, when it comes, finds the round settled and changes nothing.
+        assertFalse(_complete(intakeId, a, signature));
+        _assertTips(bob, TIP, 0);
+        _assertTips(keeper, 0, 0);
+        assertEq(q.feedState(feedId).failStreak, 0);
+    }
+
     // ---- given back by a failed round -----------------------------------------------------------
 
     /// @notice A round closed without an answer gives its tip back to the meter. The meter has
@@ -144,7 +190,7 @@ contract QuestionsTipsTest is QuestionsFixture {
         _request(feedId);
         (, uint256 sharesBefore) = _meter(feedId);
 
-        skip(6 hours);
+        skip(abandonAfterSilence);
         assertTrue(q.abandon(feedId));
 
         (uint256 balance, uint256 totalShares) = _meter(feedId);
@@ -174,7 +220,7 @@ contract QuestionsTipsTest is QuestionsFixture {
         (uint256 balance,) = _meter(feedId);
         assertEq(balance, 10e18 - COST, "the tip went back before the round was closed");
 
-        skip(30 minutes);
+        skip(abandonAfterCompleted);
         assertTrue(q.abandon(feedId));
         (balance,) = _meter(feedId);
         assertEq(balance, 10e18 - PRICE);
@@ -188,7 +234,7 @@ contract QuestionsTipsTest is QuestionsFixture {
         for (uint256 i; i < 5; ++i) {
             _rollToDue(feedId);
             _request(feedId);
-            skip(6 hours);
+            skip(abandonAfterSilence);
             assertTrue(q.abandon(feedId));
         }
         _assertTips(keeper, 0, 0);
@@ -226,7 +272,7 @@ contract QuestionsTipsTest is QuestionsFixture {
         // The first is answered, the second fails, the third stays pending.
         OracleAttestation.Attestation memory a = _attestation(feedId, abi.encode(uint256(11)));
         assertTrue(_complete(firstId, a, _sign(a)));
-        skip(6 hours);
+        skip(abandonAfterSilence);
         assertTrue(q.abandon(second));
         _assertTips(keeper, TIP, 0.07e18);
         assertEq(q.totalTips(), uint256(TIP) + 0.07e18);
@@ -277,7 +323,7 @@ contract QuestionsTipsTest is QuestionsFixture {
         _assertTips(keeper, 0, 0);
         _rollToDue(free);
         _request(free);
-        skip(6 hours);
+        skip(abandonAfterSilence);
         assertTrue(q.abandon(free));
         (uint256 balance,) = _meter(free);
         assertEq(balance, 2e18 - 2 * PRICE);
@@ -298,7 +344,7 @@ contract QuestionsTipsTest is QuestionsFixture {
         uint256 bobBefore = q.redeemable(feedId, bob);
         (uint256 balanceBefore, uint256 sharesBefore) = _meter(feedId);
 
-        skip(6 hours);
+        skip(abandonAfterSilence);
         assertTrue(q.abandon(feedId));
 
         (uint256 balance, uint256 totalShares) = _meter(feedId);
@@ -327,7 +373,7 @@ contract QuestionsTipsTest is QuestionsFixture {
         _fund(bob, feedId, late);
         assertEq(q.redeemable(feedId, bob), late);
 
-        skip(6 hours);
+        skip(abandonAfterSilence);
         assertTrue(q.abandon(feedId));
 
         uint256 aliceGain = q.redeemable(feedId, alice) - aliceBefore;
@@ -357,7 +403,7 @@ contract QuestionsTipsTest is QuestionsFixture {
         assertEq(balance, 0);
         assertEq(totalShares, 0);
 
-        skip(6 hours);
+        skip(abandonAfterSilence);
         assertTrue(q.abandon(feedId));
         (balance, totalShares) = _meter(feedId);
         assertEq(balance, TIP, "the tip is back on the meter");
@@ -401,7 +447,7 @@ contract QuestionsTipsTest is QuestionsFixture {
 
         _fund(bob, id, 3e18);
         assertEq(q.sharesOf(id, alice), 0, "shares of a meter spent to zero are retired by the refill");
-        skip(6 hours);
+        skip(abandonAfterSilence);
         assertTrue(q.abandon(id));
 
         uint256 totalShares;
@@ -422,7 +468,7 @@ contract QuestionsTipsTest is QuestionsFixture {
         q.defund(feedId, type(uint256).max);
         uint256 bobShares = q.sharesOf(feedId, bob);
 
-        skip(6 hours);
+        skip(abandonAfterSilence);
         assertTrue(q.abandon(feedId));
         (uint256 balance, uint256 totalShares) = _meter(feedId);
         assertGe(totalShares, balance, "a share is worth more than a wei");
@@ -469,7 +515,7 @@ contract QuestionsTipsTest is QuestionsFixture {
         }
         (uint256 balanceBefore,) = q.meterOf(id);
 
-        skip(6 hours);
+        skip(abandonAfterSilence);
         assertTrue(q.abandon(id));
         (uint256 balance, uint256 totalShares) = q.meterOf(id);
         assertEq(balance, balanceBefore + TIP, "the tip did not come back in full");

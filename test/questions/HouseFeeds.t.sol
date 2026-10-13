@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {OracleAttestation} from "../../src/questions/OracleAttestation.sol";
 import {QuestionBody} from "../../src/questions/QuestionBody.sol";
 import {Questions} from "../../src/questions/Questions.sol";
 import {CanonicalQuestion} from "./lib/CanonicalQuestion.sol";
@@ -145,17 +146,18 @@ contract HouseFeedsTest is QuestionsFixture {
             assertEq(vm.parseJsonUint(body, ".panelSize"), h.params.panelSize);
             assertEq(vm.parseJsonUint(body, ".quorum"), h.params.quorum);
             assertEq(vm.parseJsonUint(body, ".validForSeconds"), h.params.validFor);
-            assertEq(vm.parseJsonString(body, ".evidence"), "chain");
+            // The two daily feeds are chain evidence; the weekly ranking is judged by the panel.
+            assertEq(vm.parseJsonString(body, ".evidence"), i == 2 ? "panel" : "chain", names[i]);
             assertEq(vm.parseJsonUint(body, ".v"), 1);
             assertEq(vm.parseJsonUint(body, ".chainId"), 1);
         }
     }
 
-    /// @notice What each feed asks, read back from its own text: the IMD token's Transfer events
-    /// to the fee payee, summed, counted and ranked by sender.
+    /// @notice What the two daily feeds ask, read back from their own text: the IMD token's
+    /// Transfer events to the fee payee, summed and counted by a recipe the oracle reruns itself.
     function test_recipesNameTheTokenAndThePayee() public view {
-        string[3] memory names = _names();
-        string[3] memory kinds = ["log-sum", "log-count", "log-rank"];
+        string[2] memory names = ["payrolls", "hires"];
+        string[2] memory kinds = ["log-sum", "log-count"];
         for (uint256 i; i < names.length; ++i) {
             HouseFeed memory h = _load(names[i]);
             string memory body = vm.parseJsonString(h.json, ".example.body");
@@ -174,13 +176,154 @@ contract HouseFeedsTest is QuestionsFixture {
                 "event Transfer(address indexed from, address indexed to, uint256 value)"
             );
         }
-        HouseFeed memory employers = _load("employers");
-        string memory ranked = vm.parseJsonString(employers.json, ".example.body");
-        assertEq(vm.parseJsonString(ranked, ".answerType"), "address[]");
-        assertEq(vm.parseJsonUint(ranked, ".head"), 3);
-        assertFalse(employers.params.contiguous, "a ranking is of a period, not a running total");
         assertTrue(_load("payrolls").params.contiguous);
         assertTrue(_load("hires").params.contiguous);
+    }
+
+    /// @notice What the weekly ranking asks, read back from its own text. It has no recipe: the
+    /// oracle's ranking recipe takes no filter, so the method is written out for the panel and the
+    /// panel's agreement is the answer. The method names the token, the event, the payee, how to
+    /// add up and how to order, and asks for exactly three addresses.
+    function test_employersIsJudgedByThePanelWithItsMethodPinned() public view {
+        HouseFeed memory employers = _load("employers");
+        string memory body = vm.parseJsonString(employers.json, ".example.body");
+        assertEq(vm.parseJsonString(body, ".evidence"), "panel");
+        assertEq(vm.parseJsonString(body, ".answerType"), "address[]");
+        assertEq(vm.parseJsonUint(body, ".head"), 3);
+        assertFalse(vm.keyExistsJson(body, ".definitions.recipe"), "a panel-judged question pins no recipe");
+        assertFalse(vm.keyExistsJson(body, ".toleranceBps"));
+        string memory method = vm.parseJsonString(body, ".definitions.method");
+        assertTrue(vm.contains(method, "Transfer(address indexed from, address indexed to, uint256 value) logs"));
+        assertTrue(vm.contains(method, "emitted by 0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7 on Ethereum mainnet"));
+        assertTrue(vm.contains(method, "keep those whose to is 0x4e0fa57bde726079356537e2f34d671e9f41adbc"));
+        assertTrue(vm.contains(method, "add up value per from address"));
+        assertTrue(vm.contains(method, "ties by ascending address"));
+        assertTrue(vm.contains(method, "answer the first 3 addresses"));
+        assertTrue(vm.contains(vm.parseJsonString(body, ".definitions.source"), "event logs only"));
+        string memory question = vm.parseJsonString(body, ".question");
+        assertTrue(vm.contains(question, "answer exactly the top 3 addresses"));
+        assertFalse(employers.params.contiguous, "a ranking is of a period, not a running total");
+        assertEq(employers.params.maxWindowBlocks, 50_400, "seven days");
+        // Every definition is inside the hashed prefix, so an answer to another method is refused.
+        assertTrue(vm.contains(string(employers.qPrefix), method));
+        assertTrue(vm.contains(string(employers.qPrefix), '"evidence":"panel","head":3,'));
+
+        // The feed's own documentation says what resting on a panel means.
+        string[] memory judged = vm.parseJsonStringArray(employers.json, ".notes.panelJudged");
+        assertGe(judged.length, 4);
+        assertTrue(vm.contains(judged[0], "IdentityMD does not recompute this answer"));
+        assertTrue(vm.contains(vm.parseJsonString(employers.json, ".title"), "panel"), "the title does not say");
+    }
+
+    /// @notice What the contract does with a feed a panel judges. `submit` is closed for it, at any
+    /// time and for anyone: two panels can differ and whoever submits would choose. Only the
+    /// Intake's own callback delivers. With `minAgreed` equal to the quorum an answer fewer members
+    /// agreed on than its signed quorum is refused; with the quorum met it is stored.
+    function test_employersTakesAnswersFromTheIntakeOnlyAndOnlyWithTheQuorumMet() public {
+        HouseFeed memory h = _load("employers");
+        bytes32 feedId = q.createFeed(h.params, h.qPrefix, h.tail);
+        assertEq(h.params.minAgreed, h.params.quorum);
+        vm.roll(vm.parseJsonUint(h.json, ".example.requestBlock"));
+        _fund(alice, feedId, 10e18);
+        bytes32 intakeId = _request(feedId);
+
+        address[] memory three = new address[](3);
+        (three[0], three[1], three[2]) = (address(0xA1), address(0xB2), address(0xC3));
+        OracleAttestation.Attestation memory a = _attestation(feedId, abi.encode(three));
+
+        // Nobody can hand an answer in: not when the wait that opens `submit` on the daily feeds
+        // is over, not hours later, and not after the Intake completed.
+        assertFalse(q.canSubmit(feedId));
+        skip(submitAfterSilence);
+        assertFalse(q.canSubmit(feedId));
+        skip(3 hours);
+        assertFalse(q.canSubmit(feedId));
+        a.issuedAt = uint64(vm.getBlockTimestamp());
+        a.expiresAt = a.issuedAt + h.params.validFor;
+        bytes memory signature = _sign(a);
+        vm.expectRevert(Questions.SubmitNotForPanelEvidence.selector);
+        q.submit(feedId, a, signature);
+
+        // An answer four of seven agreed on, signed for a quorum of five, is refused by the callback.
+        a.agreed = 4;
+        signature = _sign(a);
+        vm.expectRevert(abi.encodeWithSelector(Questions.NotEnoughAgreed.selector, uint16(4), uint16(5)));
+        _callback(intakeId, a, signature);
+
+        // The panel's own agreement, delivered by the Intake, is stored: the list as its hash.
+        a.agreed = 5;
+        signature = _sign(a);
+        assertTrue(_complete(intakeId, a, signature), "the callback was not delivered");
+        (uint256 value,,, uint64 round,) = q.latest(feedId);
+        assertEq(round, 1);
+        assertEq(value, uint256(keccak256(abi.encode(three))));
+        assertFalse(q.canSubmit(feedId));
+    }
+
+    /// @notice What the employers feed depends on: the Intake's writer delivering within twelve
+    /// hours. Until they are up nobody can close its round, and the callback stores the answer
+    /// however late it comes. From then on anyone may close it, and an answer that comes afterwards
+    /// is refused. Nobody can hand the answer in at either moment.
+    function test_employersDependsOnTheWriterDeliveringWithinTwelveHours() public {
+        HouseFeed memory h = _load("employers");
+        bytes32 feedId = q.createFeed(h.params, h.qPrefix, h.tail);
+        vm.roll(vm.parseJsonUint(h.json, ".example.requestBlock"));
+        _fund(alice, feedId, 10e18);
+        bytes32 intakeId = _request(feedId);
+        uint256 askedAt = vm.getBlockTimestamp();
+
+        // The oracle signs five minutes after the request; the answer is valid for a day.
+        skip(5 minutes);
+        address[] memory three = new address[](3);
+        (three[0], three[1], three[2]) = (address(0xA1), address(0xB2), address(0xC3));
+        OracleAttestation.Attestation memory a = _attestation(feedId, abi.encode(three));
+        bytes memory signature = _sign(a);
+        assertGt(a.expiresAt, askedAt + abandonAfterSilence, "the answer expires before the round can be closed");
+
+        // One second before the twelve hours are up: the round cannot be closed, the answer
+        // cannot be handed in, and the writer's delivery is stored.
+        skip(abandonAfterSilence - 5 minutes - 1);
+        assertEq(vm.getBlockTimestamp(), askedAt + abandonAfterSilence - 1);
+        vm.expectRevert(abi.encodeWithSelector(Questions.TooEarlyToAbandon.selector, askedAt + abandonAfterSilence));
+        vm.prank(bob);
+        q.abandon(feedId);
+        vm.expectRevert(Questions.SubmitNotForPanelEvidence.selector);
+        q.submit(feedId, a, signature);
+        uint256 snapshot = vm.snapshotState();
+        assertTrue(_complete(intakeId, a, signature), "a delivery inside the twelve hours was refused");
+        (uint256 value,,, uint64 round,) = q.latest(feedId);
+        assertEq(round, 1);
+        assertEq(value, uint256(keccak256(abi.encode(three))));
+
+        // At twelve hours anyone may close it. The same delivery then comes too late, and
+        // `submit` is as closed as before.
+        vm.revertToState(snapshot);
+        skip(1);
+        assertEq(vm.getBlockTimestamp(), askedAt + abandonAfterSilence);
+        vm.prank(bob);
+        assertTrue(q.abandon(feedId));
+        assertFalse(_complete(intakeId, a, signature), "an answer was stored for a round that was closed");
+        (,,, round,) = q.latest(feedId);
+        assertEq(round, 0);
+        assertEq(q.feedState(feedId).failStreak, 1);
+        vm.expectRevert(Questions.SubmitNotForPanelEvidence.selector);
+        q.submit(feedId, a, signature);
+    }
+
+    /// @notice The waits against the three house feeds as they are launched. An answer stays valid
+    /// for longer than silence can keep a round open, so one signed minutes after the request has
+    /// not expired when the round can first be closed. A round can be closed before its feed is
+    /// next due, so a round that ends at the last moment does not make the next request late. And
+    /// `submit` opens long before a round can be closed.
+    function test_theWaitsFitTheHouseFeeds() public view {
+        string[3] memory names = _names();
+        for (uint256 i; i < names.length; ++i) {
+            Questions.FeedParams memory p = _load(names[i]).params;
+            assertGt(p.validFor, abandonAfterSilence, names[i]);
+            // Twelve seconds a block.
+            assertGt(uint256(p.cadenceBlocks) * 12, abandonAfterSilence, names[i]);
+        }
+        assertLt(submitAfterSilence, abandonAfterSilence);
     }
 
     /// @notice The hires feed counts every Transfer log to the fee payee, zero-value ones included,

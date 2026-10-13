@@ -12,6 +12,7 @@ import {Questions} from "../../../src/questions/Questions.sol";
 import {JobsReport} from "../../../src/payroll/JobsReport.sol";
 import {Payroll} from "../../../src/payroll/Payroll.sol";
 import {LaunchKit} from "../LaunchKit.sol";
+import {IIntakeV2} from "../../questions/fork/IIntakeV2.sol";
 
 /// @dev IdentityMD's ProjectFactory, as a contracts-only launch uses it. Taken from the verified ABI
 /// (Sourcify, Ethereum mainnet `0xff03410d0fe5fa8f7f59f743de35e333d9857120`).
@@ -244,8 +245,11 @@ contract LaunchRehearsalForkTest is LaunchKit {
         assertEq(payroll.FEED_B(), ids[1]);
         assertEq(payroll.FEED_C(), ids[2]);
 
-        // The dependencies the constructors could not check are what the contracts expect.
+        // The dependencies the constructors could not check are what the contracts expect. The
+        // Intake is version 2: it answers a getter version 1 does not have.
         assertGt(Mainnet.INTAKE.code.length, 0);
+        assertEq(Mainnet.INTAKE, 0xa43e6F75ee006411F79Ac1C84120606C2330DE82);
+        assertEq(IIntakeV2(Mainnet.INTAKE).failureSelectorOf(bytes32(0)), bytes4(0), "the Intake is not version 2");
         assertEq(IERC4626(Mainnet.SIMD).asset(), Mainnet.IMD, "sIMD is a vault over IMD");
         assertGt(IERC20(Mainnet.SIMD).totalSupply(), 0, "sIMD has stakers");
         assertEq(INTAKE.priceOf(Mainnet.ORACLE_ACTION, Mainnet.IMD), 0.5e18, "the Intake price has changed");
@@ -385,8 +389,14 @@ contract LaunchRehearsalForkTest is LaunchKit {
         assertEq(IMD.balanceOf(address(q)), q.totalMetered() + q.totalTips());
         assertEq(IMD.allowance(address(q), Mainnet.INTAKE), 0);
 
-        // Nobody answers. Six hours later anyone closes the round and the tip is back on the meter.
-        skip(6 hours);
+        // Nobody answers. One second before the twelve hours are up the round cannot be closed;
+        // at twelve hours anyone closes it and the tip is back on the meter.
+        uint256 askedAt = vm.getBlockTimestamp();
+        uint256 silence = q.ABANDON_AFTER_SILENCE();
+        skip(silence - 1);
+        vm.expectRevert(abi.encodeWithSelector(Questions.TooEarlyToAbandon.selector, askedAt + silence));
+        q.abandon(feeds[i]);
+        skip(1);
         assertTrue(q.abandon(feeds[i]));
         (uint256 meterClosed,) = q.meterOf(feeds[i]);
         assertEq(meterBefore - meterClosed, price, "a failed round cost the meter more than the price");

@@ -266,7 +266,7 @@ contract QuestionsRequestTest is QuestionsFixture {
         vm.roll(vm.getBlockNumber() + CADENCE);
         _request(feedId);
         (uint64 from2,) = _window(feedId, 2);
-        skip(6 hours);
+        skip(abandonAfterSilence);
         q.abandon(feedId);
 
         vm.roll(vm.getBlockNumber() + 2 * uint256(CADENCE));
@@ -387,7 +387,7 @@ contract QuestionsRequestTest is QuestionsFixture {
         _request(feedId);
         for (uint256 i; i < factors.length; ++i) {
             uint256 askedAt = vm.getBlockNumber();
-            skip(6 hours);
+            skip(abandonAfterSilence);
             q.abandon(feedId);
             Questions.FeedView memory v = q.feedState(feedId);
             assertEq(v.failStreak, i + 1);
@@ -786,7 +786,7 @@ contract QuestionsRequestTest is QuestionsFixture {
     /// never served. The caller is paid nothing for it: the tip is only set aside, and when the
     /// round is closed it goes back onto the meter. The caller's cost is a whole Intake price of
     /// its own; the meter's is one price. If nobody does anything about it, the round can only be
-    /// closed six hours later, and the feed then waits two cadences.
+    /// closed twelve hours later, and the feed then waits two cadences.
     function test_request_afterTheCallersOwnIntakeRequest_isNeverServedAndEarnsTheCallerNothing() public {
         (BundledAsker bundle,) = _unservedRound();
         uint256 askedAt = vm.getBlockTimestamp();
@@ -801,11 +801,11 @@ contract QuestionsRequestTest is QuestionsFixture {
         assertEq(uint8(_status(feedId, 1)), uint8(IQuestions.RoundStatus.Pending));
 
         // The Intake never completes it. Nobody can ask again while it is pending, and it cannot
-        // be closed until six hours have passed.
+        // be closed until twelve hours have passed.
         vm.roll(askedBlock + 10 * uint256(CADENCE));
-        skip(6 hours - 1);
+        skip(abandonAfterSilence - 1);
         _assertBlocked(feedId, Questions.Blocker.RoundPending);
-        vm.expectRevert(abi.encodeWithSelector(Questions.TooEarlyToAbandon.selector, askedAt + 6 hours));
+        vm.expectRevert(abi.encodeWithSelector(Questions.TooEarlyToAbandon.selector, askedAt + abandonAfterSilence));
         q.abandon(feedId);
         skip(1);
         assertTrue(q.abandon(feedId));
@@ -833,8 +833,8 @@ contract QuestionsRequestTest is QuestionsFixture {
         assertEq(q.feedState(feedId).failStreak, 0);
     }
 
-    /// @notice What can be done about it: two hours after the request, anyone who has bought the
-    /// same question from the oracle for this contract hands the answer in. The round is answered,
+    /// @notice What can be done about it: thirty minutes after the request, anyone who has bought
+    /// the same question from the oracle for this contract hands the answer in. The round is answered,
     /// the cadence is not doubled, and the feed asks again when it would have anyway. The tip goes
     /// to the one who brought the answer, not to the caller that left the round unserved.
     function test_request_anUnservedRoundCanBeAnsweredThroughSubmit() public {
@@ -844,10 +844,15 @@ contract QuestionsRequestTest is QuestionsFixture {
         OracleAttestation.Attestation memory bought = _attestation(feedId, abi.encode(uint256(77)));
         bytes memory signature = _sign(bought);
 
-        vm.expectRevert(abi.encodeWithSelector(Questions.SubmitTooEarly.selector, askedAt + 2 hours));
+        bytes memory tooEarly = abi.encodeWithSelector(Questions.SubmitTooEarly.selector, askedAt + submitAfterSilence);
+        vm.expectRevert(tooEarly);
         q.submit(feedId, bought, signature);
-        skip(2 hours);
-        vm.roll(askedBlock + 600);
+        // To the last second of the wait; then it is open.
+        skip(submitAfterSilence - 1);
+        vm.expectRevert(tooEarly);
+        q.submit(feedId, bought, signature);
+        skip(1);
+        vm.roll(askedBlock + submitAfterSilence / 12);
         vm.prank(bob);
         q.submit(feedId, bought, signature);
 
@@ -866,7 +871,7 @@ contract QuestionsRequestTest is QuestionsFixture {
         assertEq(q.collectTips(), TIP);
         assertEq(q.totalTips(), 0);
         assertEq(imd.balanceOf(address(q)), q.totalMetered());
-        // Nothing is left to abandon, at six hours or ever.
+        // Nothing is left to abandon, at twelve hours or ever.
         skip(1 days);
         vm.expectRevert(abi.encodeWithSelector(Questions.NoPendingRound.selector, feedId));
         q.abandon(feedId);

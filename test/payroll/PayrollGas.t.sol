@@ -185,22 +185,34 @@ contract PayrollAgedTipGasTest is PayrollGasBase {
 }
 
 /// @dev The dearest `pay` there is: the first booking after two fortnight boundaries, which also
-/// releases the whole waiting feed budget to the staker stream. It must fit the 1,000,000 gas the hire
-/// desk forwards to `pay` (decision 5).
+/// ages the whole waiting feed budget: all of it falls due. It must fit the 1,000,000 gas the hire
+/// desk forwards to `pay` (decision 5). A booking releases nothing (audit job be91e8ae, finding 1);
+/// the release is `fundFeeds`'s, measured in the second test.
 contract PayrollAgeingPayGasTest is PayrollGasBase {
     function setUp() public override {
         super.setUp();
         skip(30 days);
     }
 
-    function test_gas_payThatAlsoReleasesTheWaitingFeedBudget() public {
+    function test_gas_payThatAlsoAgesTheWaitingFeedBudget() public {
         (uint256 waiting,,,) = payroll.feedBudget();
         assertGt(waiting, 0);
         vm.prank(payer);
         uint256 g = gasleft();
         payroll.pay(3e18, bytes32("order 12"));
-        measure("pay, with the feed budget aged and released", g, 400_000);
-        assertEq(payroll.ledger().feedsReleased, waiting, "the booking did release the budget");
+        measure("pay, with the feed budget aged", g, 400_000);
+        assertEq(payroll.ledger().feedsReleased, 0, "a booking releases nothing");
+        assertEq(payroll.feedBudgetDue(), waiting, "the booking did age the budget: all that waited is due");
+    }
+
+    /// @dev The dearest `fundFeeds`: a top-up, the ageing step and the release of what is left.
+    function test_gas_fundFeedsThatAlsoReleasesTheWaitingFeedBudget() public {
+        (uint256 waiting,,,) = payroll.feedBudget();
+        uint256 g = gasleft();
+        (uint256 funded, uint256 released) = payroll.fundFeeds();
+        measure("fundFeeds, one meter topped up and the waiting budget released", g, 400_000);
+        assertEq(funded, FEED_COST);
+        assertEq(released, waiting - funded);
     }
 }
 

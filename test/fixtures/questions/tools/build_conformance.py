@@ -6,6 +6,10 @@ The protocol's test is taken byte for byte from the `OracleConsumerConformance.t
 changed in exactly three places, each an exact string replacement that must match once:
 the imports, the type of the `consumer` variable, and `deployConsumer`. With --check the script
 writes nothing and exits 1 unless the file on disk equals what it would write.
+
+The reference this follows is the one delivered with version 2 of the Intake (13 October 2026).
+Against the earlier text it differs in `deployConsumer` alone, where the example consumer now pins
+the vector's question (`expectQuestion`); the vector constants and every test are unchanged.
 """
 
 import sys
@@ -56,6 +60,8 @@ DEPLOY_OLD = """    function deployConsumer() internal {
             VECTOR_CONSUMER
         );
         consumer = OracleDeliveryReceiver(VECTOR_CONSUMER);
+        // Whatever your consumer needs to take the vector's question as its own; this one pins it.
+        consumer.expectQuestion(vector().questionHash, true);
     }
 """
 DEPLOY_NEW = """    function deployConsumer() internal {
@@ -67,8 +73,11 @@ DEPLOY_NEW = """    function deployConsumer() internal {
             VECTOR_CONSUMER
         );
         consumer = QuestionsVectorHarness(VECTOR_CONSUMER);
-        // Questions takes an answer only for a round it asked for. The vector's round is planted as
-        // pending under each request id the tests below deliver with.
+        // Whatever your consumer needs to take the vector's question as its own. The reference's
+        // example pins the question hash here. Questions takes an answer only for a round it asked
+        // for itself, and holds that round to the question hash it built when it asked, so the
+        // vector's round is planted as pending, with the vector's question hash pinned, under each
+        // request id the tests below deliver with.
         consumer.plant(keccak256("source request"), vector());
         consumer.plant(bytes32(0), vector());
     }

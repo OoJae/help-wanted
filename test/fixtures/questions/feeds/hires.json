@@ -36,23 +36,34 @@
     "questionHash": "0x43edb88873f73a6652e6e8cc47494a78d80936362a35ae5d17d130f28ecae01d"
   },
   "notes": {
+    "proof": {
+      "what": "one real request with exactly this feed's body, bought from an ordinary wallet through version 1 of the Intake (0x1397434cd35e8a9c8ac312a61d3a285eb31dea56) with no callback, before version 2 was adopted",
+      "transaction": "0xd7ad398293c0c9138cf7895262f5861465f0ab610861b81426efe6c7e27b16ea",
+      "block": 26179785,
+      "intakeRequestId": "0xb5ca523d0a4395f531e43f3fdd74ead0b5dbf3ac6eb7b53bc0bd576c123b5d35",
+      "bodyHash": "0xda6f13f65b9329f31f201dc06eed234f4c73bded9a9ebf64a061f4181a2b29a9",
+      "oracleRequestId": "df50bf76-41a0-4596-ae9e-9dcfd0e1ccd5",
+      "fromBlock": 26172772,
+      "toBlock": 26179771,
+      "questionHash": "0xdb20f183971eca9bda183646db40164a35cd6cec00acabff45918189f15e6dc5",
+      "status": "attested",
+      "answer": "228, agreed 5 of a panel of 7, attested 2026-10-12T23:50:31Z, 62 seconds after the request was admitted",
+      "record": "test/fixtures/questions/proofs/hires.oracle.json"
+    },
     "what": "A log-count of the same transfers: how many IMD Transfer logs name the fee payee as recipient, zero-value transfers included. It is a count of transfers, not of paid actions. Same windows as payrolls when both are requested in the same block.",
     "modelledOn": "recipe: dcc0a889-47e2-4320-972e-6543c96eb98d (log-count with a filter on an indexed argument, Ethereum mainnet) and 54d11aa3 (log-count of Transfer events); sentence: the shape of dbcac6c2",
     "confirmed": [
-      "questionHash rule: rebuilt for 23 attested requests and for 3 bodies read back from Intake Requested events (test/fixtures/questions/requests, intake/requested.json)",
-      "pinning a recipe in definitions.recipe with the sentence '- write recipe exactly this, event text included.': attested requests dbcac6c2 and c5e21f11",
+      "questionHash rule: rebuilt for 23 attested requests and for 3 bodies read back from Intake Requested events (test/fixtures/questions/requests, intake/requested.json), and for this feed's own proof request (below)",
+      "pinning a recipe in definitions.recipe with the sentence '- write recipe exactly this, event text included.': attested requests dbcac6c2 and c5e21f11, and this feed's own proof",
       "a contract building this kind of body on chain and buying it through the Intake with an explicit {fromBlock,toBlock} window: dbcac6c2 (Robinhood Chain, payer and consumer 0x3c81384a...), body bytes in intake/requested.json",
-      "panelSize 7, quorum 5, validForSeconds 86400, evidence chain: the values of dbcac6c2, attested with agreed 5",
+      "panelSize 7, quorum 5, validForSeconds 86400, evidence chain: the values of dbcac6c2, attested with agreed 5; and of this feed's own proof, attested with agreed 5",
+      "a filter on the Transfer event's indexed `to` argument, the Ethereum IMD token as the log source, a window of 7,000 Ethereum blocks, and this body's key order (canonical order followed by the tail): this feed's own proof",
       "log-count recipe {kind, address, event, filter} with a filter on an indexed argument, answer uint256, toleranceBps 0: dcc0a889 (Ethereum mainnet)",
       "log-count of ERC-20 Transfer events: 54d11aa3 (Robinhood Chain)"
     ],
     "unconfirmed": [
-      "this exact body has not been through the protocol's free POST /requests/check and no request with it has been bought; do both from a wallet before funding the meter (a refused body costs 0.5 IMD)",
-      "a filter on the Transfer event's indexed `to` argument: attested samples filter on `from` (Transfer) and on `id` (Uniswap v4 Swap)",
-      "the Ethereum IMD token as the log source",
-      "body key order: this body is in canonical key order followed by the tail; the three bodies read back from the chain are in another order, which JSON parsing should not care about",
-      "the question sentence is new wording (the attested counts name their block numbers in the sentence, which a standing question cannot)",
-      "window length: the attested log-count windows in the fixtures are 299 blocks on Ethereum and 8,851 on Robinhood Chain"
+      "a catch-up window longer than the proven 7,000 blocks (the feed asks about up to 21,600 after a missed or failed round)",
+      "a real answer delivered to the launched contract by the Intake's callback: the proof was bought from a wallet with no callback, so it was signed for no consumer (the attestation's domain names the zero address) and proves the body, the question hash and the answer, not the delivery"
     ],
     "limits": [
       "zero-value transfers are counted (build brief, section 11, decision 12): the recipe counts every Transfer log whose `to` is the fee payee. A log-count filter reaches indexed arguments only (the protocol's documentation: 'optionally filtered by indexed fields'), `value` is not indexed, and no attested recipe shape excludes a transfer by its value. Anyone can therefore raise this count by one, for gas alone, with a zero-value IMD transfer to the fee payee; the payrolls sum does not move when they do",

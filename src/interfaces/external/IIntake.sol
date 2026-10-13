@@ -3,7 +3,10 @@ pragma solidity 0.8.26;
 
 /// @title The IdentityMD Intake, as a paying contract sees it
 /// @notice Taken from the verified source on Sourcify (Ethereum mainnet
-/// `0x1397434cd35e8a9c8ac312a61d3a285eb31dea56`, version 1). Only the parts a consumer touches.
+/// `0xa43e6f75ee006411f79ac1c84120606c2330de82`, version 2). Only the parts a consumer touches, all
+/// of which version 1 (`0x1397434cd35e8a9c8ac312a61d3a285eb31dea56`, legacy) has in the same form.
+/// Version 2 adds `requestWithFailure`, `failureSelectorOf` and the event `FailureHookSet`, which
+/// HELP WANTED does not use and which are not listed here.
 interface IIntake {
     struct Callback {
         address target;

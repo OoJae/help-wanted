@@ -50,6 +50,13 @@ abstract contract QuestionsFixture is Test {
 
     uint256 internal oracleRequests;
 
+    /// @dev The contract's three waits, read from it in `setUp`. A test that waits a rule out names
+    /// the rule and not a number of hours, so it follows the contract; the numbers themselves are
+    /// stated in `test_waits_areTheValuesFixedAtLaunch`.
+    uint256 internal submitAfterSilence;
+    uint256 internal abandonAfterSilence;
+    uint256 internal abandonAfterCompleted;
+
     function setUp() public virtual {
         vm.roll(START_BLOCK);
         vm.warp(START_TIME);
@@ -58,6 +65,9 @@ abstract contract QuestionsFixture is Test {
         intake = new MockIntake(PAY_TO, WRITER);
         intake.setPrice(ACTION, address(imd), PRICE);
         q = new QuestionsHarness(address(intake), address(imd), oracle);
+        submitAfterSilence = q.SUBMIT_AFTER_SILENCE();
+        abandonAfterSilence = q.ABANDON_AFTER_SILENCE();
+        abandonAfterCompleted = q.ABANDON_AFTER_COMPLETED();
         for (uint256 i; i < 3; ++i) {
             address who = [alice, bob, keeper][i];
             imd.mint(who, 1_000_000e18);

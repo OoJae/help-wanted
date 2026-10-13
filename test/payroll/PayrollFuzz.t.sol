@@ -126,6 +126,8 @@ contract PayrollFuzzTest is PayrollSetup {
 
         (uint256 funded,) = payroll.fundFeeds();
 
+        // What somebody else holds on a meter is not Payroll's runway (audit job be91e8ae, finding
+        // 2): Payroll places up to one runway of its own on each meter, whatever `before` is.
         uint256 assumed = cost > 2e18 ? 2e18 : cost;
         uint256 placed;
         uint256[3] memory got;
@@ -133,21 +135,27 @@ contract PayrollFuzzTest is PayrollSetup {
             // Fourteen requests for the first two feeds, four for the third.
             uint256 target = (i == 2 ? 4 : 14) * assumed;
             (uint256 balance,) = questions.meterOf(feeds[i]);
-            assertLe(balance, before[i] > target ? before[i] : target, "a meter is never pushed past its runway");
             got[i] = balance - before[i];
+            assertLe(got[i], target, "Payroll placed more than one runway on a meter");
+            assertEq(questions.redeemable(feeds[i], address(payroll)), got[i], "Payroll's position is what it placed");
+            assertEq(questions.redeemable(feeds[i], address(this)), before[i], "the other funder's part moved");
             placed += got[i];
         }
         assertEq(placed, funded);
         assertLe(funded, budget);
 
         // The third feed is served only when the first two were offered everything they lacked.
-        uint256 lackA = before[0] > 14 * assumed ? 0 : 14 * assumed - before[0];
-        uint256 lackB = before[1] > 14 * assumed ? 0 : 14 * assumed - before[1];
+        uint256 lackA = 14 * assumed;
+        uint256 lackB = 14 * assumed;
         if (lackA + lackB > budget) {
             assertEq(got[2], 0, "the third feed took budget the first two still needed");
+            assertEq(got[0], (budget * lackA) / (lackA + lackB));
+            assertEq(got[1], (budget * lackB) / (lackA + lackB));
         } else {
             assertEq(got[0], lackA);
             assertEq(got[1], lackB);
+            uint256 lackC = 4 * assumed;
+            assertEq(got[2], lackC > budget - lackA - lackB ? budget - lackA - lackB : lackC);
         }
         assertBooksBalance();
     }

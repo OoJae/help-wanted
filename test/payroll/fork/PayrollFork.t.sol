@@ -11,6 +11,64 @@ import {ISeatAdapter, ISeats} from "../../../src/interfaces/external/ISeatAdapte
 import {Mainnet} from "../../../src/interfaces/external/Mainnet.sol";
 import {Questions} from "../../../src/questions/Questions.sol";
 
+/// @dev What the real sIMD has beyond ERC-4626: the block of each holder's last deposit or mint.
+interface IStakedIMD is IERC4626 {
+    function lastDepositBlock(address holder) external view returns (uint256);
+}
+
+/// @dev A visitor to sIMD as one contract, so that a whole visit can be one transaction: stake,
+/// make Payroll drip, and leave. Used to show what the real sIMD lets such a visit do.
+contract Visitor {
+    IERC20 internal immutable IMD;
+    IERC4626 internal immutable SIMD;
+    Payroll internal immutable PAYROLL;
+
+    constructor(IERC20 imd, IERC4626 simd, Payroll payroll) {
+        IMD = imd;
+        SIMD = simd;
+        PAYROLL = payroll;
+        imd.approve(address(simd), type(uint256).max);
+    }
+
+    /// @dev Stake, drip, leave: everything in one transaction.
+    function stakeDripLeave(uint256 amount) external returns (uint256 back) {
+        uint256 shares = SIMD.deposit(amount, address(this));
+        PAYROLL.drip();
+        back = SIMD.redeem(shares, address(this), address(this));
+    }
+
+    /// @dev The same, leaving with `withdraw` instead of `redeem`.
+    function stakeDripWithdraw(uint256 amount) external returns (uint256 burned) {
+        SIMD.deposit(amount, address(this));
+        PAYROLL.drip();
+        burned = SIMD.withdraw(amount, address(this), address(this));
+    }
+
+    /// @dev Stake, drip, hand the shares to a second address, which leaves in the same transaction.
+    function stakeDripMoveLeave(uint256 amount, Visitor second) external returns (uint256 back) {
+        uint256 shares = SIMD.deposit(amount, address(this));
+        PAYROLL.drip();
+        SIMD.transfer(address(second), shares);
+        back = second.leave(shares);
+    }
+
+    /// @dev Stake in a second address's name, drip, and have that address leave in the same transaction.
+    function stakeForDripLeave(uint256 amount, Visitor second) external returns (uint256 back) {
+        uint256 shares = SIMD.deposit(amount, address(second));
+        PAYROLL.drip();
+        back = second.leave(shares);
+    }
+
+    function stakeAndDrip(uint256 amount) external returns (uint256 shares, uint256 sent) {
+        shares = SIMD.deposit(amount, address(this));
+        sent = PAYROLL.drip();
+    }
+
+    function leave(uint256 shares) external returns (uint256 back) {
+        back = SIMD.redeem(shares, address(this), address(this));
+    }
+}
+
 /// @dev Payroll against the real IMD, sIMD, seat token and seat Adapter on a fork of Ethereum mainnet at
 /// the latest block. Questions is this project's own contract, deployed on the fork with the live
 /// Intake and oracle signer; its three feeds are left uncreated here, so the feed budget is not
@@ -22,6 +80,9 @@ contract PayrollForkTest is Test {
 
     IERC20 internal constant IMD = IERC20(Mainnet.IMD);
     IERC4626 internal constant SIMD = IERC4626(Mainnet.SIMD);
+    /// @dev The real sIMD's errors for leaving during the hold (selectors 0x4656425a and 0x936941fc).
+    bytes internal constant REDEEM_MORE_THAN_MAX = abi.encodeWithSignature("RedeemMoreThanMax()");
+    bytes internal constant WITHDRAW_MORE_THAN_MAX = abi.encodeWithSignature("WithdrawMoreThanMax()");
     ISeats internal constant SEATS = ISeats(Mainnet.SEATS);
 
     Payroll internal payroll;
@@ -91,6 +152,93 @@ contract PayrollForkTest is Test {
         payroll.drip();
         skip(10 minutes);
         assertGt(payroll.drip(), 0);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // A visitor to sIMD around a drip (audit job 22624be0, finding 1; docs/THREATS.md P2 and T5)
+    // ---------------------------------------------------------------------------------------------
+
+    /// @dev Books 16,800 IMD (50 an hour for stakers), waits an hour, and gives a new visitor `stake`.
+    function _visitor(uint256 stake) internal returns (Visitor visitor) {
+        vm.prank(payer);
+        payroll.pay(16_800e18, bytes32("fork"));
+        skip(1 hours);
+        visitor = new Visitor(IMD, SIMD, payroll);
+        deal(Mainnet.IMD, address(visitor), stake);
+    }
+
+    /// @dev The real sIMD does not let a holder leave in the block it staked in. A visit that stakes,
+    /// drips and leaves in one transaction therefore reverts as a whole: it cannot be paid for with
+    /// IMD borrowed for the length of a transaction.
+    function test_fork_visit_stakeDripLeaveInOneTransactionReverts() public onFork {
+        uint256 stake = SIMD.totalAssets() / 10;
+        Visitor visitor = _visitor(stake);
+
+        vm.expectRevert(REDEEM_MORE_THAN_MAX);
+        visitor.stakeDripLeave(stake);
+        vm.expectRevert(WITHDRAW_MORE_THAN_MAX);
+        visitor.stakeDripWithdraw(stake);
+        assertEq(IMD.balanceOf(address(visitor)), stake, "the visit was undone as a whole");
+        assertEq(payroll.ledger().dripped, 0, "and so was its drip");
+
+        // The hold as the vault reports it: stamped with the block of the deposit, nothing can be
+        // taken out in that block, and everything can in the next.
+        (uint256 shares,) = visitor.stakeAndDrip(stake);
+        assertEq(IStakedIMD(Mainnet.SIMD).lastDepositBlock(address(visitor)), vm.getBlockNumber());
+        assertEq(SIMD.maxRedeem(address(visitor)), 0);
+        assertEq(SIMD.maxWithdraw(address(visitor)), 0);
+        vm.expectRevert(REDEEM_MORE_THAN_MAX);
+        visitor.leave(shares);
+        vm.roll(vm.getBlockNumber() + 1);
+        assertEq(SIMD.maxRedeem(address(visitor)), shares);
+        assertGt(visitor.leave(shares), 0);
+    }
+
+    /// @dev Handing the shares to a second address does not get round the hold: the stamp travels
+    /// with them. Neither does staking in the second address's name.
+    function test_fork_visit_movingTheSharesDoesNotGetRoundTheHold() public onFork {
+        uint256 stake = SIMD.totalAssets() / 10;
+        Visitor visitor = _visitor(stake);
+        Visitor second = new Visitor(IMD, SIMD, payroll);
+
+        vm.expectRevert(REDEEM_MORE_THAN_MAX);
+        visitor.stakeDripMoveLeave(stake, second);
+        vm.expectRevert(REDEEM_MORE_THAN_MAX);
+        visitor.stakeForDripLeave(stake, second);
+
+        // Outside one transaction, in the same block, the same holds.
+        (uint256 shares,) = visitor.stakeAndDrip(stake);
+        vm.prank(address(visitor));
+        SIMD.transfer(address(second), shares);
+        assertEq(IStakedIMD(Mainnet.SIMD).lastDepositBlock(address(second)), vm.getBlockNumber(), "the stamp moved");
+        assertEq(SIMD.maxRedeem(address(second)), 0);
+        vm.expectRevert(REDEEM_MORE_THAN_MAX);
+        second.leave(shares);
+    }
+
+    /// @dev What a visit does collect: stake just before a drip, leave one block later. The visitor
+    /// takes its part of that one drip, in proportion to what it held against what was staked, the
+    /// same as any staker of that size present at that moment, and not a wei more.
+    function test_fork_visit_leavingOneBlockLaterTakesItsProRataShareOfThatDrip() public onFork {
+        uint256 staked = SIMD.totalAssets();
+        uint256 stake = staked / 10;
+        Visitor visitor = _visitor(stake);
+
+        (uint256 shares, uint256 sent) = visitor.stakeAndDrip(stake);
+        assertEq(sent, 50e18);
+        vm.roll(vm.getBlockNumber() + 1);
+        uint256 back = visitor.leave(shares);
+
+        uint256 gain = back - stake;
+        uint256 proRata = (sent * stake) / (staked + stake);
+        console.log("staked before the visit (IMD wei):", staked);
+        console.log("the visitor's stake (IMD wei):", stake);
+        console.log("the drip (IMD wei):", sent);
+        console.log("the visitor's gain (IMD wei):", gain);
+        console.log("its pro-rata share of the drip:", proRata);
+        assertLe(gain, proRata, "the visitor took more than its share of the drip");
+        assertApproxEqAbs(gain, proRata, 1e6, "the visitor took something other than its share of the drip");
+        assertEq(SIMD.totalAssets(), staked + sent - gain, "the stakers who stayed keep the rest");
     }
 
     /// @dev The seat pool pays the real owners of real seats, read from the seat token at claim time.

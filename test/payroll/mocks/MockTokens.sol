@@ -81,10 +81,59 @@ contract MockIMD is ERC20 {
     }
 }
 
-/// @dev An ERC-4626 over IMD whose `totalAssets` is its IMD balance and whose shares have 24 decimals,
-/// as on mainnet. A plain transfer to it therefore raises the price of every share.
+/// @dev An ERC-4626 over IMD modelled on the mainnet sIMD in the three ways Payroll's design leans on.
+/// Its `totalAssets` is its IMD balance, so a plain transfer to it raises the price of every share.
+/// Its shares have 24 decimals. And a holder cannot leave in the block it staked in: a deposit or a
+/// mint stamps the receiver with the block number, the stamp travels with the shares when they are
+/// transferred, and while a holder's stamp is the current block `maxWithdraw` and `maxRedeem` are
+/// zero and `withdraw` and `redeem` revert, with the errors the real vault uses.
+/// `test/payroll/fork/PayrollFork.t.sol` checks each of these against the real contract.
 contract MockSIMD is ERC4626 {
+    error RedeemMoreThanMax();
+    error WithdrawMoreThanMax();
+
+    /// @dev The block of each holder's last deposit or mint, or of the newest one among the shares
+    /// it was sent.
+    mapping(address holder => uint256) public lastDepositBlock;
+
     constructor(IERC20 imd) ERC20("Staked IMD", "sIMD") ERC4626(imd) {}
+
+    function _decimalsOffset() internal pure override returns (uint8) {
+        return 6;
+    }
+
+    function maxWithdraw(address owner) public view override returns (uint256) {
+        return lastDepositBlock[owner] == block.number ? 0 : super.maxWithdraw(owner);
+    }
+
+    function maxRedeem(address owner) public view override returns (uint256) {
+        return lastDepositBlock[owner] == block.number ? 0 : super.maxRedeem(owner);
+    }
+
+    function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
+        if (assets > maxWithdraw(owner)) revert WithdrawMoreThanMax();
+        return super.withdraw(assets, receiver, owner);
+    }
+
+    function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
+        if (shares > maxRedeem(owner)) revert RedeemMoreThanMax();
+        return super.redeem(shares, receiver, owner);
+    }
+
+    function _update(address from, address to, uint256 value) internal override {
+        super._update(from, to, value);
+        if (from == address(0)) {
+            lastDepositBlock[to] = block.number;
+        } else if (to != address(0) && lastDepositBlock[from] > lastDepositBlock[to]) {
+            lastDepositBlock[to] = lastDepositBlock[from];
+        }
+    }
+}
+
+/// @dev The same vault without the hold: a holder may stake and leave in one transaction. The real
+/// sIMD does not allow that. This exists to show what would follow if it did (docs/THREATS.md, P2).
+contract HoldlessSIMD is ERC4626 {
+    constructor(IERC20 imd) ERC20("Staked IMD, no hold", "sIMD0") ERC4626(imd) {}
 
     function _decimalsOffset() internal pure override returns (uint8) {
         return 6;
@@ -149,6 +198,11 @@ contract GreedyQuestions {
 
     function meterOf(bytes32) external pure returns (uint256, uint256) {
         return (0, 0);
+    }
+
+    /// @dev Payroll holds nothing on any meter here, so each lacks its whole runway.
+    function redeemable(bytes32, address) external pure returns (uint256) {
+        return 0;
     }
 
     function fund(bytes32, uint256 amount) external returns (uint256) {

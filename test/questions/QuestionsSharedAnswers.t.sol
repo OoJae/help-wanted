@@ -188,16 +188,25 @@ contract QuestionsSharedAnswersTest is QuestionsFixture {
     }
 
     /// @notice A twin whose own request is still open cannot take the answer early: `submit` waits
-    /// for the Intake on every feed, so a copy cannot be answered at the first feed's expense
-    /// before its own request has ended.
+    /// for the Intake on every feed, or for the thirty minutes, so a copy cannot be answered at the
+    /// first feed's expense before its own request has ended or grown old.
     function test_aTwinCannotTakeTheAnswerBeforeItsOwnRequestHasEnded() public {
         (bytes32 twin, bytes32 twinIntakeId) = _openTwin();
+        uint256 twinAskedAt = vm.getBlockTimestamp();
         OracleAttestation.Attestation memory a = _attestation(feedId, abi.encode(uint256(11)));
         bytes memory signature = _sign(a);
         assertFalse(q.canSubmit(twin));
         (,,, bool twinCompleted) = intake.requests(twinIntakeId);
         assertFalse(twinCompleted);
-        vm.expectRevert(abi.encodeWithSelector(Questions.SubmitTooEarly.selector, vm.getBlockTimestamp() + 2 hours));
+        bytes memory tooEarly =
+            abi.encodeWithSelector(Questions.SubmitTooEarly.selector, twinAskedAt + submitAfterSilence);
+        vm.expectRevert(tooEarly);
+        vm.prank(bob);
+        q.submit(twin, a, signature);
+        // To the last second of the twin's own wait.
+        skip(submitAfterSilence - 1);
+        assertFalse(q.canSubmit(twin));
+        vm.expectRevert(tooEarly);
         vm.prank(bob);
         q.submit(twin, a, signature);
 

@@ -8,8 +8,9 @@ import {QuestionsFixture} from "./QuestionsFixture.sol";
 import {OddIntake} from "./mocks/Oddities.sol";
 import {QuestionsHarness} from "./mocks/QuestionsHarness.sol";
 
-/// @notice `abandon`: the way out of a round that will get no answer. Version 1 of the Intake has
-/// no failure callback, so a refused or unanswered request is only ever noticed here.
+/// @notice `abandon`: the way out of a round that will get no answer. Questions asks with plain
+/// `request`, which names no failure function, so the Intake (either version) completes a refused
+/// or unanswered request with no call and it is only ever noticed here.
 contract QuestionsAbandonTest is QuestionsFixture {
     event RoundFailed(
         bytes32 indexed feedId, uint64 indexed round, bytes32 intakeRequestId, bool completed, uint8 failStreak
@@ -35,18 +36,43 @@ contract QuestionsAbandonTest is QuestionsFixture {
         assertEq(at, closableAt, "canAbandon names another time");
     }
 
-    /// @notice The Intake never completed the request: the round can be closed after six hours.
-    function test_abandon_afterSixHoursOfSilence() public {
+    /// @notice The three waits are fixed at launch, and these are their values. The other tests
+    /// name the rule they wait out, through the figures the fixture reads from the contract.
+    function test_waits_areTheValuesFixedAtLaunch() public view {
+        assertEq(q.SUBMIT_AFTER_SILENCE(), 30 minutes);
+        assertEq(q.ABANDON_AFTER_COMPLETED(), 30 minutes);
+        assertEq(q.ABANDON_AFTER_SILENCE(), 12 hours);
+        assertEq(submitAfterSilence, q.SUBMIT_AFTER_SILENCE());
+        assertEq(abandonAfterCompleted, q.ABANDON_AFTER_COMPLETED());
+        assertEq(abandonAfterSilence, q.ABANDON_AFTER_SILENCE());
+        // `submit` opens long before a round can be closed.
+        assertLt(submitAfterSilence, abandonAfterSilence);
+    }
+
+    /// @notice The Intake never completed the request: the round can be closed after twelve hours,
+    /// and not one second sooner.
+    function test_abandon_afterTwelveHoursOfSilence() public {
         bytes32 intakeId = _request(feedId);
         uint256 askedAt = vm.getBlockTimestamp();
+        _assertStep(feedId, Questions.AbandonStep.Wait, askedAt + abandonAfterSilence);
 
-        skip(6 hours - 1);
-        _assertStep(feedId, Questions.AbandonStep.Wait, askedAt + 6 hours);
-        _expectTooEarly(askedAt + 6 hours);
+        // Half way through nothing can be closed.
+        skip(abandonAfterSilence / 2);
+        _assertStep(feedId, Questions.AbandonStep.Wait, askedAt + abandonAfterSilence);
+        _expectTooEarly(askedAt + abandonAfterSilence);
         q.abandon(feedId);
 
+        // Nor one second before the end.
+        skip(abandonAfterSilence - abandonAfterSilence / 2 - 1);
+        assertEq(vm.getBlockTimestamp(), askedAt + abandonAfterSilence - 1);
+        _assertStep(feedId, Questions.AbandonStep.Wait, askedAt + abandonAfterSilence);
+        _expectTooEarly(askedAt + abandonAfterSilence);
+        q.abandon(feedId);
+        assertEq(uint8(_status(feedId, 1)), uint8(IQuestions.RoundStatus.Pending));
+
         skip(1);
-        _assertStep(feedId, Questions.AbandonStep.Close, askedAt + 6 hours);
+        assertEq(vm.getBlockTimestamp(), askedAt + abandonAfterSilence);
+        _assertStep(feedId, Questions.AbandonStep.Close, askedAt + abandonAfterSilence);
         vm.expectEmit(address(q));
         emit RoundFailed(feedId, 1, intakeId, false, 1);
         vm.prank(bob);
@@ -83,15 +109,15 @@ contract QuestionsAbandonTest is QuestionsFixture {
             bytes32 intakeId = _request(feedId);
             uint256 askedAt = vm.getBlockTimestamp();
             skip(4 minutes);
-            _assertStep(feedId, Questions.AbandonStep.Wait, askedAt + 6 hours);
+            _assertStep(feedId, Questions.AbandonStep.Wait, askedAt + abandonAfterSilence);
             _completeWithoutAnswer(intakeId, status);
 
             // Nobody has told the contract yet. Whenever somebody does, the wait starts there.
             skip(3 minutes);
             uint256 seenAt = vm.getBlockTimestamp();
-            _assertStep(feedId, Questions.AbandonStep.StartWait, seenAt + 30 minutes);
+            _assertStep(feedId, Questions.AbandonStep.StartWait, seenAt + abandonAfterCompleted);
             vm.expectEmit(address(q));
-            emit CompletionSeen(feedId, status, intakeId, uint64(seenAt + 30 minutes));
+            emit CompletionSeen(feedId, status, intakeId, uint64(seenAt + abandonAfterCompleted));
             vm.prank(bob);
             assertFalse(q.abandon(feedId), "the first call closed the round");
             assertEq(uint8(_status(feedId, status)), uint8(IQuestions.RoundStatus.Pending));
@@ -99,13 +125,13 @@ contract QuestionsAbandonTest is QuestionsFixture {
             assertEq(q.feedOfRequest(intakeId), feedId);
 
             // A second call inside the wait does not start it again and does not close the round.
-            skip(30 minutes - 1);
-            _assertStep(feedId, Questions.AbandonStep.Wait, seenAt + 30 minutes);
-            _expectTooEarly(seenAt + 30 minutes);
+            skip(abandonAfterCompleted - 1);
+            _assertStep(feedId, Questions.AbandonStep.Wait, seenAt + abandonAfterCompleted);
+            _expectTooEarly(seenAt + abandonAfterCompleted);
             q.abandon(feedId);
 
             skip(1);
-            _assertStep(feedId, Questions.AbandonStep.Close, seenAt + 30 minutes);
+            _assertStep(feedId, Questions.AbandonStep.Close, seenAt + abandonAfterCompleted);
             vm.expectEmit(address(q));
             emit RoundFailed(feedId, status, intakeId, true, status);
             assertTrue(q.abandon(feedId));
@@ -125,8 +151,8 @@ contract QuestionsAbandonTest is QuestionsFixture {
 
         uint256 seenAt = vm.getBlockTimestamp();
         assertFalse(q.abandon(feedId));
-        skip(29 minutes);
-        _expectTooEarly(seenAt + 30 minutes);
+        skip(abandonAfterCompleted - 1 minutes);
+        _expectTooEarly(seenAt + abandonAfterCompleted);
         q.abandon(feedId);
         skip(1 minutes);
         assertTrue(q.abandon(feedId));
@@ -150,7 +176,7 @@ contract QuestionsAbandonTest is QuestionsFixture {
         vm.prank(bob);
         assertFalse(q.abandon(feedId));
         assertEq(uint8(_status(feedId, 1)), uint8(IQuestions.RoundStatus.Pending));
-        skip(30 minutes - 1);
+        skip(abandonAfterCompleted - 1);
         _expectTooEarly(vm.getBlockTimestamp() + 1);
         vm.prank(bob);
         q.abandon(feedId);
@@ -168,32 +194,37 @@ contract QuestionsAbandonTest is QuestionsFixture {
         q.abandon(feedId);
     }
 
-    /// @notice Seeing the completion never makes a round wait longer than six hours from its
-    /// request, and after six hours one call is enough whether or not anything was recorded.
-    function test_abandon_sixHoursFromTheRequestIsAlwaysEnough() public {
+    /// @notice Seeing the completion never makes a round wait longer than twelve hours from its
+    /// request, and after twelve hours one call is enough whether or not anything was recorded.
+    function test_abandon_twelveHoursFromTheRequestIsAlwaysEnough() public {
         bytes32 intakeId = _request(feedId);
         uint256 askedAt = vm.getBlockTimestamp();
-        skip(5 hours + 50 minutes);
+        skip(abandonAfterSilence - 10 minutes);
         _completeWithoutAnswer(intakeId, 1);
 
-        // Seen ten minutes before the six hours are up: closable at six hours, not thirty minutes on.
-        _assertStep(feedId, Questions.AbandonStep.StartWait, askedAt + 6 hours);
+        // Seen ten minutes before the twelve hours are up: closable at twelve hours, not thirty
+        // minutes on.
+        assertLt(10 minutes, abandonAfterCompleted);
+        _assertStep(feedId, Questions.AbandonStep.StartWait, askedAt + abandonAfterSilence);
         vm.expectEmit(address(q));
-        emit CompletionSeen(feedId, 1, intakeId, uint64(askedAt + 6 hours));
+        emit CompletionSeen(feedId, 1, intakeId, uint64(askedAt + abandonAfterSilence));
         assertFalse(q.abandon(feedId));
         skip(10 minutes - 1);
-        _expectTooEarly(askedAt + 6 hours);
+        _expectTooEarly(askedAt + abandonAfterSilence);
         q.abandon(feedId);
         skip(1);
         assertTrue(q.abandon(feedId));
 
-        // A completed request nobody looked at for six hours is closed by a single call.
+        // A completed request nobody looked at for twelve hours is closed by a single call, and
+        // one second sooner the same call would only have started the thirty minutes.
         vm.roll(vm.getBlockNumber() + 2 * uint256(CADENCE));
         intakeId = _request(feedId);
         askedAt = vm.getBlockTimestamp();
         _completeWithoutAnswer(intakeId, 2);
-        skip(6 hours);
-        _assertStep(feedId, Questions.AbandonStep.Close, askedAt + 6 hours);
+        skip(abandonAfterSilence - 1);
+        _assertStep(feedId, Questions.AbandonStep.StartWait, askedAt + abandonAfterSilence);
+        skip(1);
+        _assertStep(feedId, Questions.AbandonStep.Close, askedAt + abandonAfterSilence);
         vm.expectEmit(address(q));
         emit RoundFailed(feedId, 2, intakeId, true, 2);
         assertTrue(q.abandon(feedId));
@@ -205,20 +236,21 @@ contract QuestionsAbandonTest is QuestionsFixture {
         bytes32 intakeId = _request(feedId);
         _completeWithoutAnswer(intakeId, 1);
         assertFalse(q.abandon(feedId));
-        skip(30 minutes);
+        skip(abandonAfterCompleted);
         assertTrue(q.abandon(feedId));
 
         vm.roll(vm.getBlockNumber() + 2 * uint256(CADENCE));
         intakeId = _request(feedId);
         uint256 askedAt = vm.getBlockTimestamp();
-        _assertStep(feedId, Questions.AbandonStep.Wait, askedAt + 6 hours);
+        _assertStep(feedId, Questions.AbandonStep.Wait, askedAt + abandonAfterSilence);
+        // Some time later, well inside the twelve hours.
         skip(2 hours);
         _completeWithoutAnswer(intakeId, 1);
-        _assertStep(feedId, Questions.AbandonStep.StartWait, vm.getBlockTimestamp() + 30 minutes);
+        _assertStep(feedId, Questions.AbandonStep.StartWait, vm.getBlockTimestamp() + abandonAfterCompleted);
         assertFalse(q.abandon(feedId), "the earlier round's wait closed this one at once");
 
         // An answered round clears it as well.
-        skip(30 minutes);
+        skip(abandonAfterCompleted);
         assertTrue(q.abandon(feedId));
         vm.roll(vm.getBlockNumber() + 4 * uint256(CADENCE));
         intakeId = _request(feedId);
@@ -238,13 +270,13 @@ contract QuestionsAbandonTest is QuestionsFixture {
         q.abandon(feedId);
 
         _answer(feedId, abi.encode(uint256(1)));
-        skip(7 hours);
+        skip(abandonAfterSilence + 1 hours);
         vm.expectRevert(abi.encodeWithSelector(Questions.NoPendingRound.selector, feedId));
         q.abandon(feedId);
 
         vm.roll(vm.getBlockNumber() + CADENCE);
         _request(feedId);
-        skip(6 hours);
+        skip(abandonAfterSilence);
         q.abandon(feedId);
         vm.expectRevert(abi.encodeWithSelector(Questions.NoPendingRound.selector, feedId));
         q.abandon(feedId);
@@ -264,7 +296,7 @@ contract QuestionsAbandonTest is QuestionsFixture {
     /// @notice After a failure the feed asks again, later, and an answer heals it.
     function test_abandon_thenTheFeedAsksAgain() public {
         _request(feedId);
-        skip(6 hours);
+        skip(abandonAfterSilence);
         q.abandon(feedId);
         assertEq(q.feedState(feedId).nextRequestBlock, START_BLOCK + 2 * uint256(CADENCE));
 
@@ -279,8 +311,8 @@ contract QuestionsAbandonTest is QuestionsFixture {
     }
 
     /// @notice An Intake whose `requests` getter reverts, mumbles, lies with a value that is not a
-    /// bool, or burns its gas is read as "not completed": the six-hour rule still closes the round,
-    /// and the call cannot be made to run out of gas.
+    /// bool, or burns its gas is read as "not completed": the twelve-hour rule still closes the
+    /// round, and the call cannot be made to run out of gas.
     function test_abandon_doesNotDependOnTheIntakeBehaving() public {
         OddIntake odd = new OddIntake();
         QuestionsHarness oddQ = new QuestionsHarness(address(odd), address(imd), oracle);
@@ -306,14 +338,19 @@ contract QuestionsAbandonTest is QuestionsFixture {
 
             // "Completed" cannot be read, so the thirty-minute rule does not apply and nothing is
             // recorded.
-            skip(31 minutes);
+            skip(abandonAfterCompleted + 1 minutes);
             (Questions.AbandonStep step, uint256 closableAt) = oddQ.canAbandon(id);
             assertEq(uint8(step), uint8(Questions.AbandonStep.Wait));
-            assertEq(closableAt, askedAt + 6 hours);
-            _expectTooEarly(askedAt + 6 hours);
+            assertEq(closableAt, askedAt + abandonAfterSilence);
+            _expectTooEarly(askedAt + abandonAfterSilence);
             oddQ.abandon(id);
 
-            skip(6 hours);
+            // One second before the twelve hours are up it is still too early; at twelve hours
+            // one call closes the round.
+            skip(abandonAfterSilence - abandonAfterCompleted - 1 minutes - 1);
+            _expectTooEarly(askedAt + abandonAfterSilence);
+            oddQ.abandon(id);
+            skip(1);
             uint256 before = gasleft();
             oddQ.abandon(id);
             assertLt(before - gasleft(), 200_000, "abandon was made to burn gas");
@@ -335,8 +372,8 @@ contract QuestionsAbandonTest is QuestionsFixture {
         // An Intake that takes its word back is believed: the recorded completion counts only
         // while the Intake still reports the request completed.
         odd.setCompleted(false);
-        skip(30 minutes);
-        _expectTooEarly(lastAskedAt + 6 hours);
+        skip(abandonAfterCompleted);
+        _expectTooEarly(lastAskedAt + abandonAfterSilence);
         oddQ.abandon(id);
         odd.setCompleted(true);
         assertTrue(oddQ.abandon(id));
@@ -353,7 +390,7 @@ contract QuestionsAbandonTest is QuestionsFixture {
         for (uint256 i; i < 260; ++i) {
             vm.roll(vm.getBlockNumber() + 32);
             _request(id);
-            skip(6 hours);
+            skip(abandonAfterSilence);
             q.abandon(id);
         }
         Questions.FeedView memory v = q.feedState(id);

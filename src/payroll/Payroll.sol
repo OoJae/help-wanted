@@ -12,6 +12,14 @@ import {IPayroll} from "../interfaces/IPayroll.sol";
 import {IQuestions} from "../interfaces/IQuestions.sol";
 import {ISeatAdapter, ISeats} from "../interfaces/external/ISeatAdapter.sol";
 
+/// @title The one read of Standing Questions that Payroll needs beyond `IQuestions`
+/// @notice `Questions` has this view; the shared interface file, which later launches hold copies of,
+/// does not list it, and is left as it is.
+interface IMeterPosition {
+    /// @notice The IMD `funder` would get by defunding all its shares of a feed's meter now.
+    function redeemable(bytes32 feedId, address funder) external view returns (uint256);
+}
+
 /// @title Payroll: where HELP WANTED's fees arrive and how they leave
 /// @notice Every IMD that reaches this contract through `pay`, or by a plain transfer picked up by
 /// `book`, is split by fixed shares: 50% to sIMD stakers as a slow stream, 30% to the owners of the
@@ -44,8 +52,9 @@ import {ISeatAdapter, ISeats} from "../interfaces/external/ISeatAdapter.sol";
 ///    the seat pool after 180 to 360 days. Only tips depend on it.
 ///  - sIMD receives the stakers' stream by plain transfer. While it has no shares outstanding, or does
 ///    not answer as a vault over IMD, the stream waits here.
-///  - Questions is handed at most one runway per house feed at a time. IMD placed on a meter is spent
-///    by that feed or stays on it; Payroll never takes it back.
+///  - Questions is handed at most one runway per house feed at a time: Payroll tops up its own
+///    position on a meter, never past the runway. IMD placed on a meter is spent by that feed or
+///    stays on it; Payroll never takes it back.
 ///
 /// Limits a reader should know:
 ///  - A claim pays whoever holds the seat at that moment, and anyone may trigger it. While a seat sits
@@ -54,14 +63,25 @@ import {ISeatAdapter, ISeats} from "../interfaces/external/ISeatAdapter.sol";
 ///  - A seat whose owner the seat token never names again keeps its share of the seat pool here for
 ///    good. Tips bound to such a seat are different: once they have waited their time they can be
 ///    swept to the pool.
-///  - The stream is only as slow as its callers make it. `drip` sends at most one hour of stream per
+///  - sIMD has no time weighting: IMD that reaches it is shared by whoever holds its shares at that
+///    moment. A wallet that stakes just before a drip and leaves after it takes its share of that
+///    drip, in proportion to what it staked; one that does so at every drip of a stream takes what
+///    a staker of its size who stayed all week would have, and the stakers who stay are diluted by
+///    as much. Nothing in this contract prevents that. What a visit needs is set by sIMD: a holder
+///    cannot leave in the block it staked in, so a visit takes IMD of the visitor's own, staked
+///    from one block into the next, and cannot be paid for with IMD borrowed for one transaction.
+///  - The stream is only as even as its callers make it. `drip` sends at most one hour of stream per
 ///    call, ten minutes apart, so a backlog left by days without a call leaves at up to six hours of
-///    stream an hour. Somebody dripping about once an hour keeps the flow even.
-///  - A booking never restarts the stream. The money still vesting keeps the time it had left, the
-///    new money gets seven days, and the two share one end time: the average of the two, each
-///    weighted by its amount. A booking of dust therefore moves the end by nothing, a booking much
-///    larger than what is left takes close to seven days, and no sequence of bookings can hold back
-///    money that was already on its way. Stakers are paid on that schedule, never less.
+///    stream an hour. Somebody dripping about once an hour keeps the flow even. The cap bounds one
+///    transfer, and so what one visit to sIMD can take; it does not bound what visits add up to.
+///  - A booking never restarts the stream, and it can slow it. The money still vesting and the new
+///    money become one stream with one end time: the average of the time the old money had left
+///    and seven days, each weighted by its amount. A booking that is dust next to what is left
+///    therefore moves the end by nothing, and one much larger takes close to seven days. A booking in
+///    between makes money that was already vesting arrive later than it would have: one as large
+///    as what is left, made in the last 2 days 8 hours of a stream, lowers the rate at which the
+///    old money vests. The delay has a ceiling: the stream never ends more than seven days after
+///    the latest booking. Stakers are paid in full; when is what a booking can move.
 contract Payroll is IPayroll, ReentrancyGuardTransient {
     // Every function that changes state holds the same transient lock, so no nested call can run in
     // between and reorder this contract's events. The lint cannot see the lock, and it counts the
@@ -243,9 +263,12 @@ contract Payroll is IPayroll, ReentrancyGuardTransient {
 
     mapping(uint256 agentId => TipSlot) private _tips;
 
-    /// @notice The part of the feed budget booked before the current fortnight. It is spent first, and
-    /// whatever is left of it at the next fortnight boundary is released to the staker stream.
+    /// @notice The part of the feed budget booked in the fortnight before the one the budget was last
+    /// aged in. It falls due at the next fortnight boundary unless a meter takes it first.
     uint256 public feedBudgetOld;
+    /// @notice The part of the feed budget whose wait is over. Meters are served from it first, and
+    /// `fundFeeds` releases what they leave of it to the staker stream. A booking never does.
+    uint256 public feedBudgetDue;
 
     // ---------------------------------------------------------------------------------------------
     // Events
@@ -273,10 +296,13 @@ contract Payroll is IPayroll, ReentrancyGuardTransient {
     event FeedFunded(bytes32 indexed feedId, uint256 amount);
     /// @notice Questions did not take a top-up of `amount`; the budget keeps it.
     event FeedFundingFailed(bytes32 indexed feedId, uint256 amount);
-    /// @notice Feed budget that the meters did not need in time joined the staker stream.
+    /// @notice Feed budget that the meters did not need in time joined the staker stream. Emitted by
+    /// `fundFeeds` only, after the meters were served.
     event FeedBudgetReleased(uint256 amount);
     /// @notice A fortnight boundary was crossed with budget on hand: `heldOver` is now the old tranche,
-    /// the part that is released at the next boundary unless a meter takes it first.
+    /// the part that falls due at the next boundary unless a meter takes it first. What was the old
+    /// tranche until now is due (`feedBudgetDue`): the next `fundFeeds` serves the meters from it and
+    /// releases the rest.
     event FeedBudgetAged(uint256 indexed period, uint256 heldOver);
 
     // ---------------------------------------------------------------------------------------------
@@ -428,18 +454,32 @@ contract Payroll is IPayroll, ReentrancyGuardTransient {
     // ---------------------------------------------------------------------------------------------
 
     /// @inheritdoc IPayroll
-    /// @dev Why the stream is slow and capped. sIMD prices its shares from its IMD balance, so a plain
-    /// transfer pays whoever holds shares at that instant, however briefly they hold them. If a week's
-    /// fees arrived in one transfer, a wallet could deposit into sIMD one block before it, redeem one
-    /// block after, and leave with almost the same part of it as a staker who had been there all week.
-    /// So the stakers' half vests evenly over seven days, one call sends at most one hour of that stream
-    /// (1/168 of it), and calls are at least ten minutes apart. A short visit can then collect only its
-    /// share of one small transfer per round trip, which is not worth the round trip, and the stakers
-    /// who stay receive the rest.
+    /// @dev What the stream and its cap do, and what they do not. sIMD prices its shares from its IMD
+    /// balance and has no time weighting, so a plain transfer pays whoever holds shares at that
+    /// instant, however briefly they hold them, in proportion to their shares. That is how the
+    /// protocol itself pays stakers: it reaches every staker with nothing to claim, and this contract
+    /// never holds anybody's sIMD. Its cost is this. A visitor that holds C against S staked by others
+    /// takes C / (S + C) of every drip it is present for. Present at every drip of a stream, it takes
+    /// that share of the whole stream, which is what a staker of that size who stayed all week
+    /// receives, and the stakers who stay are diluted exactly as they would be by a permanent staker
+    /// of that size. Nothing in this contract can prevent it, and since anyone may call `drip`, the
+    /// visitor chooses the moment.
     ///
-    /// The cap bounds one transfer, not the pace: after days without a call the vested backlog leaves
-    /// in capped calls ten minutes apart, up to six hours of stream an hour. The flow stays even when
-    /// somebody calls about once an hour, which costs the caller only gas.
+    /// What a visit needs is decided by sIMD, not here. A deposit or a mint blocks that holder's
+    /// `withdraw` and `redeem` for the rest of the block, and the block goes with the shares when
+    /// they are transferred. A visit therefore cannot stake, drip and leave in one transaction, so it
+    /// cannot be paid for with IMD borrowed for the length of a transaction: it takes IMD of the
+    /// visitor's own, staked from one block into the next, at every drip. This contract relies on
+    /// that property of sIMD and cannot enforce it.
+    ///
+    /// The stakers' half vests evenly over seven days, one call sends at most one hour of that stream
+    /// (1/168 of it), and calls are at least ten minutes apart. These rules bound the size of any one
+    /// transfer, and so what one visit can take: a visitor's share of an hour of stream, not of a
+    /// week's fees at once. They do not lower what visits add up to; they set how many it takes (168
+    /// for a week's stream at a drip an hour). They also set what a keeper must do to keep pace:
+    /// after days without a call the vested backlog leaves in capped calls ten minutes apart, up to
+    /// six hours of stream an hour, and the flow stays even when somebody calls about once an hour,
+    /// which costs the caller only gas.
     ///
     /// Each booking re-levels the stream. What has vested so far is set aside for the next drips.
     /// What has not keeps the time it had left; the new amount gets seven days; and the two are
@@ -448,19 +488,25 @@ contract Payroll is IPayroll, ReentrancyGuardTransient {
     ///
     ///   new end = now + (remaining × timeLeft + amount × 7 days) / (remaining + amount)
     ///
-    /// rounded down to the second. So a booking cannot be used to slow the stream: one wei added to
-    /// a running stream moves its end by nothing, and money already vesting never waits longer
-    /// because more arrived. A lone booking takes seven days, and so does, nearly, one that is much
-    /// larger than what was left. The rate after a booking is never above the old rate plus the new
-    /// amount over seven days, so a booking cannot be used to rush the stream either.
+    /// rounded down to the second. So dust cannot be used to stretch a stream: a booking moves the
+    /// end by nothing when amount × (7 days − timeLeft) is less than remaining + amount, which one
+    /// wei is whenever 604,800 wei or more are still unvested. A lone booking takes seven days, and
+    /// so does, nearly, one that is much larger than what was left. A booking that is neither dust
+    /// nor much larger does slow money that was already vesting: the joined stream vests more
+    /// slowly than the old one whenever timeLeft × (2 × remaining + amount) < 7 days × remaining,
+    /// which for a booking equal to the remainder is any moment in the last 2 days 8 hours of a
+    /// stream. The old money then arrives later, by at most seven days less the time it had left,
+    /// and a later booking can move what is still unvested again; the end is never more than seven
+    /// days after the latest booking. The rate after a booking is never above the old rate plus the
+    /// new amount over seven days, so a booking cannot be used to rush the stream.
     ///
     /// The cap on one drip is set at each booking, as the largest of three figures. One hour of the
     /// stream at its new rate: a drip an hour then keeps pace with vesting. 1/168 of everything
     /// outstanding: whatever is owed at a booking can leave in 168 calls once it has vested, however
     /// long nobody called. And, while money that has already vested is waiting to be sent, the cap
     /// before the booking, cut to the size of that backlog: a booking never puts a smaller cap in
-    /// front of money that was ready to go. So neither the vesting nor the sending can be slowed by
-    /// bookings, of any size.
+    /// front of money that was ready to go. So the sending of what has vested cannot be slowed by
+    /// bookings, of any size; the vesting can, within the ceiling above.
     ///
     /// Anyone may call. Reverts `DripTooSoon` inside the ten-minute gap and `StakingVaultNotReady` when
     /// sIMD does not answer as a vault over IMD with shares outstanding (with no stakers a transfer
@@ -645,18 +691,24 @@ contract Payroll is IPayroll, ReentrancyGuardTransient {
 
     /// @notice Tops up the three house feeds' meters from the feed budget, then releases budget that has
     /// waited too long. Anyone may call.
-    /// @dev A meter is topped up to a bounded runway at the feed's current cost (as `IQuestions.costOf`
-    /// reports it, capped at `FEED_COST_CAP` per request) and no further: `FEED_RUNWAY_REQUESTS`
-    /// requests for the first two feeds, `FEED_C_RUNWAY_REQUESTS` for the third. The first two feeds
-    /// come first: when the budget cannot cover what both lack, each gets the same fraction of its own
-    /// shortfall and the third gets nothing; the third is served from what is left once both are
-    /// covered. A feed that Questions does not know (cost zero) is skipped.
+    /// @dev Payroll keeps a position of its own on each house meter and tops that position up to a
+    /// bounded runway at the feed's current cost (as `IQuestions.costOf` reports it, capped at
+    /// `FEED_COST_CAP` per request) and no further: `FEED_RUNWAY_REQUESTS` requests for the first two
+    /// feeds, `FEED_C_RUNWAY_REQUESTS` for the third. The position is what Payroll's own meter shares
+    /// are worth, not the meter's whole balance: IMD somebody else put on a meter can be taken off it
+    /// again in the next transaction, so it is not counted as runway. The first two feeds come first:
+    /// when the budget cannot cover what both lack, each gets the same fraction of its own shortfall
+    /// and the third gets nothing; the third is served from what is left once both are covered. A
+    /// feed that Questions does not know (cost zero) is skipped.
     ///
-    /// The budget cannot be stranded. It is aged in fortnights: at each boundary, whatever is left of
-    /// the budget booked before the fortnight that just ended is released to the staker stream. Money
-    /// therefore waits between 14 and 28 days for a meter to need it, then goes to stakers. The same
-    /// ageing also runs inside every booking, so it does not depend on this function or on Questions.
-    /// The most that can sit in a meter that has stopped being used is one runway.
+    /// The budget cannot be stranded, and it is never released past a meter that lacks it. It is aged
+    /// in fortnights: budget booked in one fortnight falls due at the second boundary after it, so it
+    /// waits between 14 and 28 days for a meter to need it. Falling due moves no money. A booking that
+    /// crosses a boundary only sorts the budget into its tranches; budget leaves for the staker stream
+    /// in this function alone, after the meters were served from it. So whichever call crosses a
+    /// boundary first, the meters come first. What is due waits here until somebody makes this call:
+    /// anyone can, and a Questions contract that reverts or answers nonsense does not stop the release.
+    /// The most of Payroll's money that can sit in a meter that has stopped being used is one runway.
     ///
     /// Nothing here can block the rest of Payroll: Questions is called at low level, a call that reverts
     /// or answers nonsense only leaves that meter as it was, and what counts as spent is the IMD that
@@ -664,8 +716,9 @@ contract Payroll is IPayroll, ReentrancyGuardTransient {
     /// so at no point, not even inside the call, does the contract owe more than it holds.
     /// @return funded IMD placed on meters by this call.
     /// @return released IMD moved from the feed budget to the staker stream by this call.
-    // State is written after the calls into Questions (the correction in `_fund`, and the ageing step,
-    // which runs last on purpose). Every entry point that could run in between holds the same lock.
+    // State is written after the calls into Questions (the correction in `_fund`, then the ageing step
+    // and the release, which run last on purpose). Every entry point that could run in between holds
+    // the same lock.
     // slither-disable-next-line reentrancy-no-eth,reentrancy-benign
     function fundFeeds() external nonReentrant returns (uint256 funded, uint256 released) {
         uint256 budget = _ledger.toFeeds - _ledger.feedsFunded;
@@ -687,11 +740,21 @@ contract Payroll is IPayroll, ReentrancyGuardTransient {
             if (giveC != 0) funded += _fund(FEED_C, giveC);
         }
 
-        // Ageing runs last on purpose: at a fortnight boundary the meters are served before anything
-        // is released, and only what they really took counts as spent. It moves figures between this
-        // contract's own books and sends no token; the lock keeps every other entry point shut.
-        released = _ageFeedBudget();
-        if (released != 0) _levelStream(released);
+        // Ageing and the release run last on purpose: the meters are served before anything is
+        // released, and only what they really took counts as spent. This is the one place budget
+        // leaves for the stream. It moves figures between this contract's own books and sends no
+        // token; the lock keeps every other entry point shut.
+        _ageFeedBudget();
+        released = feedBudgetDue;
+        if (released != 0) {
+            feedBudgetDue = 0;
+            Ledger storage l = _ledger;
+            l.toFeeds -= released;
+            l.toStakers += released;
+            l.feedsReleased += released;
+            emit FeedBudgetReleased(released);
+            _levelStream(released);
+        }
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -735,7 +798,9 @@ contract Payroll is IPayroll, ReentrancyGuardTransient {
     /// @return endsAt When the last of it vests.
     /// @return perDrip The cap on one drip.
     /// @return nextDripAt The earliest time `drip` will not revert `DripTooSoon`.
-    /// @return dueNow What `drip` would send if called in this block (zero inside the ten-minute gap).
+    /// @return dueNow What `drip` would send if called in this block. Zero inside the ten-minute gap,
+    /// and zero while sIMD does not answer as a vault over IMD with shares outstanding: `drip` then
+    /// reverts `StakingVaultNotReady` if anything has vested, and the stream waits here.
     function stream()
         external
         view
@@ -757,6 +822,8 @@ contract Payroll is IPayroll, ReentrancyGuardTransient {
         // The same ten-minute gap `drip` enforces.
         // forge-lint: disable-next-line(block-timestamp)
         dueNow = block.timestamp < nextDripAt ? 0 : Math.min(outstanding - unvested, perDrip);
+        // `drip` refuses to send to a vault that is not ready, so nothing is due to it.
+        if (dueNow != 0 && !_stakingVaultReady()) dueNow = 0;
     }
 
     /// @notice What the contract owes, by kind. The IMD balance always covers `total`.
@@ -779,36 +846,26 @@ contract Payroll is IPayroll, ReentrancyGuardTransient {
         return _unbooked();
     }
 
-    /// @notice The feed budget and its ageing.
+    /// @notice The feed budget and its ageing, as they stand at this block: a fortnight boundary that
+    /// no call has crossed yet is counted as crossed.
     /// @return total Budget not yet placed on a meter or released.
-    /// @return old The part booked before the current fortnight; it is released at `nextReleaseAt` unless
-    /// a meter takes it first.
-    /// @return releasableNow What an ageing step would release if one ran in this block.
+    /// @return old The part that falls due at `nextReleaseAt` unless a meter takes it first.
+    /// @return releasableNow The part whose wait is over: what `fundFeeds` would release if it were
+    /// called in this block and the meters took none of it.
     /// @return nextReleaseAt The next fortnight boundary.
     function feedBudget()
         external
         view
         returns (uint256 total, uint256 old, uint256 releasableNow, uint256 nextReleaseAt)
     {
-        total = _ledger.toFeeds - _ledger.feedsFunded;
-        old = feedBudgetOld;
-        uint256 period = block.timestamp / FEED_BUDGET_PERIOD;
-        uint256 last = clock.feedPeriod;
-        // Whole fortnights since the budget was last aged. The seconds a validator can shift a
-        // timestamp do not matter at this scale.
-        // forge-lint: disable-start(block-timestamp)
-        uint256 boundaries = period > last ? period - last : 0;
-        if (boundaries > 1) {
-            releasableNow = total;
-        } else if (boundaries == 1) {
-            releasableNow = old;
-        }
-        // forge-lint: disable-end(block-timestamp)
+        uint256 period;
+        (period,, total, releasableNow, old) = _agedFeedBudget();
         nextReleaseAt = (period + 1) * FEED_BUDGET_PERIOD;
     }
 
-    /// @notice How much each house feed's meter is below its runway right now, in feed order A, B, C.
-    /// Zero for a feed Questions does not know or cannot answer for.
+    /// @notice How far Payroll's own position on each house feed's meter is below its runway right now,
+    /// in feed order A, B, C: what `fundFeeds` would offer each meter with budget to spare. Zero for a
+    /// feed Questions does not know or cannot answer for.
     function feedShortfalls() external view returns (uint256[3] memory needs) {
         needs[0] = _shortfall(FEED_A, FEED_RUNWAY_REQUESTS);
         needs[1] = _shortfall(FEED_B, FEED_RUNWAY_REQUESTS);
@@ -834,8 +891,10 @@ contract Payroll is IPayroll, ReentrancyGuardTransient {
     /// @dev Splits `amount` (never zero) 50 / 30 / 20. The two fixed shares round down and the stakers'
     /// share is what is left, so the three parts always add up to `amount` exactly.
     function _book(uint256 amount) private {
-        // Ageing first: budget booked now must land in the current fortnight's tranche.
-        uint256 released = _ageFeedBudget();
+        // Ageing first: budget booked now must land in the current fortnight's tranche. Nothing is
+        // released here. A booking does not look at the meters, so budget that has fallen due waits
+        // for `fundFeeds`, which serves them first.
+        _ageFeedBudget();
 
         uint256 seatShare = (amount * SEAT_BPS) / BPS;
         uint256 feedShare = (amount * FEED_BPS) / BPS;
@@ -848,7 +907,7 @@ contract Payroll is IPayroll, ReentrancyGuardTransient {
         l.toFeeds += feedShare;
 
         if (seatShare != 0) _creditSeatPool(seatShare);
-        _levelStream(stakerShare + released);
+        _levelStream(stakerShare);
         emit Booked(amount, stakerShare, seatShare, feedShare);
     }
 
@@ -1004,60 +1063,96 @@ contract Payroll is IPayroll, ReentrancyGuardTransient {
     // Internals: feeds
     // ---------------------------------------------------------------------------------------------
 
-    /// @dev Ages the feed budget by fortnight and returns what must go to stakers. One boundary passed:
-    /// the old tranche is released and the fresh one becomes old. Two or more: both are older than a
-    /// full fortnight and both are released. The released amount is moved in the ledger here; the caller
-    /// adds it to the stream.
-    function _ageFeedBudget() private returns (uint256 released) {
-        uint256 period = block.timestamp / FEED_BUDGET_PERIOD;
+    /// @dev The feed budget's tranches as an ageing step in this block leaves them. One boundary
+    /// passed since the budget was last aged: the old tranche falls due and the fresh one becomes
+    /// old. Two or more: all of it has waited a full fortnight and is due. None: as stored.
+    /// @return period The fortnight this block falls in.
+    /// @return crossed Whether a boundary has passed since the budget was last aged.
+    /// @return budget Everything not yet placed or released.
+    /// @return due The part whose wait is over.
+    /// @return old The part that falls due at the next boundary.
+    function _agedFeedBudget()
+        private
+        view
+        returns (uint256 period, bool crossed, uint256 budget, uint256 due, uint256 old)
+    {
+        period = block.timestamp / FEED_BUDGET_PERIOD;
         uint256 last = clock.feedPeriod;
-        // Time only moves forward, so this is "still in the fortnight that was last aged". Fortnights:
+        budget = _ledger.toFeeds - _ledger.feedsFunded;
+        due = feedBudgetDue;
+        old = feedBudgetOld;
+        // Time only moves forward, so this is "past the fortnight that was last aged". Fortnights:
         // the seconds a validator can shift a timestamp do not matter.
         // forge-lint: disable-next-line(block-timestamp)
-        if (period <= last) return 0;
+        if (period > last) {
+            crossed = true;
+            // forge-lint: disable-next-line(block-timestamp)
+            due = period > last + 1 ? budget : due + old;
+            old = budget - due;
+        }
+    }
+
+    /// @dev Ages the feed budget by fortnight: sorts it into what is due, what is old and what is
+    /// fresh. No money moves and nothing is released; `fundFeeds` releases what is due once the
+    /// meters have been served from it.
+    function _ageFeedBudget() private {
+        // Inside the fortnight that was last aged there is nothing to do, and every booking comes
+        // through here: one slot read. Fortnights: the seconds a validator can shift do not matter.
+        // forge-lint: disable-next-line(block-timestamp)
+        if (block.timestamp / FEED_BUDGET_PERIOD <= clock.feedPeriod) return;
+        (uint256 period,, uint256 budget, uint256 due, uint256 old) = _agedFeedBudget();
         // A unix time divided by 14 days fits 64 bits with room to spare.
         // forge-lint: disable-next-line(unsafe-typecast)
         clock.feedPeriod = uint64(period);
-
-        Ledger storage l = _ledger;
-        uint256 budget = l.toFeeds - l.feedsFunded;
-        if (budget == 0) return 0;
-        // forge-lint: disable-next-line(block-timestamp)
-        released = period > last + 1 ? budget : feedBudgetOld;
-        feedBudgetOld = budget - released;
-
-        if (released != 0) {
-            l.toFeeds -= released;
-            l.toStakers += released;
-            l.feedsReleased += released;
-            emit FeedBudgetReleased(released);
-        }
-        emit FeedBudgetAged(period, budget - released);
+        // With no budget both tranches are already zero.
+        if (budget == 0) return;
+        feedBudgetDue = due;
+        feedBudgetOld = old;
+        emit FeedBudgetAged(period, old);
     }
 
-    /// @dev How far a feed's meter is below `requests` requests at the feed's current cost. Zero when
-    /// Questions does not know the feed or does not answer.
+    /// @dev How far Payroll's own position on a feed's meter is below `requests` requests at the feed's
+    /// current cost. Zero when Questions does not know the feed or does not answer.
+    ///
+    /// The position is what Payroll's own shares of the meter would fetch, not the meter's balance.
+    /// The balance is pooled: anybody can add to it and take their part out again, so IMD parked on a
+    /// meter for one transaction would otherwise read as runway and Payroll would release, as not
+    /// needed, budget the meter lacks a moment later.
     function _shortfall(bytes32 feedId, uint256 requests) private view returns (uint256) {
         (bool ok, uint256 cost) = _readWord(QUESTIONS, abi.encodeCall(IQuestions.costOf, (feedId)));
         if (!ok || cost == 0) return 0;
         if (cost > FEED_COST_CAP) cost = FEED_COST_CAP;
-        // The first word `meterOf` returns is the meter's unspent IMD.
-        (bool okMeter, uint256 balance) = _readWord(QUESTIONS, abi.encodeCall(IQuestions.meterOf, (feedId)));
-        if (!okMeter) return 0;
-        return Math.saturatingSub(cost * requests, balance);
+        (bool okOwn, uint256 own) =
+            _readWord(QUESTIONS, abi.encodeCall(IMeterPosition.redeemable, (feedId, address(this))));
+        if (!okOwn) return 0;
+        uint256 lacking = Math.saturatingSub(cost * requests, own);
+        // A top-up is paid in through the meter's share pool, which rounds in the pool's favour, so
+        // it can leave the position one wei short of the runway it was sized for. One wei is
+        // therefore not a need; without this a call right after a top-up would find a wei to place.
+        return lacking > 1 ? lacking : 0;
+    }
+
+    /// @dev Takes `amount` out of the tranches as they stood (`due`, `old`), oldest first: what is due,
+    /// then the old tranche. What neither covers comes out of the fresh tranche, which is not stored:
+    /// it is the budget less the other two.
+    function _spendTranches(uint256 due, uint256 old, uint256 amount) private {
+        uint256 fromDue = Math.min(due, amount);
+        feedBudgetDue = due - fromDue;
+        feedBudgetOld = Math.saturatingSub(old, amount - fromDue);
     }
 
     /// @dev Offers `give` IMD to a feed's meter and returns what actually left. The books are written
-    /// before Questions is called, as if all of `give` had gone (the budget is spent old tranche first),
-    /// and corrected afterwards only when less left. The allowance is exactly `give` and is cleared
-    /// afterwards, so Questions can take that much and no more.
-    // The one write after the call is the correction described above; see the note at the call.
+    /// before Questions is called, as if all of `give` had gone (the budget is spent oldest tranche
+    /// first), and corrected afterwards only when less left. The allowance is exactly `give` and is
+    /// cleared afterwards, so Questions can take that much and no more.
+    // The writes after the call are the correction described above; see the note at the call.
     // slither-disable-next-line reentrancy-no-eth
     function _fund(bytes32 feedId, uint256 give) private returns (uint256 spent) {
         Ledger storage l = _ledger;
+        uint256 dueBefore = feedBudgetDue;
         uint256 oldBefore = feedBudgetOld;
         l.feedsFunded += give;
-        feedBudgetOld = Math.saturatingSub(oldBefore, give);
+        _spendTranches(dueBefore, oldBefore, give);
 
         uint256 balanceBefore = IMD.balanceOf(address(this));
         IMD.forceApprove(QUESTIONS, give);
@@ -1075,7 +1170,7 @@ contract Payroll is IPayroll, ReentrancyGuardTransient {
             // Questions refused the top-up or took less: what did not leave goes back into the budget,
             // in the tranche it came from.
             l.feedsFunded -= give - spent;
-            feedBudgetOld = Math.saturatingSub(oldBefore, spent);
+            _spendTranches(dueBefore, oldBefore, spent);
         }
         if (ok && spent != 0) {
             emit FeedFunded(feedId, spent);

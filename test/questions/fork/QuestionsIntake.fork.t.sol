@@ -12,6 +12,7 @@ import {Mainnet} from "../../../src/interfaces/external/Mainnet.sol";
 import {OracleAttestation} from "../../../src/questions/OracleAttestation.sol";
 import {Questions} from "../../../src/questions/Questions.sol";
 import {QuestionsHarness} from "../mocks/QuestionsHarness.sol";
+import {IIntakeV2} from "./IIntakeV2.sol";
 
 /// @dev Reads block hashes in a frame of its own, through the same library the contract uses.
 contract HistoryReader {
@@ -24,17 +25,18 @@ contract HistoryReader {
     }
 }
 
-/// @title Questions against the live Intake, on a fork of Ethereum mainnet
+/// @title Questions against the live Intake, version 2, on a fork of Ethereum mainnet
 /// @notice Questions is deployed on the fork with a test key as its oracle signer, funded, and
-/// asked to buy a real request from the real Intake with the real IMD. The test then plays the
-/// Intake's writer: it calls the real `complete` with an attestation signed by the test key, so the
-/// real contract calls the callback under its real gas stipend. Nothing is mocked but the oracle's
-/// signature, which no test can have. Run with `FOUNDRY_PROFILE=fork forge test`; every
-/// test skips itself when the RPC cannot be reached.
+/// asked to buy a real request from the real Intake with the real IMD. The Intake is version 2
+/// (`0xa43e6f75ee006411f79ac1c84120606c2330de82`), the one the launch manifest names; the first
+/// test shows that it is. The tests then play the Intake's writer: they call the real `complete`
+/// with an attestation signed by the test key, so the real contract calls the callback under its
+/// real gas stipend. Nothing is mocked but the oracle's signature, which no test can have. Run
+/// with `FOUNDRY_PROFILE=fork forge test`; every test skips itself when the RPC cannot be reached.
 contract QuestionsIntakeForkTest is Test {
     string internal constant FEEDS = "test/fixtures/questions/feeds/";
 
-    IIntake internal constant INTAKE = IIntake(Mainnet.INTAKE);
+    IIntakeV2 internal constant INTAKE = IIntakeV2(Mainnet.INTAKE);
     IERC20 internal constant IMD = IERC20(Mainnet.IMD);
 
     bool internal forked;
@@ -130,6 +132,33 @@ contract QuestionsIntakeForkTest is Test {
         signature = abi.encodePacked(r, s, v);
     }
 
+    /// @notice The Intake these tests run against is version 2: it has the getter version 1 lacks,
+    /// and everything `Questions` reads or relies on is as it is on version 1, which is still served.
+    function test_fork_theIntakeIsVersionTwo() public {
+        if (!forked) {
+            vm.skip(true);
+            return;
+        }
+        assertEq(Mainnet.INTAKE, 0xa43e6F75ee006411F79Ac1C84120606C2330DE82);
+        assertEq(address(q.INTAKE()), Mainnet.INTAKE);
+        assertGt(Mainnet.INTAKE.code.length, 0);
+
+        // Version 2 answers `failureSelectorOf`; version 1 has no such function.
+        assertEq(INTAKE.failureSelectorOf(bytes32(0)), bytes4(0));
+        (bool ok,) = Mainnet.INTAKE_V1.staticcall(abi.encodeCall(IIntakeV2.failureSelectorOf, (bytes32(0))));
+        assertFalse(ok, "the address kept as version 1 answers like version 2");
+
+        // What Questions reads is the same on both: the price, and who is paid.
+        IIntake v1 = IIntake(Mainnet.INTAKE_V1);
+        assertEq(INTAKE.priceOf(Mainnet.ORACLE_ACTION, Mainnet.IMD), v1.priceOf(Mainnet.ORACLE_ACTION, Mainnet.IMD));
+        assertEq(INTAKE.payTo(), v1.payTo());
+        assertEq(INTAKE.payTo(), Mainnet.FEE_PAYEE, "the fee payee the Jobs Report counts transfers to");
+        assertEq(INTAKE.writer(), v1.writer());
+        assertEq(INTAKE.MAX_BODY_BYTES(), 16_384);
+        console2.log("live callback stipend, version 2:", INTAKE.callbackGas());
+        assertGe(INTAKE.callbackGas(), 140_000, "the stipend is below what the callback tests allow for");
+    }
+
     /// @notice The Payrolls house feed, as its fixture file defines it, buys a request from the
     /// live Intake and takes the answer back through the live Intake's `complete`.
     function test_fork_houseFeedBuysARealRequestAndTakesTheCallback() public {
@@ -176,12 +205,16 @@ contract QuestionsIntakeForkTest is Test {
         assertEq(q.totalTips(), p.tip);
         assertEq(q.totalMetered() + q.totalTips(), IMD.balanceOf(address(q)));
         assertEq(IMD.allowance(address(q), Mainnet.INTAKE), 0);
+        // Asked with plain `request`: no failure function is named (docs/DEVIATIONS.md, D2).
+        assertEq(INTAKE.failureSelectorOf(intakeId), bytes4(0));
 
         // The Intake's own event carries the body, byte for byte what `nextBody` promised.
         Vm.Log[] memory logs = vm.getRecordedLogs();
         bool sawRequested;
         for (uint256 i; i < logs.length; ++i) {
-            if (logs[i].emitter != Mainnet.INTAKE || logs[i].topics[0] != IIntake.Requested.selector) continue;
+            if (logs[i].emitter != Mainnet.INTAKE) continue;
+            assertTrue(logs[i].topics[0] != IIntakeV2.FailureHookSet.selector, "a failure function was named");
+            if (logs[i].topics[0] != IIntake.Requested.selector) continue;
             assertEq(logs[i].topics[1], intakeId);
             assertEq(logs[i].topics[2], bytes32(uint256(uint160(address(q)))));
             assertEq(logs[i].topics[3], p.action);
@@ -247,8 +280,9 @@ contract QuestionsIntakeForkTest is Test {
     }
 
     /// @notice `abandon` and `submit` read the live Intake's `requests` getter the way it is laid out
-    /// on chain: not completed means six hours and no `submit`; completed with no answer opens
-    /// `submit` and lets the round be closed thirty minutes after `abandon` first saw it.
+    /// on chain: not completed means twelve hours, and no `submit` for the first thirty minutes;
+    /// completed with no answer opens `submit` at once and lets the round be closed thirty minutes
+    /// after `abandon` first saw it.
     function test_fork_abandonReadsTheLiveIntake() public {
         if (!forked) {
             vm.skip(true);
@@ -261,18 +295,44 @@ contract QuestionsIntakeForkTest is Test {
         vm.prank(keeper);
         bytes32 intakeId = q.request(feedId);
         uint256 askedAt = vm.getBlockTimestamp();
+        uint256 silence = q.ABANDON_AFTER_SILENCE();
+        bytes memory tooEarly = abi.encodeWithSelector(Questions.TooEarlyToAbandon.selector, askedAt + silence);
 
-        skip(31 minutes);
+        // The live Intake reports the request as not completed. To the last second of the thirty
+        // minutes `submit` is closed, and the round cannot be closed.
+        skip(q.SUBMIT_AFTER_SILENCE() - 1);
         assertFalse(q.canSubmit(feedId));
-        vm.expectRevert(abi.encodeWithSelector(Questions.TooEarlyToAbandon.selector, askedAt + 6 hours));
+        vm.expectRevert(tooEarly);
         q.abandon(feedId);
 
-        // The panel disagreed: the writer completes with status 2 and no callback is made.
+        // Had the writer stayed silent: `submit` opens at thirty minutes by the clock alone, and
+        // the round can be closed at twelve hours and not one second sooner.
+        uint256 snapshot = vm.snapshotState();
+        skip(1);
+        assertTrue(q.canSubmit(feedId), "thirty minutes of silence did not open submit");
+        skip(silence - q.SUBMIT_AFTER_SILENCE() - 1);
+        vm.expectRevert(tooEarly);
+        q.abandon(feedId);
+        skip(1);
+        assertTrue(q.abandon(feedId), "twelve hours of silence did not let the round be closed");
+        vm.revertToState(snapshot);
+        assertFalse(q.canSubmit(feedId));
+
+        // The panel disagreed: the writer completes with status 2. Version 2 would call a failure
+        // function here if the request had named one. Questions names none, so nothing is called,
+        // whether or not the writer sends the failure's arguments along; the round is noticed by
+        // `abandon`, which reads `requests(id).completed`, laid out as on version 1.
         address writer = INTAKE.writer();
+        bytes memory failure = abi.encode(intakeId, uint8(2), bytes32("disagreed"), uint16(3), uint16(7), bytes(""));
         vm.expectEmit(Mainnet.INTAKE);
         emit IIntake.Completed(intakeId, 2, bytes32(0), "https://api.imd.fun/oracle/requests/x", false);
         vm.prank(writer);
-        INTAKE.complete(intakeId, 2, bytes32(0), "https://api.imd.fun/oracle/requests/x", "");
+        INTAKE.complete(intakeId, 2, bytes32(0), "https://api.imd.fun/oracle/requests/x", failure);
+        (address payer, address target, bytes4 selector, bool completed) = INTAKE.requests(intakeId);
+        assertEq(payer, address(q));
+        assertEq(target, address(q));
+        assertEq(selector, Questions.onOracleResult.selector);
+        assertTrue(completed);
 
         // The first call sees the completion and starts the thirty minutes; the second closes.
         assertTrue(q.canSubmit(feedId));
@@ -280,8 +340,8 @@ contract QuestionsIntakeForkTest is Test {
         assertFalse(q.abandon(feedId));
         (Questions.AbandonStep step, uint256 closableAt) = q.canAbandon(feedId);
         assertEq(uint8(step), uint8(Questions.AbandonStep.Wait));
-        assertEq(closableAt, seenAt + 30 minutes);
-        skip(30 minutes);
+        assertEq(closableAt, seenAt + q.ABANDON_AFTER_COMPLETED());
+        skip(q.ABANDON_AFTER_COMPLETED());
         assertTrue(q.abandon(feedId));
         (IQuestions.RoundStatus status,,,,) = q.roundOf(feedId, 1);
         assertEq(uint8(status), uint8(IQuestions.RoundStatus.Failed));

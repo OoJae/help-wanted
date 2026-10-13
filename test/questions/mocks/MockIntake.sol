@@ -6,10 +6,16 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {TransientSlot} from "@openzeppelin/contracts/utils/TransientSlot.sol";
 
 /// @title A test double of the IdentityMD Intake
-/// @notice `request` and `complete` follow the verified version 1 source line for line where a
-/// consumer can tell the difference: the same request id, the same payment, the same gas rule for
-/// the callback (a fixed stipend, refused when the writer sends too little, the outcome recorded and
-/// never passed on). The owner functions are open so a test can move the price and the stipend.
+/// @notice `request` and `complete` follow the verified source line for line where a consumer can
+/// tell the difference: the same request id, the same payment, the same gas rule for the callback
+/// (a fixed stipend, refused when the writer sends too little, the outcome recorded and never
+/// passed on). The owner functions are open so a test can move the price and the stipend.
+///
+/// The lines are version 1's. Version 2, which the launch names, has the same `request` and the
+/// same `requests` getter, and its `complete` does the same for a request made with plain
+/// `request`, the only kind `Questions` makes: the callback on status 0, no call at all on status 1
+/// or 2 (no failure function was named). What version 2 adds, `requestWithFailure`, is not here;
+/// the fork suite runs against the live version 2 contract.
 ///
 /// One thing the real contract does not do is done by the protocol's plane, which reads its events:
 /// only the first request of a transaction is served. The contract takes them all. The mock does the

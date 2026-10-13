@@ -146,6 +146,34 @@ contract JobsReportPrintTest is JobsReportSetup {
         assertEq(report.total(), 7e18);
     }
 
+    /// @dev Audit job 22624be0, finding 5 (info), left as it is and written down. The rule above is
+    /// the one skip that reads the block of the call: the same round is passed over for good when
+    /// `print` is called before its window has ended, and printed when the first call comes after.
+    /// Only this rig can show the contract such a round; the real Questions never stores one
+    /// (`test_integration_aRealWindowIsAlwaysOverWhenItsAnswerIsPrinted`).
+    function test_print_aWindowNotOverYetIsPassedOverForGood() public {
+        q.pushAnswered(PAYROLLS, 1e18, first(0), uint64(vm.getBlockNumber() + 5));
+        uint256 snapshot = vm.snapshotState();
+
+        vm.expectEmit(address(report));
+        emit RoundSkipped(PAYROLLS, 1, JobsReport.SkipReason.BadWindow);
+        (uint256 printed,) = report.print();
+        assertEq(printed, 0);
+        assertEq(report.summary().payrollsRead, 1, "the round is consumed");
+        vm.roll(vm.getBlockNumber() + 10);
+        (printed,) = report.print();
+        assertEq(printed, 0, "a round that was passed over is not read again");
+        payrolls(0, 7e18);
+        (printed,) = report.print();
+        assertEq(printed, 1, "the rounds after it are printed as usual");
+
+        // The first call comes after the window's end instead: the round is printed.
+        vm.revertToState(snapshot);
+        vm.roll(vm.getBlockNumber() + 10);
+        (printed,) = report.print();
+        assertEq(printed, 1);
+    }
+
     /// @dev Prints never overlap, so the total never counts a block twice.
     function test_print_neverCountsABlockTwice() public {
         payrolls(0, 5e18);
@@ -793,6 +821,28 @@ contract JobsReportCrownTest is JobsReportSetup {
         assertEq(c.second, address(0));
         assertEq(c.third, address(0));
         assertEq(c.places, 1);
+    }
+
+    /// @dev The answer bytes of the request that proved the employers house feed (oracle request
+    /// 2cbe6bb3, attested 13 October 2026, saved whole in test/fixtures/questions/proofs): a real
+    /// attested list of exactly three addresses, as the feed asks for.
+    function test_crown_readsTheRealAttestedListOfThree() public {
+        string memory json = vm.readFile("test/fixtures/questions/proofs/employers.oracle.json");
+        assertEq(vm.parseJsonString(json, ".status"), "attested");
+        bytes memory answer = vm.parseJsonBytes(json, ".attestation.answer");
+        address[] memory decoded = abi.decode(answer, (address[]));
+        assertEq(decoded.length, 3);
+
+        uint64 round = employers(answer, 0, 6);
+        report.crown(round, answer);
+        JobsReport.Crown memory c = report.crownOf(round);
+        assertEq(c.first, 0x21919137E69ed667aC404c7FcB71B8179b645F46);
+        assertEq(c.second, 0x9fAdAB91f6FA03DBd7F4F8a08A338704bAAcf63f);
+        assertEq(c.third, 0x7B8C742F2e1eEB3fB2C10d72967Fa6d4a22f0479);
+        assertEq(c.first, decoded[0]);
+        assertEq(c.second, decoded[1]);
+        assertEq(c.third, decoded[2]);
+        assertEq(c.places, 3);
     }
 
     function test_crown_aShortListFillsFewerPlaces() public {

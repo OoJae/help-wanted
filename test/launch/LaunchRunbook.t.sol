@@ -164,8 +164,11 @@ contract LaunchRunbookTest is LaunchKit {
         q.fund(ids[0], runway);
         q.fund(ids[1], runway);
         vm.stopPrank();
+        // The wallet's IMD is the wallet's: it can take it out again whenever it likes, so Payroll
+        // does not count it. Once Payroll has budget it puts a runway of its own on each meter.
         uint256[3] memory needs = payroll.feedShortfalls();
-        assertEq(needs[0] + needs[1], 0, "a meter filled to its runway needs nothing from Payroll");
+        assertEq(needs[0], runway, "what a wallet put on a meter is not Payroll's runway");
+        assertEq(needs[1], runway);
 
         // Step 3: the first requests, each a transaction of its own, both daily feeds in one block.
         // The contract refuses a second request in one transaction, and a test function can run as
