@@ -254,10 +254,19 @@ contract LaunchAForkTest is Test {
         for (uint256 i; i < 20; ++i) {
             list[i] = 700 + i * 37;
         }
+        // A seat held by a contract is skipped when somebody else claims (only that contract may claim
+        // for itself), so count the seats in the list that an ordinary wallet holds today.
+        uint256 held;
+        for (uint256 i; i < 20; ++i) {
+            if (ISeats(Mainnet.SEATS).ownerOf(list[i]).code.length == 0) ++held;
+        }
+        assertGt(held, 0, "at least one seat in the list is held by an ordinary wallet");
+        emit log_named_uint("seats in the list held by ordinary wallets", held);
+
         uint256 g = gasleft();
         uint256 paid = payroll.claimSeats(list);
         uint256 used = g - gasleft();
-        assertEq(paid, 20 * 3e18);
+        assertEq(paid, held * 3e18, "every seat an ordinary wallet holds is paid; the others are skipped");
         emit log_named_uint("claimSeats, 20 real seats, first touch", used);
         emit log_named_uint("per seat", used / 20);
         uint256 fullList = (used / 20) * payroll.MAX_SEATS_PER_CALL();
