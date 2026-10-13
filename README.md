@@ -8,8 +8,22 @@ feeds funded.
 
 **Status, read this first.**
 
-- **Not deployed.** None of the three contracts has been sent to a chain. `docs/LAUNCH.md` is the
-  launch request and the runbook.
+- **Live on Ethereum mainnet since 13 October 2026.** IdentityMD launch 1531 created the three
+  contracts in one transaction, `0x9ce6111c9f454373ac208cc9b54ebd0a4b09e58706f20e568f0f9e8bbb392c58`
+  (block 26182869): `Questions` at `0xEECE4628ceb091C13393fc64056Be8b8501fD3F6`, `JobsReport` at
+  `0x58963B57E179f7fE4E95090C21E8e9D75353BCE4` and `Payroll` at
+  `0x6e4362a5cEc59Eb3F611af6b2d81915CF5b45f1F`. `src/` is the source that was deployed: built here
+  with the manifest's arguments, each contract has the runtime code that is at its address.
+  `docs/LAUNCH.md` is the launch request and the runbook, kept as they were written before the
+  launch.
+- **The first Robot Jobs Report was printed the same day.** The three house feeds were created at
+  12:35 UTC and each was asked once. The oracle's signed answers for two of them were handed in
+  with `submit`, and print no. 1 (block 26183781, transaction
+  `0x691890b4affed91496538e012610b632c72a739b5a2ec703b285d51961edb192`) records 112 IMD paid to the
+  swarm in blocks 26,176,608 to 26,183,607 and 223 payments counted in blocks 26,176,610 to
+  26,183,609. The third feed, the weekly list of employers, can be answered only by the Intake's
+  own callback, which had not arrived when this was written. Every transaction of that day was
+  sent by the team's own keeper wallet: nobody outside the team has used these contracts yet.
 - **The three house feeds have each been answered by the live oracle once.** On 12 and 13 October
   2026 one real request was bought per feed, with the bytes `Questions` sends, and all three were
   attested. The records are in `test/fixtures/questions/proofs/` and `docs/LAUNCH.md`, section 5,
@@ -54,8 +68,9 @@ forge build --sizes
 forge test
 ```
 
-`forge test` runs the unit, fuzz, invariant, integration and launch suites without a network.
-It skips the fork tests. Final adaptation results are in `ADAPTATION.md`.
+`forge test` runs 515 tests in 50 suites and needs no network: the unit, fuzz, invariant,
+integration and launch suites. It skips the fork tests. The adaptation's own results are in
+`ADAPTATION.md`.
 
 ```sh
 FOUNDRY_PROFILE=fork forge test

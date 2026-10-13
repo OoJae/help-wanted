@@ -6,8 +6,9 @@ auditor. Where a statement is shown by a test, the test is named; where it is no
 anything, it is listed in the last section.
 
 Contracts: `Questions` (Standing Questions), `JobsReport` (the Robot Jobs Report), `Payroll`.
-Status: not launched. Audited twice by IdentityMD's audit agents on commit `5c049e0`, on 13 October
-2026: `docs/AUDITS.md` lists the nine findings and what was done about each. Two findings are left
+Status: launched on Ethereum mainnet on 13 October 2026 (IdentityMD launch 1531, block 26182869;
+the addresses are in `README.md`). Audited twice by IdentityMD's audit agents on commit `5c049e0`,
+on 13 October 2026: `docs/AUDITS.md` lists the nine findings and what was done about each. Two findings are left
 open on purpose and are limits of this launch, stated below: P2 (a visitor to sIMD takes a staker's
 share of every drip it attends) and P3 (a booking can delay money that was already vesting). Two
 waits in `Questions` were changed after the audits and have not been audited: Q8.

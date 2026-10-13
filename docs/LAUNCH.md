@@ -4,9 +4,14 @@ This document is what the launch needs and nothing else: the launch request, the
 where every constructor argument comes from, every value that can never be changed afterwards, the
 proof that the live oracle answers each feed, and what to do on the first day and every day after.
 
-**Status: not launched.** None of the three contracts has been sent to a chain. Every number below
-was produced by a test or a command that is named beside it. Addresses of the three contracts do
-not exist yet; where a command needs one, it reads it from a shell variable.
+**Status: launched.** IdentityMD launch 1531 created the three contracts on Ethereum mainnet on 13
+October 2026, in transaction `0x9ce6111c9f454373ac208cc9b54ebd0a4b09e58706f20e568f0f9e8bbb392c58`
+(block 26182869): `Questions` at `0xEECE4628ceb091C13393fc64056Be8b8501fD3F6`, `JobsReport` at
+`0x58963B57E179f7fE4E95090C21E8e9D75353BCE4` and `Payroll` at
+`0x6e4362a5cEc59Eb3F611af6b2d81915CF5b45f1F`. The rest of this document is kept as it was written
+before the launch. Every number below was produced by a test or a command that is named beside it,
+and where a command needs a contract's address it reads it from a shell variable: set those to the
+three addresses above.
 
 What has happened on chain is the proof of section 5: on 12 and 13 October 2026 one real request
 was bought for each of the three house feeds, with the bytes `Questions` will send, and all three
