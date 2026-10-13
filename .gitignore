@@ -1,0 +1,12 @@
+# Foundry build output
+out/
+out-*/
+cache/
+cache-*/
+broadcast/
+
+# Never commit keys
+.env
+.env.*
+
+.DS_Store

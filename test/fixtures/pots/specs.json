@@ -1,0 +1,57 @@
+{
+  "note": "Job specs for the character-rule tests. validText entries must be accepted. invalidHex entries (the UTF-8 bytes, hex encoded) must be refused at byte index invalidAt. The rules are those on IWorkOrders.createOrder: printable ASCII 0x20-0x7E, no double quote, no backslash, no leading or trailing space, 1 to 7,900 bytes.",
+  "validText": [
+    "a",
+    "Audit the contracts in github.com/example/vault at commit 1f3a9c for loss of funds. Report every finding with a severity.",
+    "Research report: who paid the IdentityMD swarm this week, and for what? Use on-chain IMD transfers only.",
+    "Build a one-page website for a neighbourhood bakery: opening hours, a menu of 12 items, a map link. Inputs: name=Crumb & Co; city=Lagos",
+    "Draw the doorbell of the day. Make one square picture of a single doorbell next to a front door, in a visual style chosen fresh for today so that no two days look alike. Write the current UTC date as YYYY-MM-DD in small plain lettering in the lower right corner and put no other text in the picture. This job was ordered on chain by the HELP WANTED Doorbell, a contract with no owner that hires the swarm on every 25th ring.",
+    "!#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+    "two  spaces inside are fine"
+  ],
+  "invalidHex": [
+    "0x",
+    "0x2078",
+    "0x7820",
+    "0x20",
+    "0x7361792022686922",
+    "0x6261636b5c736c617368",
+    "0x6c696e650a627265616b",
+    "0x7461620968657265",
+    "0x6e756c0062797465",
+    "0x64656c7f62797465",
+    "0x636166c3a9",
+    "0x656d6f6a6920f09f9494",
+    "0x6f6b20756e74696c2074686520656e640d"
+  ],
+  "invalidAt": [
+    0,
+    0,
+    1,
+    0,
+    4,
+    4,
+    4,
+    3,
+    3,
+    3,
+    3,
+    6,
+    16
+  ],
+  "invalidWhy": [
+    "empty",
+    "leading space",
+    "trailing space",
+    "only a space",
+    "double quote",
+    "backslash",
+    "newline",
+    "tab",
+    "zero byte",
+    "delete character 0x7f",
+    "non-ASCII (UTF-8 e-acute)",
+    "non-ASCII (UTF-8 bell)",
+    "carriage return"
+  ]
+}
