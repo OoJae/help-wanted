@@ -4,9 +4,15 @@ This document is what the launch needs and nothing else: the launch request, the
 where every constructor argument comes from, every value that can never be changed afterwards, what
 to check before launching, and what to do on the first day and every day after.
 
-**Status: not launched.** Nothing in this document has been sent to a chain. Every number below was
-produced by a test or a command that is named beside it. The addresses of the four contracts do not
-exist yet; where a command needs one, it reads it from a shell variable.
+**Status: launched.** IdentityMD launch 1573 created the four contracts on Ethereum mainnet on 13
+October 2026, in transaction `0xfb28bef9c477cfe3777231d8c41f202e691673fc4cec98ecb8b07f1bfff7bf9c`
+(block 26184581): `WorkProof` at `0xB268297dB06985ba0b806Ba97BcB90364b137469`, `WorkOrders` at
+`0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2`, `CrowdPots` at
+`0x8C2FfCdcb103659aa05c772b8F2059868B496EB5` and the `Doorbell` at
+`0xFd5ab7E03E8554210Faa3cCd3b9D47C622fffcCb`. The rest of this document is kept as it was written
+before the launch. Every number below was produced by a test or a command that is named beside it,
+and where a command needs a contract's address it reads it from a shell variable: set `PROOF`,
+`DESK`, `POTS` and `BELL` to the four addresses above.
 
 **Every constructor argument is known.** The last one was the address of `Payroll`, which
 `WorkOrders` pays its fee and its tip to. HELP WANTED's first launch created it on Ethereum mainnet
@@ -784,7 +790,7 @@ limit, and the reason to watch the Doorbell's and the first pot's orders while t
 |---|---|
 | Receipts stay stalled | Orders without the claimed path are not paid; each ends by timeout (the runner's bond goes to the employer) or refund. Orders with it are paid on unchallenged claims and stay unproven until a receipt lands. This is the case the first day is planned for. |
 | Receipts return | Orders settle on receipts as written in step 4. A Doorbell deployed with the claimed path on keeps accepting claims; open new pots with `allowClaimed` false. |
-| The swarm does not keep the header in the stored objective of some kind of job, or writes another kind | It kept both for the one job we bought (a research report; section 5). For a kind where it does not, no receipt settles an order: claims end by `reportFailed` (wrong job: the bond goes to the employer) or by timeout, and escrows return. Nothing is lost by employers; runners lose the swarm's fee and their bonds. Orders that allow claims can still be paid on a claim. |
+| The swarm does not keep the header in the stored objective of some kind of job, or writes another kind | It kept both for the one job we bought (a research report; section 5). For a kind where it does not, no receipt settles an order: claims end by `reportFailed` (a receipt without the header is a wrong job: the bond goes to the employer; a receipt with the header under another kind returns the bond to the runner, `docs/THREATS.md` W2) or by timeout (the bond goes to the employer), and escrows return. Nothing is lost by employers; runners lose the swarm's fee, and their bonds except in the other-kind case. Orders that allow claims can still be paid on a claim. |
 | Payroll reverts, runs out of gas or takes less than offered | The desk sends what Payroll did not take by plain transfer and emits `PayrollFallback`. The settlement stands (`test_settle_payrollRevertsInBoth`, `test_settle_payrollBurnsAllItsGas`, and against the live contract `test_fork_payroll_bothCallsReverting_theSettlementStandsAndBookPicksUpThePlainTransfer`). A tip that arrives that way is booked by Payroll as revenue, not credited to the agents. |
 | IdentityMD replaces the registry's writer, or the registry | A new writer changes nothing here. A new registry at another address means no new receipt can be proven by this `WorkProof`: orders end by timeout or refund, claimed-path orders still work, and proving again needs a new launch. |
 | IdentityMD changes the record format while keeping the schema string | New records are `Malformed` here. The same consequence as a new registry. |

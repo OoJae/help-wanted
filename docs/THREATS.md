@@ -7,7 +7,9 @@ anything, it is listed in section 10. Section 11 says what was checked in this c
 IdentityMD's launch pipeline changed our first launch.
 
 Contracts: `WorkProof`, `WorkOrders` (the hire desk), `CrowdPots`, `Doorbell`.
-Status: not launched, not audited by a third party. `Payroll`, which the desk pays, belongs to
+Status: launched on Ethereum mainnet on 13 October 2026 (IdentityMD launch 1573, block 26184581;
+the addresses are in `README.md`). Audited by IdentityMD's launch pipeline before it was deployed
+(`ADAPTATION.md`) and by no other third party. `Payroll`, which the desk pays, belongs to
 HELP WANTED's first launch and has been live on Ethereum mainnet since 13 October 2026.
 
 ## 1. Who can do what
@@ -168,14 +170,23 @@ objective, state `completed`, under another kind can never settle the order. Any
 the order is free again and the bond returns to the runner
 (`test_reportFailed_anotherKindFreesTheOrderForAnyoneAndReturnsTheBond`), because the desk cannot
 tell a runner's wrong template from a kind the swarm renamed. A runner that picks a wrong template
-on purpose pays the swarm's fee each time and holds the order until the receipt lands.
+on purpose pays the swarm's fee each time and holds the order until the receipt lands. It is not
+barred from the order, so the same address can take it again at once and repeat this for as long
+as the order stays open (`test_realDesk_aWrongKindReceipt_reopensWithTheBondReturned_andTheSameRunnerMayTakeItAgain`).
+For an employer that hires once, a crowd pot, see C2.
 
 **W3. Only the runner reports its own job's failure.** A receipt with the right objective and a
 state other than `completed` returns the whole bond to the runner, and only the runner may submit
 it: a job's first receipt need not be its last, and the runner decides whether to give up or to
 register a retry. A runner whose job failed can therefore keep its claim until just before the
 delivery deadline and still get its bond back. It cannot go past the deadline: `timeout` then takes
-the bond.
+the bond. Its claim can outlast the order's expiry, though: the report then refunds the order
+instead of reopening it, with the bond still returned whole. For an ordinary employer that means
+opening another order; for a crowd pot, which hires once, it ends the pot (C2). Neither this ending
+nor W2's charges the runner the release share that `release` and an undecided dispute do (L3):
+the receipt carries the order's own objective, so the runner opened the job correctly and the
+failure is the swarm's, and charging the runner for the swarm's failure would make honest runners
+avoid the desk (the note on `reportFailed` in `src/desk/WorkOrders.sol`).
 
 **W4. A record WorkProof cannot read decides nothing.** If the registry holds a hash for a job
 whose record is not a canonical v1 work record, the record can be neither settled nor reported, and
@@ -184,7 +195,9 @@ the claim ends by `timeout` (`test_real_anUnreadableReceiptEndsByTimeout`).
 **W5. One bond can keep an escrow out of reach for the delivery time.** A runner that registers a
 job and goes silent holds the order until `registeredAt + deliverySecs`, at most 90 days
 (`test_createOrder_revertsOnLongDelivery`). It costs the runner its bond, which the employer
-receives. The price does not rise while the order is held
+receives, unless the runner ends the hold itself with a receipt that shows the job did not
+complete (W3), or anyone ends it with one of another kind (W2): then the bond comes back whole and
+the hold has cost the runner one swarm job. The price does not rise while the order is held
 (`testFuzz_priceNow_holdingAnOrderNeverRaisesItsPrice`).
 
 **W6. A settlement must be offered more gas than it uses.** The desk refuses to start a Payroll
@@ -358,9 +371,24 @@ the swarm's job templates; `docs/LAUNCH.md` lists the twenty we have seen.
 hires once. One party with two addresses can take its order, claim delivery, challenge itself and
 wait out the delivery time; the pot is then refunded and over
 (`test_claimedPath_anUndecidedDisputeEndsThePotEarly_forATenthOfTheBond`). On a receipt-only pot
-the same stall costs the whole bond and the order is open again afterwards
-(`test_provenPath_theSameStallCostsTheWholeBond_andTheOrderReopens`). A pot's contributors also
-accept L1 and L2. All of it is fixed and visible in the pot's terms before anyone chips in. The
+the same stall by silence costs the whole bond and the order is open again afterwards
+(`test_provenPath_theSameStallCostsTheWholeBond_andTheOrderReopens`).
+
+A receipt-only pot can also be ended in a refund with no bond forfeited at all, whatever bond the
+opener chose. A runner takes the order shortly before its hire window closes and registers a job
+whose receipt does not say `completed`; only the runner may report that receipt (W3), so nobody
+can free the order sooner, and once the hire window has passed the report refunds the order and
+the pot with the bond returned whole
+(`test_realDesk_aFailedJobsReceiptPastTheHireWindow_refundsThePotWithTheBondReturned`). The same
+ending comes from a `completed` receipt of another kind (W2), which anyone may report and which
+bars nobody, so one address can cycle claim, register, wrong-template job and report on a pot's
+order for as long as its hire window lasts
+(`test_realDesk_aWrongKindReceipt_reopensWithTheBondReturned_andTheSameRunnerMayTakeItAgain`).
+Either costs the runner one swarm job and gas, and the contributors the time their IMD was locked.
+No IMD is lost. This is the desk's rule, kept on purpose (W3 says why), and it is what the bond
+does and does not size: a bond is forfeited by silence (`timeout`, `evict`), by a job that is not
+the order's, or by a contradicted delivery claim, never by a receipt that shows the swarm did not
+complete the order's own job. A pot's contributors also accept L1 and L2. All of it is fixed and visible in the pot's terms before anyone chips in. The
 first pot `docs/LAUNCH.md` proposes allows claims, because while receipts are stalled a pot that
 does not could not be paid at all; that document says who fills it and who watches it.
 

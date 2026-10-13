@@ -70,10 +70,15 @@ interface IDeskUpkeep {
 ///   be paid on a receipt: one whose kind the reader does not know as one of the swarm's job
 ///   templates deserves no chips.
 /// - Whether the pot allows the bonded-claim path, and what that means (`Terms.allowClaimed`).
-/// - The size of the bond next to the target. The bond is all a runner loses by taking the order
-///   and not delivering. A larger bond makes that dearer, and it also makes the order harder to
-///   take and, on the claimed path, a delivery claim harder to challenge, since a challenger posts
-///   the same amount.
+/// - The size of the bond next to the target. The bond is the most a runner loses by taking the
+///   order and not delivering, and it loses all of it by letting the order time out. It loses
+///   none of it when the registered job's receipt shows that the swarm did not complete the job
+///   or ran it under another kind: the desk then returns the bond whole, bars nobody, and the
+///   order is open again, or refunded if its hire window has passed. So a runner can leave the
+///   order, or end a pot whose hire window has passed, for the price of one swarm job and gas
+///   (`docs/THREATS.md`, W2, W3 and C2). A larger bond makes a stall dearer, and it also makes
+///   the order harder to take and, on the claimed path, a delivery claim harder to challenge,
+///   since a challenger posts the same amount.
 ///
 /// Reentrancy and events: every function that moves money holds a transient lock, and the only
 /// contracts ever called are the two fixed at construction, IMD and the desk. Some events are
@@ -116,8 +121,11 @@ contract CrowdPots is ICrowdPots, IWorkEmployer, ReentrancyGuardTransient {
         /// Zero when `minPay` equals `target`; otherwise 1 to `hireSecs`.
         uint32 rampSecs;
         /// What a runner must post to take the order. It is forfeited to the pot, and so to its
-        /// contributors, if the runner lets the order time out. Between the desk's minimum and
-        /// `target`.
+        /// contributors, if the runner lets the order time out, registers a job that is not the
+        /// order's, or claims a delivery that a receipt contradicts. It comes back to the runner
+        /// whole when the registered job's receipt shows the swarm did not complete the job or
+        /// ran it under another kind (the desk's rules W2 and W3 in `docs/THREATS.md`). Between
+        /// the desk's minimum and `target`.
         uint96 bond;
         /// How long a runner has, after registering the job, for a receipt to exist.
         uint32 deliverySecs;
@@ -139,7 +147,10 @@ contract CrowdPots is ICrowdPots, IWorkEmployer, ReentrancyGuardTransient {
         /// - That refund ends the pot, because a pot hires once. One party with two addresses can
         ///   bring it about (claim delivery, challenge itself, wait out the delivery time) for a
         ///   tenth of the bond, whatever is left of the hire window. On a receipt-only pot the
-        ///   same stall costs the whole bond and the order is open again afterwards.
+        ///   same stall by silence costs the whole bond and the order is open again afterwards;
+        ///   but a runner whose registered job has a receipt that does not complete, or that is
+        ///   of another kind, leaves with its whole bond, and once the hire window has passed
+        ///   that ending refunds the pot and ends it, for the price of one swarm job.
         ///
         /// The desk's answer to the first two is an arbiter, and a pot cannot name one, because
         /// contributors could not judge it. A receipt of the job decides, for the runner or against

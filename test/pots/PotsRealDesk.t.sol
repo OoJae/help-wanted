@@ -388,6 +388,60 @@ contract PotsRealDeskTest is Receipts {
         assertEq(imd.balanceOf(runner), WALLET - 1e18);
     }
 
+    /// A runner takes a receipt-only order shortly before its hire window closes, registers a job,
+    /// and the registry's receipt for that job says it did not complete. Nobody but the runner may
+    /// report that receipt, so nobody can free the order sooner; once the hire window has passed
+    /// the runner's report refunds the order, and so the pot, with the whole bond returned to the
+    /// runner and nothing forfeited (`docs/THREATS.md`, W3 and C2).
+    function test_realDesk_aFailedJobsReceiptPastTheHireWindow_refundsThePotWithTheBondReturned() public {
+        (uint256 potId, uint256 orderId) = _launched(false);
+        uint256 expiresAt = pots.potOf(potId).orderExpiresAt;
+        vm.warp(expiresAt - 2 days);
+        _takeAndRegister(orderId, runner, JOB);
+        _landReceipt(orderId, JOB, KIND, SPEC, BLOCKED);
+
+        // A contributor cannot report the swarm's failure for the runner.
+        vm.prank(alice);
+        vm.expectRevert(IWorkOrdersRunner.NotRunner.selector);
+        desk.reportFailed(orderId, landed, new address[](0));
+        assertEq(uint256(pots.reconcile(potId)), uint256(CrowdPots.Stage.Hiring));
+
+        vm.warp(expiresAt + 1);
+        assertLt(vm.getBlockTimestamp(), desk.claimOf(orderId).registeredAt + 3 days, "before the delivery deadline");
+        vm.prank(runner);
+        desk.reportFailed(orderId, landed, new address[](0));
+
+        assertEq(uint256(_state(orderId)), uint256(IWorkOrders.State.Refunded));
+        assertEq(imd.balanceOf(runner), WALLET, "the whole bond came back");
+        assertFalse(desk.barred(orderId, runner));
+        assertEq(_returned(orderId), TARGET, "the escrow and no bond");
+        _assertPushedWhatItReports(orderId);
+        assertEq(uint256(pots.reconcile(potId)), uint256(CrowdPots.Stage.Refundable));
+        assertEq(_claimBoth(potId), TARGET, "the contributors get back exactly what they chipped in");
+    }
+
+    /// A `completed` receipt of another kind for a job with the order's own objective can never
+    /// settle the order. Anyone may report it, the bond comes back whole and the runner is not
+    /// barred, so the same address can take the order again at once and repeat the cycle for as
+    /// long as the hire window lasts (`docs/THREATS.md`, W2 and C2).
+    function test_realDesk_aWrongKindReceipt_reopensWithTheBondReturned_andTheSameRunnerMayTakeItAgain() public {
+        (uint256 potId, uint256 orderId) = _launched(false);
+        for (uint256 i = 1; i <= 3; ++i) {
+            bytes16 job = bytes16(uint128(0x1000 + i));
+            _takeAndRegister(orderId, runner, job);
+            _landReceipt(orderId, job, PICTURE_KIND, SPEC, COMPLETED);
+            vm.prank(alice);
+            desk.reportFailed(orderId, landed, new address[](0));
+
+            assertEq(uint256(_state(orderId)), uint256(IWorkOrders.State.Open));
+            assertEq(imd.balanceOf(runner), WALLET, "the whole bond came back");
+            assertFalse(desk.barred(orderId, runner));
+            assertEq(_returned(orderId), 0, "nothing forfeited to the pot");
+            assertEq(uint256(pots.reconcile(potId)), uint256(CrowdPots.Stage.Hiring));
+        }
+        _assertPushedWhatItReports(orderId);
+    }
+
     function test_realDesk_anIdleRunnerOnAnExpiredOrder_isEvictedByOneClaim() public {
         (uint256 potId, uint256 orderId) = _launched(false);
         vm.warp(pots.potOf(potId).orderExpiresAt - 1);

@@ -9,8 +9,19 @@ hires.
 
 **Status, read this first.**
 
-- **Not deployed.** None of the four contracts has been sent to a chain. `docs/LAUNCH.md` is the
-  launch request and the runbook.
+- **Live on Ethereum mainnet since 13 October 2026.** IdentityMD launch 1573 created the four
+  contracts in one transaction, `0xfb28bef9c477cfe3777231d8c41f202e691673fc4cec98ecb8b07f1bfff7bf9c`
+  (block 26184581): `WorkProof` at `0xB268297dB06985ba0b806Ba97BcB90364b137469`, `WorkOrders` at
+  `0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2`, `CrowdPots` at
+  `0x8C2FfCdcb103659aa05c772b8F2059868B496EB5` and the `Doorbell` at
+  `0xFd5ab7E03E8554210Faa3cCd3b9D47C622fffcCb`. `src/` is the source that was deployed: built here
+  with the manifest's arguments, each contract has the runtime code that is at its address.
+  IdentityMD's pipeline changed no contract code before deploying; `ADAPTATION.md` says what it
+  checked and which comments and documents it corrected. `docs/LAUNCH.md` is the launch request
+  and the runbook, kept as they were written before the launch.
+- **The central claim holds through the launched `WorkProof`.** Called on mainnet with the served
+  record of the real job `e9efec16-56f3-40d3-9243-52c453effc7d`, `prove` answers with the record's
+  hash and the agent that did the work (`docs/LAUNCH.md`, section 7, step 0, has the command).
 - **`Payroll`, the one contract this launch pays and does not create, is live.** HELP WANTED's
   first launch put it on Ethereum mainnet on 13 October 2026, at
   `0x6e4362a5cEc59Eb3F611af6b2d81915CF5b45f1F`. That address is the desk's third constructor
@@ -29,9 +40,13 @@ hires.
 - **IdentityMD's receipts are not arriving** (13 October 2026: no `WorkRecorded` event in the last
   9,000 blocks; none since about 8 October). While that lasts, only orders that allow the
   bonded-claim path can be paid, and the first day in `docs/LAUNCH.md` is planned for that.
-- **Not audited by a third party.** `docs/THREATS.md` lists every trust root and every known
-  limit, and, in its section 11, what was checked here after IdentityMD's launch pipeline changed
-  our first launch. `docs/DEVIATIONS.md` lists where we depart from IdentityMD's guidance.
+- **Audited by IdentityMD's launch pipeline, and by nobody else.** Before deploying, its audit
+  agents and an independent reviewer read this code and reported one medium and several info
+  findings. None changed a contract; each is answered in `ADAPTATION.md`, and the medium one (a
+  receipt-only pot can be ended in a refund with no bond forfeited) is now stated as a limit in
+  `docs/THREATS.md`, C2. That file lists every trust root and every known limit, and, in its
+  section 11, what was checked here after the pipeline changed our first launch.
+  `docs/DEVIATIONS.md` lists where we depart from IdentityMD's guidance.
 
 This is the second of three launches of HELP WANTED. It pays its fees into `Payroll` (the first
 launch) and needs nothing else from the other two.
@@ -75,7 +90,7 @@ forge build --sizes
 forge test
 ```
 
-`forge test` runs 654 tests in 30 suites and needs no network. It skips the fork tests.
+`forge test` runs 673 tests in 32 suites and needs no network. It skips the fork tests.
 
 ```sh
 FOUNDRY_PROFILE=fork forge test
