@@ -299,6 +299,10 @@ against the house feeds: `test_theWaitsFitTheHouseFeeds`,
 
 **Not audited.** This change was made after both audits and has been read by no auditor.
 
+_Superseded, 15 October 2026._ The sentence above was true before the launch. IdentityMD's launch
+pipeline then read this change: `audit_imported_code` reported on one of the two waits, and the
+pipeline changed it (row 2 of the last section). Neither of the two audits above read it.
+
 ## IdentityMD's launch pipeline: what its reviewers reported
 
 Read on 15 October 2026 from IdentityMD's record of the pipeline job,
@@ -307,9 +311,12 @@ pull request 1 of the launch repository,
 <https://github.com/identity-md-launches/launch-1531-please-deploy-repository-contracts>. The job
 was paid by the team's wallet W1 and created on 13 October 2026 at 06:46 UTC. Its pull request was
 merged at 10:00 UTC, and the three contracts were created at 10:07 UTC in block 26,182,869.
-`ADAPTATION.md` in this folder is the same, byte for byte, as the launch repository's; so is this
-file, apart from this section and the sentence at its top that points here, both added on
-15 October 2026.
+`ADAPTATION.md` in this folder is the same, byte for byte, as the launch repository's. This file
+says the same as the launch repository's, apart from this section and the sentence at its top that
+points here, both added on 15 October 2026, and the note marked "Superseded" above, added later
+that day. It is not the same byte for byte: a formatter re-padded its first two tables (spaces and
+dashes inside the rows) without changing a word in them. Compared on 15 October 2026 with the
+table padding taken out, the two files differ in nothing else.
 
 The pull request says: "An independent reviewer raised 8 finding(s)." The job's review
 submissions, all accepted, hold eight findings: four from `audit_imported_code`, which are the four
