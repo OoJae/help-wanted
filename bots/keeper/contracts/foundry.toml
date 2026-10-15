@@ -1,0 +1,18 @@
+# Stand-in contracts for the keeper's integration test. Nothing here is launched or deployed to a
+# real chain: the test deploys them to a local node it starts itself, beside the real launch A
+# contracts taken from launches/a-payroll/out.
+[profile.default]
+src = "src"
+out = "out"
+cache_path = "cache"
+libs = []
+solc = "0.8.26"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+bytecode_hash = "none"
+cbor_metadata = false
+ffi = false
+
+[fmt]
+line_length = 120

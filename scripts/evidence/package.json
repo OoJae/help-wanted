@@ -1,0 +1,5 @@
+{
+  "private": true,
+  "type": "module",
+  "description": "Not a package: this file only tells Node that the TypeScript files of this folder are ES modules. The folder has no dependencies of its own; see shared.ts."
+}

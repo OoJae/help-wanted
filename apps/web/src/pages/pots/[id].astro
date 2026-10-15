@@ -1,0 +1,107 @@
+---
+import Commands from "~/components/Commands.astro";
+import FlowBlock from "~/components/FlowBlock.astro";
+import NotLaunched from "~/components/NotLaunched.astro";
+import Stamp from "~/components/Stamp.astro";
+import Theirs from "~/components/Theirs.astro";
+import Layout from "~/layouts/Layout.astro";
+import { pageData } from "~/lib/page";
+import type { PotModel } from "~/models/money";
+
+const loaded = await pageData<PotModel>(Astro);
+if (loaded instanceof Response) return loaded;
+const { model: m, meta } = loaded;
+const c = m.card;
+---
+
+<Layout title={meta.title} description={meta.description} sources={m.sources} generatedAt={m.generatedAt}>
+  <header class="pagehead">
+    <p class="crumbs">
+      <a href="/pots">Pots</a> · pot {m.id}
+      {c?.sample && (
+        <>
+          {" "}
+          <span class="tag tag--spot">SAMPLE</span>
+        </>
+      )}
+    </p>
+    <div class="lost">
+      <div>
+        <h1 class="headline headline--small">
+          {c
+            ? c.headline
+            : m.launched
+              ? `Pot ${m.id} could not be read just now.`
+              : `Pot ${m.id} does not exist yet.`}
+        </h1>
+        {c && (
+          <p class="deck">
+            {c.progress} {c.deadlineWords}
+          </p>
+        )}
+        {c?.percent != null && (
+          <div
+            class="meter"
+            style="max-width:40rem;margin-top:1rem"
+            role="img"
+            aria-label={`${c.percent}% of the target raised`}
+          >
+            <span style={`width:${Math.min(100, c.percent)}%`} />
+          </div>
+        )}
+      </div>
+      {c?.stamp && (
+        <p class="release__stamp">
+          <Stamp stamp={c.stamp} big />
+        </p>
+      )}
+    </div>
+  </header>
+
+  <NotLaunched contract={m.pots} consequence="No pot exists on chain." />
+  {m.error && <p class="small spot">CrowdPots could not be read just now: {m.error}</p>}
+
+  {m.spec && (
+    <Theirs
+      by="The job this pot will order, in its opener's words (it hashes to the pot's job text hash)"
+      text={m.spec}
+    />
+  )}
+  {m.specMissing && (
+    <aside class="notice notice--spot" aria-label="Job text not shown">
+      <span class="label">Job text not shown</span>
+      <p>{m.specMissing}</p>
+    </aside>
+  )}
+
+  {m.facts.length > 0 && (
+    <div class="tablewrap">
+      <table class="kv">
+        <tbody>
+          {m.facts.map((fact) => (
+            <tr>
+              <th scope="row">{fact.label}</th>
+              <td class="code">{fact.value}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+  {m.kindNote && <p class="small">{m.kindNote}</p>}
+
+  <section class="section">
+    <div class="section__head">
+      <h2>Chip in</h2>
+      <p>with IMD, or with ETH through Zap</p>
+    </div>
+    {m.flows.map((flow, index) => (
+      <FlowBlock
+        flow={flow}
+        exampleNote={index === 0 ? `0.5 IMD and pot ${m.id}` : `0.01 ETH and pot ${m.id}`}
+        repeat={index > 0}
+      />
+    ))}
+    <Commands commands={m.commands} />
+  </section>
+</Layout>

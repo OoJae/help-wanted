@@ -1,0 +1,114 @@
+---
+import Commands from "~/components/Commands.astro";
+import FlowBlock from "~/components/FlowBlock.astro";
+import NotLaunched from "~/components/NotLaunched.astro";
+import OrderCard from "~/components/OrderCard.astro";
+import Layout from "~/layouts/Layout.astro";
+import { pageData } from "~/lib/page";
+import type { RunnersModel } from "~/models/desk";
+
+const loaded = await pageData<RunnersModel>(Astro);
+if (loaded instanceof Response) return loaded;
+const { model: m, meta } = loaded;
+---
+
+<Layout title={meta.title} description={meta.description} sources={m.sources} generatedAt={m.generatedAt}>
+  <header class="pagehead">
+    <h1 class="headline headline--wide">Take an order. Carry it to the swarm. Get paid on proof.</h1>
+    <p class="deck">
+      A contract cannot buy a swarm job itself: payment needs an ordinary wallet's signatures. A runner is the
+      wallet that does it, under bond, for a margin. {m.whoRuns}
+    </p>
+  </header>
+
+  <NotLaunched contract={m.desk} consequence="There are no orders to take." />
+  {m.launched && <p class:list={["small", m.count === null && "spot"]}>{m.openWords}</p>}
+  {m.error && m.count !== null && (
+    <p class="small spot">The desk's last read came with an error: {m.error}</p>
+  )}
+
+  {m.open.length > 0 && (
+    <section class="section section--first">
+      <div class="section__head">
+        <h2>Open orders</h2>
+        <p>{m.open.length} waiting for a runner</p>
+      </div>
+      <div class="classifieds">
+        {m.open.map((card) => (
+          <OrderCard card={card} />
+        ))}
+      </div>
+    </section>
+  )}
+
+  <section class="section">
+    <div class="section__head">
+      <h2>What a runner does</h2>
+      <p>the open-source runner is in the repository under bots/runner</p>
+    </div>
+    <div class="cols cols--ruled">
+      <ol>
+        {m.steps.map((step) => (
+          <li>{step}</li>
+        ))}
+      </ol>
+      <div>
+        <h3 class="sub sub--first">What it earns</h3>
+        <ul>
+          {m.economics.map((line) => (
+            <li>{line}</li>
+          ))}
+        </ul>
+        <h3 class="sub">What it risks</h3>
+        <ul>
+          {m.risks.map((line) => (
+            <li>{line}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section__head">
+      <h2>The header</h2>
+      <p>{m.headerExample.bytes} bytes, the last a space</p>
+    </div>
+    <p>
+      The job a runner opens must begin with a header built from the order's ticket, then the order's job
+      text. For ticket <code class="break">{m.headerExample.ticket}</code>:
+    </p>
+    <div class="cmd cmd--plain">
+      <div class="cmd__row">
+        <pre>{m.headerExample.header}</pre>
+      </div>
+    </div>
+    <p class="small">
+      ticket = keccak256(abi.encode(chainId, workOrders, orderId, claimSeq, runner)). claimSeq counts claims
+      of that order from 1, so a second runner gets a different ticket and an old receipt cannot be used
+      twice. The desk returns the 85 bytes for a claimed order with headerOf(id).
+    </p>
+  </section>
+
+  <section class="section" id="steps">
+    <div class="section__head">
+      <h2>The on-chain steps</h2>
+      <p>buying the job itself is done by the runner bot, not from a browser</p>
+    </div>
+    <aside class="notice" aria-label="Receipts now">
+      <span class="label">Receipts, read for this page</span>
+      <p>{m.receiptsNow}</p>
+    </aside>
+    {m.flows.map((flow, index) => (
+      <FlowBlock flow={flow} exampleNote="order 1" repeat={index > 0} />
+    ))}
+    <h3 class="sub" id="settle">
+      Being paid on a receipt
+    </h3>
+    <p>
+      The record itself is the transaction's argument, so these are commands for a terminal; the runner bot
+      sends the same call.
+    </p>
+    <Commands commands={m.settleCommands} />
+  </section>
+</Layout>

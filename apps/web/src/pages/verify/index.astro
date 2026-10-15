@@ -1,0 +1,128 @@
+---
+import Commands from "~/components/Commands.astro";
+import Rich from "~/components/Rich.astro";
+import Stamp from "~/components/Stamp.astro";
+import Layout from "~/layouts/Layout.astro";
+import { formatInt } from "~/lib/format";
+import { parseJobId } from "~/lib/ids";
+import { pageData } from "~/lib/page";
+import { etherscanTx } from "~/config/chain";
+import { receiptFlowMeaning } from "~/models/receipts";
+import { VERIFY_HOW, type VerifyIndexModel } from "~/models/verify";
+
+const typed = Astro.url.searchParams.get("job");
+const typedId = parseJobId(typed);
+if (typedId) return Astro.redirect(`/verify/${typedId}`, 303);
+
+const loaded = await pageData<VerifyIndexModel>(Astro);
+if (loaded instanceof Response) return loaded;
+const { model: m, meta } = loaded;
+---
+
+<Layout title={meta.title} description={meta.description} generatedAt={m.generatedAt}>
+  <header class="pagehead">
+    <h1 class="headline">Was the work really done? Ask the chain.</h1>
+    <p class="deck">
+      Paste a swarm job id. This page hashes the job's work record, reads its receipt from IdentityMD's
+      WorkRegistry on Ethereum, and stamps the result. Then your browser does it all again on its own.
+    </p>
+    <form class="lookup" method="get" action="/verify" style="margin-top:1.4rem">
+      <label class="label" for="job">
+        Job id
+      </label>
+      <input
+        id="job"
+        name="job"
+        type="text"
+        inputmode="text"
+        autocomplete="off"
+        spellcheck="false"
+        required
+        placeholder="e9efec16-56f3-40d3-9243-52c453effc7d"
+        value={m.rejectedInput ?? ""}
+      />
+      <button class="btn" type="submit">
+        Check the receipt
+      </button>
+    </form>
+    {m.rejectedInput !== null && (
+      <p class="spot small" role="alert">
+        That is not a job id. A job id is a UUID (8-4-4-4-12 hex characters), the 32 hex characters of one, or
+        an explorer link that ends in one.
+      </p>
+    )}
+    <p class="small" style="margin:0">
+      No wallet and no account. <a href={`/verify/${m.reference.jobId}`}>Try the reference job</a>, or pick
+      any finished job from <a href="/">the Work Wire</a>.
+    </p>
+  </header>
+
+  <section class="section section--first">
+    <div class="section__head">
+      <h2>The check, in four steps</h2>
+      <p>the same four a contract performs before it pays</p>
+    </div>
+    <div class="cols cols--ruled">
+      <div>
+        <ol class="steps">
+          {VERIFY_HOW.map((step) => (
+            <li class="step step--open">
+              <p class="step__detail" style="color:var(--ink);margin:0">
+                <Rich text={step} />
+              </p>
+            </li>
+          ))}
+        </ol>
+        <p class="small">
+          The WorkRegistry is at{" "}
+          <a class="break data" href={m.workRegistryUrl}>
+            {m.workRegistry}
+          </a>
+          . Its source is not published: the function was recovered by its selector (<code>0xebe9712c</code>)
+          and confirmed by reproducing a real receipt by hand.
+        </p>
+      </div>
+      <div>
+        <dl class="legend">
+          <div>
+            <dt>
+              <Stamp stamp={{ text: "PROVEN ON CHAIN", tone: "proof" }} mid />
+            </dt>
+            <dd>
+              One thing only: <code>keccak256(record) == WorkRegistry.latest(jobId)</code>. The job's record
+              is the one the chain committed to. HELP WANTED's hire desk pays on exactly that, and on nothing
+              softer unless the employer opts in.
+            </dd>
+          </div>
+          <div>
+            <dt>
+              <Stamp stamp={{ text: "NO RECEIPT YET", tone: "void" }} mid tilt />
+            </dt>
+            <dd>
+              The registry returned zero for the job. As read for this page: {m.receipts.observed}{" "}
+              {receiptFlowMeaning(m.receipts)}
+            </dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section__head">
+      <h2>The same check by hand</h2>
+      <p>Foundry's cast and curl · for the reference job</p>
+    </div>
+    <p>
+      Job <code>{m.reference.jobId}</code> has a {formatInt(m.reference.recordBytes)}-byte record and a
+      receipt written in <a href={etherscanTx(m.reference.receiptTx)}>this transaction</a>. Both lines below
+      print <code class="break">{m.reference.receipt}</code>.
+    </p>
+    <Commands commands={m.commands} />
+    <p class="small">
+      From a script: <a href={`/verify/${m.reference.jobId}.json`}>/verify/&lt;jobId&gt;.json</a>,{" "}
+      <a href={`/verify/${m.reference.jobId}.md`}>/verify/&lt;jobId&gt;.md</a> or{" "}
+      <a href={`/api/v1/verify/${m.reference.jobId}`}>/api/v1/verify/&lt;jobId&gt;</a>.
+    </p>
+  </section>
+</Layout>

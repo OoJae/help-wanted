@@ -1,0 +1,9 @@
+# Foundry's build output and cache for the stand-in contracts the integration test deploys.
+contracts/out/
+contracts/cache/
+# Solidity is formatted with forge fmt, not prettier.
+contracts/src/
+dist/
+data/
+# A real work record, kept byte for byte as IdentityMD serves it.
+test/fixtures/

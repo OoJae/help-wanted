@@ -1,0 +1,50 @@
+---
+/**
+ * One swarm job as a classified advertisement. The text is the customer's own, quoted; the stamp
+ * says only what could be read: whether the job finished and whether a receipt is on chain.
+ */
+import type { JobCard } from "~/models/cards";
+import { sentenceCase } from "~/lib/stamp";
+import Stamp from "./Stamp.astro";
+
+interface Props {
+  card: JobCard;
+}
+
+const { card } = Astro.props;
+---
+
+<article class="ad">
+  <p class="ad__kind">{card.kicker}</p>
+  <blockquote class="ad__text" cite={card.explorerUrl}>
+    {card.objective}
+  </blockquote>
+  <ul class="ad__meta">
+    <li>
+      Job <span class="data">{card.shortId}</span> · posted {card.postedWords}
+    </li>
+    {card.took ? <li>Finished in {card.took}</li> : <li>Now: {card.stateWords}</li>}
+    {card.ended && (
+      <li>
+        {card.receipt ? (
+          <>
+            Receipt <span class="data break">{card.receipt.slice(0, 18)}…</span>
+          </>
+        ) : card.receiptRead ? (
+          "No receipt on chain yet"
+        ) : (
+          "Receipt could not be read"
+        )}
+      </li>
+    )}
+  </ul>
+  <div class="ad__foot">
+    <p class="ad__links">
+      <a href={card.verifyPath}>{card.receipt ? "Verify" : "Check"}</a>
+      <a href={card.explorerUrl} rel="noopener">
+        Explorer
+      </a>
+    </p>
+    {card.stamp ? <Stamp stamp={card.stamp} /> : <span class="status">{sentenceCase(card.stateWords)}</span>}
+  </div>
+</article>

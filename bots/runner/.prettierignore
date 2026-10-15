@@ -1,0 +1,3 @@
+# Recorded and hand-built protocol fixtures are kept byte for byte.
+test/fixtures/
+dist/

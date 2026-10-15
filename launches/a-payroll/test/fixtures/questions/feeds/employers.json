@@ -1,0 +1,92 @@
+{
+  "name": "employers",
+  "title": "Employers of the Week: the three addresses that paid the swarm the most IMD in the last seven days, as a panel of seven agents read it from the chain",
+  "feedId": "0x22ad8df0e0af07aa59e29aa7f5540e0022fbfda0651ccae3eccb968553a14835",
+  "feedIdRule": "keccak256(abi.encode(params, keccak256(qPrefix), keccak256(tail)))",
+  "params": {
+    "action": "0x6f7261636c652e72657175657374406f7261636c652d31000000000000000000",
+    "chainId": 1,
+    "answerType": 4,
+    "panelSize": 7,
+    "quorum": 5,
+    "minAgreed": 5,
+    "validFor": 86400,
+    "cadenceBlocks": 49000,
+    "maxWindowBlocks": 50400,
+    "lagBlocks": 12,
+    "contiguous": false,
+    "pinHash": true,
+    "maxPrice": "2000000000000000000",
+    "tip": "50000000000000000",
+    "gateCmp": 0,
+    "gateTarget": "0x0000000000000000000000000000000000000000",
+    "gateThreshold": "0",
+    "gateData": "0x"
+  },
+  "qPrefix": "{\"answerType\":\"address[]\",\"chainId\":1,\"definitions\":{\"method\":\"Read the Transfer(address indexed from, address indexed to, uint256 value) logs emitted by 0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7 on Ethereum mainnet in the block window, keep those whose to is 0x4e0fa57bde726079356537e2f34d671e9f41adbc, add up value per from address, order by that total from largest to smallest with ties by ascending address, and answer the first 3 addresses.\",\"source\":\"Ethereum mainnet event logs only, read from any full node. No website or index.\"},\"evidence\":\"panel\",\"head\":3,\"question\":\"Which three addresses sent the most IMD (token contract 0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7) to 0x4e0fa57bde726079356537e2f34d671e9f41adbc on Ethereum mainnet in the window? Rank senders by the sum of value over Transfer(address indexed from, address indexed to, uint256 value) events of that contract whose to argument is 0x4e0fa57bde726079356537e2f34d671e9f41adbc, grouped by from; answer exactly the top 3 addresses, largest first, ties by ascending address.\",\"v\":1,\"window\":{\"fromBlock\":",
+  "qPrefixHex": "0x7b22616e7377657254797065223a22616464726573735b5d222c22636861696e4964223a312c22646566696e6974696f6e73223a7b226d6574686f64223a225265616420746865205472616e73666572286164647265737320696e64657865642066726f6d2c206164647265737320696e646578656420746f2c2075696e743235362076616c756529206c6f677320656d697474656420627920307864333461393962633066363761653162626436336336363065366430623064643033653236336237206f6e20457468657265756d206d61696e6e657420696e2074686520626c6f636b2077696e646f772c206b6565702074686f73652077686f736520746f206973203078346530666135376264653732363037393335363533376532663334643637316539663431616462632c206164642075702076616c7565207065722066726f6d20616464726573732c206f72646572206279207468617420746f74616c2066726f6d206c61726765737420746f20736d616c6c6573742077697468207469657320627920617363656e64696e6720616464726573732c20616e6420616e73776572207468652066697273742033206164647265737365732e222c22736f75726365223a22457468657265756d206d61696e6e6574206576656e74206c6f6773206f6e6c792c20726561642066726f6d20616e792066756c6c206e6f64652e204e6f2077656273697465206f7220696e6465782e227d2c2265766964656e6365223a2270616e656c222c2268656164223a332c227175657374696f6e223a225768696368207468726565206164647265737365732073656e7420746865206d6f737420494d442028746f6b656e20636f6e7472616374203078643334613939626330663637616531626264363363363630653664306230646430336532363362372920746f20307834653066613537626465373236303739333536353337653266333464363731653966343161646263206f6e20457468657265756d206d61696e6e657420696e207468652077696e646f773f2052616e6b2073656e64657273206279207468652073756d206f662076616c7565206f766572205472616e73666572286164647265737320696e64657865642066726f6d2c206164647265737320696e646578656420746f2c2075696e743235362076616c756529206576656e7473206f66207468617420636f6e74726163742077686f736520746f20617267756d656e74206973203078346530666135376264653732363037393335363533376532663334643637316539663431616462632c2067726f757065642062792066726f6d3b20616e737765722065786163746c792074686520746f702033206164647265737365732c206c6172676573742066697273742c207469657320627920617363656e64696e6720616464726573732e222c2276223a312c2277696e646f77223a7b2266726f6d426c6f636b223a",
+  "tail": ",\"panelSize\":7,\"quorum\":5,\"validForSeconds\":86400}",
+  "tailHex": "0x2c2270616e656c53697a65223a372c2271756f72756d223a352c2276616c6964466f725365636f6e6473223a38363430307d",
+  "example": {
+    "requestBlock": 26164239,
+    "fromBlock": 26113828,
+    "toBlock": 26164227,
+    "body": "{\"answerType\":\"address[]\",\"chainId\":1,\"definitions\":{\"method\":\"Read the Transfer(address indexed from, address indexed to, uint256 value) logs emitted by 0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7 on Ethereum mainnet in the block window, keep those whose to is 0x4e0fa57bde726079356537e2f34d671e9f41adbc, add up value per from address, order by that total from largest to smallest with ties by ascending address, and answer the first 3 addresses.\",\"source\":\"Ethereum mainnet event logs only, read from any full node. No website or index.\"},\"evidence\":\"panel\",\"head\":3,\"question\":\"Which three addresses sent the most IMD (token contract 0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7) to 0x4e0fa57bde726079356537e2f34d671e9f41adbc on Ethereum mainnet in the window? Rank senders by the sum of value over Transfer(address indexed from, address indexed to, uint256 value) events of that contract whose to argument is 0x4e0fa57bde726079356537e2f34d671e9f41adbc, grouped by from; answer exactly the top 3 addresses, largest first, ties by ascending address.\",\"v\":1,\"window\":{\"fromBlock\":26113828,\"toBlock\":26164227},\"panelSize\":7,\"quorum\":5,\"validForSeconds\":86400}",
+    "bodyHex": "0x7b22616e7377657254797065223a22616464726573735b5d222c22636861696e4964223a312c22646566696e6974696f6e73223a7b226d6574686f64223a225265616420746865205472616e73666572286164647265737320696e64657865642066726f6d2c206164647265737320696e646578656420746f2c2075696e743235362076616c756529206c6f677320656d697474656420627920307864333461393962633066363761653162626436336336363065366430623064643033653236336237206f6e20457468657265756d206d61696e6e657420696e2074686520626c6f636b2077696e646f772c206b6565702074686f73652077686f736520746f206973203078346530666135376264653732363037393335363533376532663334643637316539663431616462632c206164642075702076616c7565207065722066726f6d20616464726573732c206f72646572206279207468617420746f74616c2066726f6d206c61726765737420746f20736d616c6c6573742077697468207469657320627920617363656e64696e6720616464726573732c20616e6420616e73776572207468652066697273742033206164647265737365732e222c22736f75726365223a22457468657265756d206d61696e6e6574206576656e74206c6f6773206f6e6c792c20726561642066726f6d20616e792066756c6c206e6f64652e204e6f2077656273697465206f7220696e6465782e227d2c2265766964656e6365223a2270616e656c222c2268656164223a332c227175657374696f6e223a225768696368207468726565206164647265737365732073656e7420746865206d6f737420494d442028746f6b656e20636f6e7472616374203078643334613939626330663637616531626264363363363630653664306230646430336532363362372920746f20307834653066613537626465373236303739333536353337653266333464363731653966343161646263206f6e20457468657265756d206d61696e6e657420696e207468652077696e646f773f2052616e6b2073656e64657273206279207468652073756d206f662076616c7565206f766572205472616e73666572286164647265737320696e64657865642066726f6d2c206164647265737320696e646578656420746f2c2075696e743235362076616c756529206576656e7473206f66207468617420636f6e74726163742077686f736520746f20617267756d656e74206973203078346530666135376264653732363037393335363533376532663334643637316539663431616462632c2067726f757065642062792066726f6d3b20616e737765722065786163746c792074686520746f702033206164647265737365732c206c6172676573742066697273742c207469657320627920617363656e64696e6720616464726573732e222c2276223a312c2277696e646f77223a7b2266726f6d426c6f636b223a32363131333832382c22746f426c6f636b223a32363136343232377d2c2270616e656c53697a65223a372c2271756f72756d223a352c2276616c6964466f725365636f6e6473223a38363430307d",
+    "questionHash": "0x9cc9fb0f07da285bdfa680d3790877d893378a48b37039b8f68030ac4624940d"
+  },
+  "notes": {
+    "proof": {
+      "what": "one real request with exactly this feed's body, bought from an ordinary wallet through version 1 of the Intake (0x1397434cd35e8a9c8ac312a61d3a285eb31dea56) with no callback, before version 2 was adopted",
+      "transaction": "0x14e7189cd2f65180452995c7a5ed1d12f9101dd8c42c23c63e21a1d86b48ba9d",
+      "block": 26179860,
+      "intakeRequestId": "0x9caa88fda73ff7e9faebd35482e6a788f2aa258ed722b037e97d3d2ba7e938da",
+      "bodyHash": "0xf0841684ac251fd3f07386cc34d41cccbaef1bd64b8c2353a8c25b641ccce54a",
+      "oracleRequestId": "2cbe6bb3-13f9-4617-98b9-5d83754f9e1a",
+      "fromBlock": 26129447,
+      "toBlock": 26179846,
+      "questionHash": "0x3d14a9f53e3eaf1272d67871cff61223fc9b295f26e177c7a193ca5f90d52fc6",
+      "status": "attested",
+      "answer": "[0x21919137e69ed667ac404c7fcb71b8179b645f46, 0x9fadab91f6fa03dbd7f4f8a08a338704baacf63f, 0x7b8c742f2e1eeb3fb2c10d72967fa6d4a22f0479], agreed 5 of a panel of 7, attested 2026-10-13T00:08:45Z, 4 minutes 16 seconds after the request was admitted",
+      "record": "test/fixtures/questions/proofs/employers.oracle.json"
+    },
+    "firstAttempt": {
+      "what": "the body this feed had until 13 October 2026: evidence chain, a pinned log-rank recipe with a filter on `to`, top 5, head 3",
+      "transaction": "0x674b5e14572e1e53960802a3a664bac8403bdda0d0e39e6aad23fbaef2d38b0e",
+      "oracleRequestId": "c1d0ba09-c732-46e7-b257-2722841215fe",
+      "fromBlock": 26129374,
+      "toBlock": 26179773,
+      "questionHash": "0x6ad2c9985500d1dba60b5e899cbc9f02b801155af0fa7f0bed0a41b12e7d2482",
+      "status": "mismatch",
+      "failure": "the recipe did not reproduce the panel's answer",
+      "why": "the oracle's recipe checker refuses a filter inside a log-rank recipe (the members' own notes say so), so each of the five members that answered recorded the filter under definitions and handed in the recipe without it. All five gave the same filtered ranking. The oracle then reran the agreed recipe, which had no filter, ranked every IMD transfer in the window, and got five other addresses. A ranking among the transfers to one recipient cannot be attested as chain evidence.",
+      "feedIdThen": "0xc09b49435a17cb78599285e972df2f6f095b0f49658a8279812f653670633817",
+      "record": "test/fixtures/questions/proofs/employers-first-attempt.oracle.json"
+    },
+    "what": "The three largest senders of IMD to the fee payee over the newest 50,400 blocks (seven days), asked about once a week. Not contiguous: a ranking is of a period, not a running total, and a fresh closing block keeps its hash checkable. The answer is exactly three addresses (`head` 3).",
+    "panelJudged": [
+      "IdentityMD does not recompute this answer. With evidence panel the oracle signs what the panel agreed on: at least 5 of 7 agents, each holding one seat, gave the same three addresses in the same order. The two daily feeds are different: there the oracle reruns the pinned recipe at the pinned blocks before it signs",
+      "the method is pinned in `definitions` (which logs, which filter, how to add up, how to order, how ties fall), and both definitions are part of the hashed question, so an answer to any other wording is refused by the contract. The method tells the members what to do; nothing checks that they did it",
+      "`minAgreed` equals the quorum, so the contract refuses any attestation whose `agreed` is below its signed quorum. For a panel-judged question that is the only agreement there is (the oracle's notes: `agreed` is below `quorum` only for chain evidence)",
+      "`submit` is closed for this feed (Questions refuses it for a question a panel judges, because two panels can differ and whoever submits would choose). Only the Intake's own callback delivers: a round whose callback is missed, or that the service never serves, fails and backs off",
+      "anybody can check an answer afterwards by reading the same logs with the method in `definitions`; the contract cannot"
+    ],
+    "confirmed": [
+      "this exact body (prefix, window and tail, body hash 0xf0841684...e54a) was bought and attested: see proof",
+      "the question hash the contract builds for the proof's window is the attested one, with `definitions`, `evidence` and `head` inside the hashed document",
+      "panelSize 7, quorum 5, agreed 5; the signed list holds exactly `head` = 3 addresses; a 50,400-block window on Ethereum; the closing block hash"
+    ],
+    "unconfirmed": [
+      "how often seven agents reading 50,400 blocks of logs agree: one request, one attestation. In that request five members answered and all five agreed; had one of them differed the quorum would not have been met",
+      "a real answer delivered to the launched contract by the Intake's callback: the proof was bought from a wallet with no callback, so it was signed for no consumer (the attestation's domain names the zero address)"
+    ],
+    "limits": [
+      "any IMD transfer to the fee payee is included, whatever it was for: the chain does not say which transfers bought an action from the swarm",
+      "the feeds' own purchases are included: every request the Questions contract buys from the Intake is itself an IMD Transfer from Questions to the fee payee, so it adds to the sum and to the count, and the Questions address can appear in the ranking",
+      "a sender whose transfers to the fee payee were all zero-value is a group with a sum of zero: in a week with fewer than three paying senders it can take a place in the list",
+      "in a week with fewer than three senders at all the question has no exact answer; what the panel then agrees on, if anything, is not predictable, and the round may fail",
+      "the windows of two rounds overlap or leave a gap when the feed is not asked exactly once every 50,400 blocks: each list is of the round's own fromBlock to toBlock, not of a calendar week",
+      "nothing may depend on this feed (build brief, section 11, decision 13): it is the only one of the three that rests on a panel's agreement, and the Jobs Report is complete without it"
+    ]
+  }
+}

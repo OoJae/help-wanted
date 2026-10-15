@@ -1,0 +1,7 @@
+# The runner's local store: order progress, the request token and signed payment requests.
+data/
+*.KILL
+# Local settings. Never commit a key.
+.env
+.env.*
+!.env.example

@@ -1,0 +1,17 @@
+---
+interface Props {
+  commands: { comment?: string | null; command: string }[];
+  label?: string;
+}
+
+const { commands, label = "Commands to run in a terminal" } = Astro.props;
+---
+
+<div class="cmd" role="group" aria-label={label}>
+  {commands.map((c) => (
+    <div class="cmd__row" data-copy>
+      {c.comment && <p class="cmd__note">{c.comment}</p>}
+      <pre>{c.command}</pre>
+    </div>
+  ))}
+</div>

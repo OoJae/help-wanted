@@ -1,0 +1,7 @@
+{
+  "note": "A real swarm job and the receipt IdentityMD's WorkRegistry (0xb6d0a187b050fa5bb0b87033a203f37becf4a775) holds for it: WorkRegistry.latest(jobId) == receipt. Source: IdentityMD itself: the record is served at https://api.imd.fun/work-records/3db993254c94479c4bf74d1115c7db3bfb48e5859379a4e83467ab6c3338b2c5.json and the registry answers latest(jobId) with that hash. The pots tests use these as the values the desk reports through onWorkDelivered; the fork test reads the registry to confirm them.",
+  "jobUuid": "e9efec16-56f3-40d3-9243-52c453effc7d",
+  "jobId": "0xe9efec1656f340d3924352c453effc7d",
+  "receipt": "0x3db993254c94479c4bf74d1115c7db3bfb48e5859379a4e83467ab6c3338b2c5",
+  "kind": "skill:research-report"
+}

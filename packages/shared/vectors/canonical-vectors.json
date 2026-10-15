@@ -1,0 +1,179 @@
+{
+  "about": "Canonical JSON as IdentityMD's worker writes it (canonicalize in dist/client.js): keys in UTF-16 code unit order, no whitespace, strings as JSON.stringify writes them, raw UTF-8, integers only. 'json' is parsed and must serialise to 'canonical' exactly. Hashes are over 'utf8Hex' and were computed with Python's hashlib and a standard-library keccak, not with this package.",
+  "vectors": [
+    {
+      "note": "empty object",
+      "json": "{}",
+      "canonical": "{}",
+      "utf8Hex": "0x7b7d",
+      "sha256": "0x44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "keccak256": "0xb48d38f93eaa084033fc5970bf96e559c33c4cdc07d889ab00b4d63f9590739d"
+    },
+    {
+      "note": "empty array",
+      "json": "[]",
+      "canonical": "[]",
+      "utf8Hex": "0x5b5d",
+      "sha256": "0x4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "keccak256": "0x518674ab2b227e5f11e9084f615d57663cde47bce1ba168b4c19c7ee22a73d70"
+    },
+    {
+      "note": "null, booleans",
+      "json": "{\"t\":true,\"f\":false,\"n\":null}",
+      "canonical": "{\"f\":false,\"n\":null,\"t\":true}",
+      "utf8Hex": "0x7b2266223a66616c73652c226e223a6e756c6c2c2274223a747275657d",
+      "sha256": "0x22e00dc2f7b01420f940fbdbfbdf34fa0667cc6500186495023ba37722cbd05e",
+      "keccak256": "0x040259f2aff5e6fad4a5e58d1c86b418950512c3b32171c685f56271bd1a6e80"
+    },
+    {
+      "note": "keys sort by code unit: capitals first",
+      "json": "{\"b\":1,\"a\":2,\"B\":3,\"A\":4}",
+      "canonical": "{\"A\":4,\"B\":3,\"a\":2,\"b\":1}",
+      "utf8Hex": "0x7b2241223a342c2242223a332c2261223a322c2262223a317d",
+      "sha256": "0x3c3ae3a6c4aca74b6c080aeef23cda9fa801ce5a19c8760c342590a63726a7f0",
+      "keccak256": "0x141d2fbc8c7dc3a2414996cca10904e9382bf49c4cab999498883ff8be6236f0"
+    },
+    {
+      "note": "digits sort before letters, by text not by number",
+      "json": "{\"10\":1,\"9\":2,\"a\":3}",
+      "canonical": "{\"10\":1,\"9\":2,\"a\":3}",
+      "utf8Hex": "0x7b223130223a312c2239223a322c2261223a337d",
+      "sha256": "0xd6e62753b8541dd53e8db28349f1b082a93958576574f1b34b4fd86fbbd78916",
+      "keccak256": "0x5d101f2d615ed17ebfc8f852c240eb20a11e888c411bbe953379a10c05f53797"
+    },
+    {
+      "note": "nested objects sort at every depth",
+      "json": "{\"z\":{\"y\":1,\"x\":[{\"b\":1,\"a\":2}]},\"a\":0}",
+      "canonical": "{\"a\":0,\"z\":{\"x\":[{\"a\":2,\"b\":1}],\"y\":1}}",
+      "utf8Hex": "0x7b2261223a302c227a223a7b2278223a5b7b2261223a322c2262223a317d5d2c2279223a317d7d",
+      "sha256": "0x40c95d42cca8b73e44097f4aee5703410ea62f27e6b04315798d2f277007537e",
+      "keccak256": "0xae7a49505d33dd2d755575eb4a912500a3924130ce1d7a9928ea0c2a35127546"
+    },
+    {
+      "note": "array order is kept",
+      "json": "[3,1,2]",
+      "canonical": "[3,1,2]",
+      "utf8Hex": "0x5b332c312c325d",
+      "sha256": "0x51bda7ab4e44726cde71fcb6e4b515357059bb6b6dd5146d1fc50f73f11678c6",
+      "keccak256": "0x78a547797d139e5ebca797060de8a1c311a01fb8c9015b779734feaa87a6b4f6"
+    },
+    {
+      "note": "whitespace is removed",
+      "json": "{ \"a\" : [ 1 , 2 ] }",
+      "canonical": "{\"a\":[1,2]}",
+      "utf8Hex": "0x7b2261223a5b312c325d7d",
+      "sha256": "0x01530d164d479cf08e26d3b1ad9bdba927120d97e2d057a6d792db778780d720",
+      "keccak256": "0x5092155cfb7823394cdd34eff9a150bb9909738d4b91a11d275433cef79bf397"
+    },
+    {
+      "note": "non-ASCII stays raw",
+      "json": "{\"k\":\"café «» — 日本\"}",
+      "canonical": "{\"k\":\"café «» — 日本\"}",
+      "utf8Hex": "0x7b226b223a22636166c3a920c2abc2bb20e2809420e697a5e69cac227d",
+      "sha256": "0x2ce09b0694c548fd99a6d8fe2915272cb5b315d5e275daf9708c6875183f43ea",
+      "keccak256": "0x2cfda26a1b2d852bc8e111199890659449991c4b3bff3a8cc4396a7205b5211f"
+    },
+    {
+      "note": "an astral character stays raw",
+      "json": "{\"k\":\"🤖\"}",
+      "canonical": "{\"k\":\"🤖\"}",
+      "utf8Hex": "0x7b226b223a22f09fa496227d",
+      "sha256": "0x35ae2cbd529c1c21d2bb5196247a7e900eb69b541a04b03f3aa960a73c7c2b83",
+      "keccak256": "0x5c5098a3b0b2200c226e9a31f9d895d3128c346963a70369d4b09cbd3102ce99"
+    },
+    {
+      "note": "quote and backslash are escaped",
+      "json": "{\"k\":\"say \\\"hi\\\" \\\\ bye\"}",
+      "canonical": "{\"k\":\"say \\\"hi\\\" \\\\ bye\"}",
+      "utf8Hex": "0x7b226b223a22736179205c2268695c22205c5c20627965227d",
+      "sha256": "0x1dac8820e5b21ddef004de403c5f8d0bba08086c0078441c327bf2aeaf1fc647",
+      "keccak256": "0x6e667326d0c979ab6f61e9bda7fc1b401614a53d9b39819fb40ad53e909da5a9"
+    },
+    {
+      "note": "short escapes",
+      "json": "{\"k\":\"a\\nb\\tc\\rd\\be\\ff\"}",
+      "canonical": "{\"k\":\"a\\nb\\tc\\rd\\be\\ff\"}",
+      "utf8Hex": "0x7b226b223a22615c6e625c74635c72645c62655c6666227d",
+      "sha256": "0x57ae94f1a4991c97780c029057efdeee3512c9ae667ae56d6415431478ffb846",
+      "keccak256": "0x1623251e6f7ad841a8761abd80913d9a2b0aa645e86432d0e2e4a5b2f6201413"
+    },
+    {
+      "note": "other control characters use \\u00xx in lowercase",
+      "json": "{\"k\":\"\\u0001\\u001f\"}",
+      "canonical": "{\"k\":\"\\u0001\\u001f\"}",
+      "utf8Hex": "0x7b226b223a225c75303030315c7530303166227d",
+      "sha256": "0xe522c7b5daea66c35f856f871160e2f6c87814174022b472720a9be7114978f7",
+      "keccak256": "0xe23a962f57c040711e6f1ce220621eddd9e0c1931521558211f2b688542619f8"
+    },
+    {
+      "note": "slash and DEL are not escaped",
+      "json": "{\"k\":\"a/b\\u007f\"}",
+      "canonical": "{\"k\":\"a/b\"}",
+      "utf8Hex": "0x7b226b223a22612f627f227d",
+      "sha256": "0xedbe9ff576eddc5b8f268d0a7d23d854a624a104cf27e3056244db07c82e14e7",
+      "keccak256": "0x57ff48e25eb7ba79d1d94ecdd064fb99f916c6ac9883322222851f37ace8318c"
+    },
+    {
+      "note": "line separators are not escaped",
+      "json": "{\"k\":\"\\u2028\\u2029\"}",
+      "canonical": "{\"k\":\"  \"}",
+      "utf8Hex": "0x7b226b223a22e280a8e280a9227d",
+      "sha256": "0x4bce7ce75d13dc32564fdce8d75f8bee43d0dc94b9dc5bcf73d249dc49ebe1f7",
+      "keccak256": "0x016c8cd49b293733e6b2a9de1c1e58244e2aab220f27fe2ba85566c9c06a0954"
+    },
+    {
+      "note": "an escaped key",
+      "json": "{\"a\\\"b\":1}",
+      "canonical": "{\"a\\\"b\":1}",
+      "utf8Hex": "0x7b22615c2262223a317d",
+      "sha256": "0xbf7eee3c228f8b7fdfc1e47adab6d55a4f5d190e983dce87207152e5bf5e9667",
+      "keccak256": "0x646f85d771372a84b752a9f337ed3f6b323dd4ca5e3d307b61911abcbb137c89"
+    },
+    {
+      "note": "negative and large integers",
+      "json": "{\"a\":-5,\"b\":9007199254740991,\"c\":0}",
+      "canonical": "{\"a\":-5,\"b\":9007199254740991,\"c\":0}",
+      "utf8Hex": "0x7b2261223a2d352c2262223a393030373139393235343734303939312c2263223a307d",
+      "sha256": "0xbe6ea8ad50cd1f1524f8056473b458e37829778ecb833cc8721c27f04634736f",
+      "keccak256": "0xf641ac41510789d9e1597d45ca47584061f3929aee4dd02d177ead3664a8875d"
+    },
+    {
+      "note": "a work-record style document",
+      "json": "{\"schema\":\"identitymd-work-v1\",\"jobId\":\"e9efec16-56f3-40d3-9243-52c453effc7d\",\"signals\":[{\"value\":1,\"agentId\":\"52211\"}],\"parentJobId\":null}",
+      "canonical": "{\"jobId\":\"e9efec16-56f3-40d3-9243-52c453effc7d\",\"parentJobId\":null,\"schema\":\"identitymd-work-v1\",\"signals\":[{\"agentId\":\"52211\",\"value\":1}]}",
+      "utf8Hex": "0x7b226a6f624964223a2265396566656331362d353666332d343064332d393234332d353263343533656666633764222c22706172656e744a6f624964223a6e756c6c2c22736368656d61223a226964656e746974796d642d776f726b2d7631222c227369676e616c73223a5b7b226167656e744964223a223532323131222c2276616c7565223a317d5d7d",
+      "sha256": "0x4ef51c2880c2f9cbdbde46289cc73058a0ad2ba66a9df163fca4f99ef646bfa7",
+      "keccak256": "0x2bc79a1f74f7cd16880b6d8f38333d795dc9aeb738a4d15b5bf9798f5cd2ffae"
+    }
+  ],
+  "refused": [
+    {
+      "note": "a fraction",
+      "js": "1.5"
+    },
+    {
+      "note": "not a number",
+      "js": "NaN"
+    },
+    {
+      "note": "infinity",
+      "js": "Infinity"
+    },
+    {
+      "note": "undefined inside an object",
+      "js": "({ a: undefined })"
+    },
+    {
+      "note": "a bigint",
+      "js": "1n"
+    },
+    {
+      "note": "a Date",
+      "js": "new Date(0)"
+    },
+    {
+      "note": "a Map",
+      "js": "new Map()"
+    }
+  ]
+}

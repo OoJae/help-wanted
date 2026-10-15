@@ -1,0 +1,110 @@
+---
+/**
+ * One transaction flow on a page. The plain-words plan and the `cast` commands are rendered here on
+ * the server from example values, so they are in the HTML with JavaScript off: every wallet action
+ * has its equivalent command beside it. The form and the wallet buttons load as an island on top.
+ */
+import type { FlowPreview } from "~/models/flowPreview";
+import { addressesOf } from "~/models/flowPreview";
+import { getSources } from "~/data";
+import { PUBLIC_RPC } from "~/models/common";
+import FlowRunner from "~/islands/FlowRunner";
+import Commands from "./Commands.astro";
+
+interface Props {
+  flow: FlowPreview;
+  /** Shown above the example: what the example values are. */
+  exampleNote?: string;
+  /**
+   * True for the second and later forms on a page. The two notes every form shares (what happens
+   * without JavaScript, what a `$NAME` stands for) are then left to the first.
+   */
+  repeat?: boolean;
+}
+
+const { flow, exampleNote, repeat = false } = Astro.props;
+const sources = getSources();
+const addresses = addressesOf(sources.deployments);
+// Before any visitor is offered a button that approves IMD to an address, that address is asked to
+// identify itself. A wrong address pasted into the configuration fails here, and sending stays off.
+let sendBlocked: string | null = null;
+if (flow.ready) {
+  const identity = await sources.house.identity(flow.contract.key);
+  if (!identity.live) sendBlocked = null;
+  else if (identity.data === null)
+    sendBlocked = `${flow.contract.name} could not be checked just now (${identity.error}). Reload in a minute.`;
+  else if (!identity.data.confirmed) sendBlocked = `${flow.contract.name}: ${identity.data.detail}.`;
+}
+---
+
+<section class="blank" aria-label={flow.title}>
+  <h3 class="blank__title">
+    <span>{flow.title}</span>
+    <span class="muted">
+      {flow.contract.name}:{" "}
+      {flow.ready ? (sendBlocked ? "address not confirmed" : "live") : "not launched yet"}
+    </span>
+  </h3>
+
+  {/* Said once, in the page itself, and hidden as soon as scripts run. (A fallback slot on the island
+       would put the same sentence into the HTML twice.) */}
+  {!repeat && (
+    <p class="small nojs-only">
+      The form and the wallet button need JavaScript. Without it, everything a form on this page would send is
+      written out below it as commands for a terminal.
+    </p>
+  )}
+  <FlowRunner
+    client:only="react"
+    flowId={flow.id}
+    preset={flow.preset}
+    addresses={addresses}
+    rpcUrl={PUBLIC_RPC}
+    sendBlocked={sendBlocked}
+  />
+
+  {sendBlocked && (
+    <p class="small spot" role="alert">
+      Sending is switched off: {sendBlocked}
+    </p>
+  )}
+
+  <details class="plain" open>
+    <summary>
+      {flow.title}: what it sends, worked through
+      {exampleNote ? ` for ${exampleNote}` : " with example values"}
+    </summary>
+    {flow.problems.length > 0 ? (
+      <ul class="problems">
+        {flow.problems.map((p) => (
+          <li>{p}</li>
+        ))}
+      </ul>
+    ) : (
+      <>
+        <ol class="plan">
+          {flow.summary.map((line) => (
+            <li>{line}</li>
+          ))}
+        </ol>
+        {flow.reads.length > 0 && (
+          <>
+            <p class="label">Read first: nothing is sent</p>
+            <Commands
+              commands={flow.reads.map((s) => ({ comment: s.label, command: s.command }))}
+              label="Commands that read, to run first"
+            />
+            <p class="label">Then send</p>
+          </>
+        )}
+        <Commands commands={flow.steps.map((s) => ({ comment: s.label, command: s.command }))} />
+      </>
+    )}
+    {!repeat && (
+      <p class="small">
+        Every signature in these commands is read from the ABI the compiler wrote for the contract.
+        {!flow.ready && ` A name like $WORK_ORDERS stands for an address that does not exist yet.`}
+      </p>
+    )}
+  </details>
+</section>

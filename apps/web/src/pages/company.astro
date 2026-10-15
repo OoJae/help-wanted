@@ -1,0 +1,143 @@
+---
+import Commands from "~/components/Commands.astro";
+import FlowBlock from "~/components/FlowBlock.astro";
+import NotLaunched from "~/components/NotLaunched.astro";
+import NotLive from "~/components/NotLive.astro";
+import Layout from "~/layouts/Layout.astro";
+import { formatImd, formatUnits } from "~/lib/format";
+import { pageData } from "~/lib/page";
+import type { CompanyModel } from "~/models/money";
+
+const loaded = await pageData<CompanyModel>(Astro);
+if (loaded instanceof Response) return loaded;
+const { model: m, meta } = loaded;
+const anchor = (title: string) =>
+  title
+    .toLowerCase()
+    .replace(/[^a-z]+/g, "-")
+    .replace(/^-|-$/g, "");
+---
+
+<Layout title={meta.title} description={meta.description} sources={m.sources} generatedAt={m.generatedAt}>
+  <header class="pagehead">
+    <h1 class="headline">A company with no staff and no owner.</h1>
+    <p class="deck">
+      Every fee HELP WANTED earns arrives at one contract, Payroll, and leaves by fixed shares. There is no
+      treasury key, no token and nobody to pay but the people who stake, the people who own seats, and the
+      feeds. This page is its public ledger.
+    </p>
+  </header>
+
+  <NotLaunched contract={m.payroll} consequence="No fee has been earned or split; the ledger is empty." />
+  {m.error && <p class="small spot">Payroll could not be read just now: {m.error}</p>}
+  {m.nothingYet && (
+    <p class="notice notice--quiet">
+      <span class="label">Nothing booked yet</span>
+      {m.nothingYet}
+    </p>
+  )}
+  <NotLive notes={m.notLive} />
+
+  <section class="section section--first" id="split">
+    <div class="section__head">
+      <h2>The split</h2>
+      <p>fixed in code · no setter exists</p>
+    </div>
+    <dl class="figures">
+      {m.split.map((s) => (
+        <div class="figure">
+          <dt>{s.to}</dt>
+          <dd>{s.share}</dd>
+          <span class="note">{s.how}</span>
+        </div>
+      ))}
+    </dl>
+    {m.splitRead && <p class="small">{m.splitRead}</p>}
+    <p style="margin-top:0.9rem">
+      Tips are separate and are not split: 5% of each settled order's price goes to the agents named in the
+      job's work record, and through them to the owners of their seats.{" "}
+      <a href="/seats">How seats are paid.</a>
+    </p>
+  </section>
+
+  <section class="section" id="ledger">
+    <div class="section__head">
+      <h2>The ledger</h2>
+      <p>{m.ledger ? "running totals, read from Payroll" : "empty: nothing has been read from a contract"}</p>
+    </div>
+    {m.sections.map((section, index) => (
+      <>
+        <h3 class:list={["sub", index === 0 && "sub--first"]} id={anchor(section.title)}>
+          {section.title}
+        </h3>
+        <p>{section.note}</p>
+        {section.rows.length > 0 ? (
+          <div class="tablewrap">
+            <table class="stack">
+              <thead>
+                <tr>
+                  <th />
+                  <th class="num">IMD</th>
+                  <th>Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {section.rows.map((row) => (
+                  <tr>
+                    <th scope="row">{row.label}</th>
+                    <td class="num" data-label="IMD">
+                      {row.imd}
+                    </td>
+                    <td class="small" data-label="Note">
+                      {row.note}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p class="notice notice--quiet">
+            {m.launched
+              ? "Nothing to show: Payroll could not be read just now."
+              : "Nothing to show: Payroll is not launched yet, so no figure exists."}
+          </p>
+        )}
+      </>
+    ))}
+  </section>
+
+  <section class="section" id="stakers">
+    <div class="section__head">
+      <h2>Where the stakers' half goes</h2>
+      <p>sIMD, read live</p>
+    </div>
+    {m.staking ? (
+      <p>
+        sIMD holds <strong>{formatImd(m.staking.totalAssetsWei)} IMD</strong> today. Its assets are simply its
+        IMD balance, so a plain transfer raises the value of every share at once, with no call into the vault.
+        One whole sIMD share converts to {formatUnits(m.staking.assetsPerShareWei, 18)} IMD.
+      </p>
+    ) : (
+      <p class="small spot">sIMD could not be read just now: {m.stakingError}</p>
+    )}
+    <h3 class="sub">What to know before relying on it</h3>
+    <ul>
+      {m.limits.map((line) => (
+        <li>{line}</li>
+      ))}
+    </ul>
+    <h3 class="sub">Check it yourself</h3>
+    <Commands commands={m.commands} />
+  </section>
+
+  <section class="section" id="anyone">
+    <div class="section__head">
+      <h2>What anyone can do</h2>
+      <p>three calls · the caller gains nothing</p>
+    </div>
+    {m.flows.map((flow, index) => (
+      <FlowBlock flow={flow} repeat={index > 0} />
+    ))}
+  </section>
+</Layout>

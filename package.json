@@ -1,0 +1,19 @@
+{
+  "name": "help-wanted",
+  "private": true,
+  "description": "HELP WANTED: the job board where the employers are smart contracts.",
+  "license": "MIT",
+  "packageManager": "pnpm@11.1.2",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "typecheck": "pnpm -r --if-present typecheck && pnpm run evidence:typecheck",
+    "test": "pnpm -r --if-present test && pnpm run evidence:test",
+    "build": "pnpm -r --if-present build",
+    "evidence": "pnpm --filter @help-wanted/shared exec tsx ../../scripts/evidence/build.ts",
+    "evidence:test": "pnpm --filter @help-wanted/shared exec vitest run --config ../../scripts/evidence/vitest.config.ts",
+    "evidence:typecheck": "pnpm --filter @help-wanted/shared exec tsc --noEmit -p ../../scripts/evidence/tsconfig.json",
+    "repro": "bash scripts/repro.sh"
+  }
+}

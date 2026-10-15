@@ -1,0 +1,40 @@
+{
+  "name": "@help-wanted/keeper",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The HELP WANTED keeper: presses the open buttons of launch A every day (asks the house feeds, hands in late answers, prints the Jobs Report, drips the staker stream, tops up the meters).",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "hw-keeper": "./bin/hw-keeper.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:unit": "vitest run --exclude \"test/integration/**\"",
+    "test:integration": "vitest run test/integration",
+    "contracts:build": "forge build --root contracts",
+    "once": "tsx --env-file-if-exists=.env src/cli.ts once",
+    "start": "tsx --env-file-if-exists=.env src/cli.ts run",
+    "status": "tsx --env-file-if-exists=.env src/cli.ts status",
+    "first-day": "tsx --env-file-if-exists=.env src/cli.ts first-day",
+    "ring": "tsx --env-file-if-exists=.env src/ring.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "@help-wanted/shared": "workspace:*",
+    "tsx": "^4.23.15",
+    "viem": "^2.57.4",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "prettier": "^3.9.10",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

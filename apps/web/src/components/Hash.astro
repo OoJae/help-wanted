@@ -1,0 +1,30 @@
+---
+/**
+ * A 32-byte value set in eight groups of eight digits. Two of them, one above the other, line up
+ * digit for digit, so a reader can see for themselves that they are the same; when they are not,
+ * the groups that differ from `against` are marked. Nothing is cut: every digit is in the page.
+ */
+interface Props {
+  value: string | null;
+  /** The value this one is compared with. Groups that differ are marked. */
+  against?: string | null;
+  /** Said in place of the value when there is none. */
+  none?: string;
+}
+
+const { value, against = null, none = "none" } = Astro.props;
+const groups = (hex: string) => hex.replace(/^0x/, "").match(/.{1,8}/g) ?? [];
+const own = value ? groups(value) : [];
+const other = against ? groups(against) : null;
+---
+
+{value ? (
+  <span class="hash" aria-label={value}>
+    <span class="hash__0x">0x</span>
+    {own.map((group, index) => (
+      <span class:list={[other && other[index] !== group && "hash__g--diff"]}>{group}</span>
+    ))}
+  </span>
+) : (
+  <span class="hash hash--none">{none}</span>
+)}

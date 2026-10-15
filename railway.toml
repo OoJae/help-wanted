@@ -1,0 +1,11 @@
+# Railway reads this file from the root of what is deployed. It describes the site (apps/web),
+# which is the one service deployed from this repository. The site holds no key.
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/web/Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/v1/health"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

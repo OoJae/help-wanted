@@ -1,0 +1,759 @@
+---
+import Commands from "~/components/Commands.astro";
+import Hash from "~/components/Hash.astro";
+import Layout from "~/layouts/Layout.astro";
+import { formatUtc } from "~/lib/format";
+import { pageData } from "~/lib/page";
+import type { JudgesModel } from "~/models/judges";
+
+const loaded = await pageData<JudgesModel>(Astro);
+if (loaded instanceof Response) return loaded;
+const { model: m, meta } = loaded;
+
+// The counts at the top are counted from the same lists the page prints below them.
+const claimsRead = m.claims.filter((c) => c.readNow !== null).length;
+const h = m.headerJob;
+const findings = m.audits.reports.reduce((sum, report) => sum + report.findings.length, 0);
+const desk = m.audits.desk;
+const parts = [
+  ["#what", "What this is"],
+  ["#launched", "Where the launches stand"],
+  ["#proven", "Proven on the live system"],
+  ["#claims", "Checks anyone can run"],
+  ["#integration", "Integration"],
+  ["#reproduce", "Reproduce"],
+  ["#limits", "Every disclosed limit"],
+  ["#desk", "Launch B"],
+  ["#not-live", "What is not live"],
+  ["#house", "House wallets"],
+];
+---
+
+<Layout title={meta.title} description={meta.description} sources={m.sources} generatedAt={m.generatedAt}>
+  <header class="pagehead">
+    <h1 class="headline headline--wide">What is proven, what is not, and how to check both.</h1>
+    <p class="deck">
+      Every statement on this page was read when the page was made, or is linked to a public record, or comes
+      with a command that checks it. What is not live is listed as plainly as what is.
+    </p>
+    <dl class="figures">
+      <div class="figure">
+        <dt>of our contracts launched</dt>
+        <dd>
+          {m.launchedCount} <small>of {m.contracts.length}</small>
+        </dd>
+      </div>
+      <div class="figure">
+        <dt>house feed questions answered by the live oracle</dt>
+        <dd>
+          {m.feedProofs.rows.length} <small>of {m.feedProofs.rows.length}</small>
+        </dd>
+      </div>
+      <div class="figure">
+        <dt>audit findings, each with its outcome</dt>
+        <dd>{findings}</dd>
+      </div>
+      <div class="figure">
+        <dt>limits disclosed</dt>
+        <dd>{m.limits.total}</dd>
+      </div>
+    </dl>
+    <ul class="toc" aria-label="On this page">
+      {parts.map(([href, label]) => (
+        <li>
+          <a href={href}>{label}</a>
+        </li>
+      ))}
+      <li>
+        <a href="/judges.json">As JSON</a>
+      </li>
+      <li>
+        <a href="/judges.md">As Markdown</a>
+      </li>
+    </ul>
+  </header>
+
+  <section class="section section--first" id="what">
+    <div class="section__head">
+      <h2>What this is, in {m.summaryWords} words</h2>
+      <p>no token · no owner · no admin key</p>
+    </div>
+    <p class="release__lede">{m.summary}</p>
+  </section>
+
+  <section class="section" id="launched">
+    <div class="section__head">
+      <h2>Where the launches stand</h2>
+      <p>
+        {m.launchedCount} of {m.contracts.length} contracts launched
+      </p>
+    </div>
+    {m.launchedCount === 0 && (
+      <aside class="notice notice--spot">
+        <span class="label">Nothing is launched yet</span>
+        <p>
+          <strong>None of our contracts is launched.</strong> Launch A is in IdentityMD's launch pipeline, as
+          job{" "}
+          <a class="data break" href={m.pipeline.jobUrl} rel="noopener">
+            {m.pipeline.jobId}
+          </a>
+          . What IdentityMD's API says of that job is read for this page and given below.
+        </p>
+      </aside>
+    )}
+    {m.launchedCount > 0 && <p>{m.launchSummary}</p>}
+    <ul>
+      {m.launches.map((launch) => (
+        <li>
+          <strong>
+            Launch {launch.key}, {launch.name}
+          </strong>{" "}
+          ({launch.contracts.join(", ")}). {launch.status}
+          {launch.txUrl && (
+            <>
+              {" "}
+              <a href={launch.txUrl} rel="noopener">
+                The launch transaction.
+              </a>
+            </>
+          )}
+        </li>
+      ))}
+    </ul>
+    <p>{m.switchOn}</p>
+    <p>
+      The two launches' jobs in IdentityMD's pipeline, read for this page. Launch A,{" "}
+      <a class="data break" href={m.pipeline.jobUrl} rel="noopener">
+        {m.pipeline.jobId}
+      </a>
+      : {m.pipeline.words}
+      {m.deskPipeline && (
+        <>
+          {" "}
+          Launch B,{" "}
+          <a class="data break" href={m.deskPipeline.jobUrl} rel="noopener">
+            {m.deskPipeline.jobId}
+          </a>
+          : {m.deskPipeline.words}
+        </>
+      )}
+    </p>
+    <details class="plain plain--inline">
+      <summary>The commands that read those jobs</summary>
+      <Commands
+        commands={[
+          { comment: "Launch A's job", command: m.pipeline.command },
+          ...(m.deskPipeline ? [{ comment: "Launch B's job", command: m.deskPipeline.command }] : []),
+        ]}
+      />
+    </details>
+    <div class="tablewrap">
+      <table class="wide stack">
+        <thead>
+          <tr>
+            <th>Launch</th>
+            <th>Contract</th>
+            <th>Address</th>
+            <th>What it does</th>
+          </tr>
+        </thead>
+        <tbody>
+          {m.contracts.map((c) => (
+            <tr>
+              <td data-label="Launch">{c.launch}</td>
+              <th scope="row">{c.name}</th>
+              <td class="code" data-label="Address">
+                {c.url ? (
+                  <a href={c.url} rel="noopener">
+                    {c.address}
+                  </a>
+                ) : (
+                  <span class="muted">{c.label}</span>
+                )}
+              </td>
+              <td data-label="What it does">{c.role}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section" id="proven">
+    <div class="section__head">
+      <h2>Proven on the live system</h2>
+      <p>three things, each with its public record</p>
+    </div>
+
+    <h3 class="sub sub--first" id="proven-feeds">
+      1. The live oracle answers the three house feed questions
+    </h3>
+    <p>{m.feedProofs.intro}</p>
+    <div class="tablewrap">
+      <table class="wide stack">
+        <thead>
+          <tr>
+            <th>Feed</th>
+            <th>Oracle request</th>
+            <th>Blocks</th>
+            <th>Answer</th>
+            <th>Agreement</th>
+            <th>Our text against what was attested</th>
+          </tr>
+        </thead>
+        <tbody>
+          {m.feedProofs.rows.map((row) => (
+            <tr>
+              <th scope="row">
+                {row.title}
+                <br />
+                <span class="small" style="font-weight:400">
+                  {row.settled}
+                </span>
+              </th>
+              <td data-label="Oracle request">
+                <a class="data break" href={row.url} rel="noopener">
+                  {row.oracleRequestId}
+                </a>
+                <br />
+                <a class="small" href={row.requestTxUrl} rel="noopener">
+                  the purchase on Etherscan
+                </a>
+              </td>
+              <td data-label="Blocks">{row.window}</td>
+              <td class="break" data-label="Answer">
+                {row.answer}
+              </td>
+              <td data-label="Agreement">
+                {row.agreed}
+                <br />
+                <span class="small">attested {formatUtc(row.attestedAt)}</span>
+              </td>
+              <td data-label="Our text against what was attested">
+                {row.bodyMatches && row.questionHashMatches ? (
+                  <>
+                    <span class="tag tag--solid">Same</span>
+                    <br />
+                    <span class="small">
+                      The body this feed assembles for those blocks hashes to the purchase's body hash, and
+                      its question hash is the one attested. Computed by this server for this page.
+                    </span>
+                  </>
+                ) : (
+                  <span class="spot">
+                    Not the same: body {row.bodyMatches ? "matches" : "differs"}, question hash{" "}
+                    {row.questionHashMatches ? "matches" : "differs"}.
+                  </span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <p>
+      The employers feed's first body was not attested, and that is part of the record:{" "}
+      <a href={m.feedProofs.firstAttempt.url} rel="noopener">
+        the request
+      </a>{" "}
+      ·{" "}
+      <a href={m.feedProofs.firstAttempt.txUrl} rel="noopener">
+        its purchase
+      </a>
+      . {m.feedProofs.firstAttempt.outcome}
+    </p>
+    <p>{m.feedProofs.limit}</p>
+    <details class="plain plain--inline">
+      <summary>The commands that read the three answers, and the test that stores them</summary>
+      <Commands
+        commands={[
+          ...m.feedProofs.rows.map((row) => ({ comment: row.title, command: row.command })),
+          { comment: "The real callback stores the three real answers", command: m.feedProofs.testCommand },
+        ]}
+      />
+    </details>
+    <p class="small">
+      <a href="/questions">Each question in plain words, with its exact body, is on the questions page.</a>
+    </p>
+
+    <h3 class="sub" id="proven-audits">
+      2. IdentityMD's agents audited launch A twice
+    </h3>
+    <p>{m.audits.intro}</p>
+    {m.audits.reports.map((report, index) => (
+      <>
+        <p>
+          <strong>Report {index + 1}.</strong>{" "}
+          <a href={report.reportUrl} rel="noopener">
+            The report
+          </a>{" "}
+          · job{" "}
+          <a class="data break" href={report.jobUrl} rel="noopener">
+            {report.jobId}
+          </a>{" "}
+          · judged {report.judged}. Asked: {report.asked}
+        </p>
+        <div class="tablewrap">
+          <table class="wide stack">
+            <thead>
+              <tr>
+                <th style="width:8%">Finding</th>
+                <th style="width:34%">What was found</th>
+                <th style="width:16%">Outcome</th>
+                <th>What was done</th>
+              </tr>
+            </thead>
+            <tbody>
+              {report.findings.map((finding) => (
+                <tr>
+                  <th scope="row">
+                    {finding.id}
+                    <br />
+                    <span class="small" style="font-weight:400">
+                      {finding.severity}
+                    </span>
+                  </th>
+                  <td data-label="What was found">{finding.finding}</td>
+                  <td data-label="Outcome">
+                    <span class:list={["tag", finding.outcome === "fixed" && "tag--solid"]}>
+                      {finding.outcome}
+                    </span>
+                  </td>
+                  <td data-label="What was done">{finding.done}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </>
+    ))}
+    <p>
+      Of {findings} findings: {m.audits.counts.fixed} fixed in the code,{" "}
+      {m.audits.counts["documents corrected"]} answered by correcting the documents,{" "}
+      {m.audits.counts["left open"]} acknowledged and left open, {m.audits.counts.left} left. {m.audits.after}
+    </p>
+    <p>
+      <strong>What the launch pipeline changed before the launch.</strong> {m.audits.adaptation.intro}
+    </p>
+    <div class="tablewrap">
+      <table class="wide stack">
+        <thead>
+          <tr>
+            <th style="width:18%">Finding</th>
+            <th style="width:12%">Outcome</th>
+            <th>What was reproduced and what was done</th>
+          </tr>
+        </thead>
+        <tbody>
+          {m.audits.adaptation.findings.map((finding) => (
+            <tr>
+              <th scope="row">
+                {finding.title}
+                <br />
+                <span class="small data" style="font-weight:400" title={finding.id}>
+                  {finding.id.slice(0, 8)}
+                </span>
+              </th>
+              <td data-label="Outcome">
+                <span class:list={["tag", finding.outcome === "changed" && "tag--solid"]}>
+                  {finding.outcome}
+                </span>
+              </td>
+              <td data-label="What was reproduced and what was done">{finding.done}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    {desk && (
+      <>
+        <p id="proven-desk-audit">
+          <strong>What the launch pipeline's audits found in launch B.</strong> {desk.intro}
+        </p>
+        <div class="tablewrap">
+          <table class="wide stack">
+            <thead>
+              <tr>
+                <th style="width:12%">Finding</th>
+                <th style="width:28%">What was found</th>
+                <th style="width:12%">Outcome</th>
+                <th>What was reproduced and what was done</th>
+              </tr>
+            </thead>
+            <tbody>
+              {desk.findings.map((finding) => (
+                <tr>
+                  <th scope="row">
+                    <span class="data">{finding.id}</span>
+                    <br />
+                    <span class="small" style="font-weight:400">
+                      {finding.severity}, from {finding.raisedBy}
+                    </span>
+                  </th>
+                  <td data-label="What was found">{finding.finding}</td>
+                  <td data-label="Outcome">
+                    <span class:list={["tag", finding.severity === "medium" && "tag--spot"]}>
+                      {finding.outcome}
+                    </span>
+                  </td>
+                  <td data-label="What was reproduced and what was done">{finding.done}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p>
+          {desk.corrected} The document:{" "}
+          {desk.documentUrl ? (
+            <a href={desk.documentUrl} rel="noopener">
+              <code>{desk.document}</code>
+            </a>
+          ) : (
+            <code>{desk.document}</code>
+          )}
+          . <a href="#limit-B-C2">The limit as disclosed: launch B, C2.</a>
+        </p>
+      </>
+    )}
+
+    <h3 class="sub" id="proven-header">
+      3. A real job that carried our order header into its work record
+    </h3>
+    <p>
+      Job{" "}
+      <a class="data break" href={h.jobUrl} rel="noopener">
+        {h.jobId}
+      </a>{" "}
+      ·{" "}
+      <a href={h.recordUrl} rel="noopener">
+        its work record
+      </a>{" "}
+      ·{" "}
+      <a href={h.recordsUrl} rel="noopener">
+        what IdentityMD's API lists for it
+      </a>
+    </p>
+    <p>{h.shown}</p>
+    <p class="data break">{h.header}</p>
+    {h.notShown ? (
+      <aside class="notice notice--spot">
+        <span class="label">Not a proof on chain yet</span>
+        <p>
+          <strong>{h.notShown}</strong>
+        </p>
+      </aside>
+    ) : (
+      <aside class="notice">
+        <span class="label">On chain</span>
+        <p>
+          <strong>The receipt is on chain:</strong> WorkRegistry.latest for this job equals the record's hash.
+        </p>
+      </aside>
+    )}
+    <dl class="figures">
+      <div class="figure figure--wide">
+        <dt>the record's hash, as IdentityMD's API lists it</dt>
+        <dd>
+          <Hash value={h.recordHash} />
+        </dd>
+      </div>
+      <div class="figure figure--wide">
+        <dt>WorkRegistry.latest for the job, read for this page</dt>
+        <dd>
+          <Hash value={h.receipt.value} against={h.recordHash} none="could not be read" />
+        </dd>
+      </div>
+    </dl>
+    <Commands commands={h.commands} />
+  </section>
+
+  <section class="section" id="claims">
+    <div class="section__head">
+      <h2>Checks anyone can run on the live protocol</h2>
+      <p>
+        {claimsRead} of {m.claims.length} read live for this page
+      </p>
+    </div>
+    <ol class="board">
+      {m.claims.map((claim) => (
+        <li>
+          <p class="board__claim">{claim.claim}</p>
+          <p class="board__read">
+            {claim.readNow ? (
+              <>
+                <strong>Read live:</strong> {claim.readNow}
+              </>
+            ) : (
+              <span class="spot">The read failed just now; the command still checks it.</span>
+            )}
+          </p>
+          <div class="board__more">
+            <p>
+              Evidence:{" "}
+              {claim.evidence.map((e, index) => (
+                <>
+                  {index > 0 && " · "}
+                  <a href={e.url} rel="noopener">
+                    {e.label}
+                  </a>
+                </>
+              ))}
+            </p>
+            {claim.command && (
+              <details class="plain plain--inline">
+                <summary>The command that checks it</summary>
+                <Commands commands={[{ command: claim.command }]} />
+              </details>
+            )}
+          </div>
+        </li>
+      ))}
+    </ol>
+  </section>
+
+  <section class="section" id="integration">
+    <div class="section__head">
+      <h2>Integration: one row per IdentityMD primitive</h2>
+      <p>
+        <a href="/api/v1/integration">the same table as JSON</a>
+      </p>
+    </div>
+    <p>
+      Each row gives the address or endpoint, what we do with it, and where the proof is. Where there is no
+      proof yet, the row says so.
+    </p>
+    <div class="tablewrap">
+      <table class="wide stack">
+        <thead>
+          <tr>
+            <th style="width:20%">Primitive, and its address or endpoint</th>
+            <th style="width:28%">What we do with it</th>
+            <th style="width:22%">Status</th>
+            <th>Where the proof is</th>
+          </tr>
+        </thead>
+        <tbody>
+          {m.integration.map((row) => (
+            <tr>
+              <th scope="row">
+                {row.primitive}
+                <br />
+                <span class="data break" style="font-weight:400">
+                  {row.whereUrl ? (
+                    <a href={row.whereUrl} rel="noopener">
+                      {row.where}
+                    </a>
+                  ) : (
+                    row.where
+                  )}
+                </span>
+              </th>
+              <td data-label="What we do with it">{row.use}</td>
+              <td data-label="Status">
+                {row.status === "live" && <span class="tag tag--solid">Read on this site today</span>}{" "}
+                <span class:list={["tag", row.launch === "launched" && "tag--solid"]}>{row.launchLabel}</span>
+                <br />
+                <span class="small">
+                  {row.statusWords}{" "}
+                  {row.usage.count !== null ? (
+                    <>
+                      Counted now: <strong>{row.usage.count}</strong> {row.usage.what}.
+                    </>
+                  ) : (
+                    <>Nothing to count: {row.usage.reason}.</>
+                  )}
+                </span>
+              </td>
+              <td data-label="Where the proof is">
+                {row.proofs.map((proof, index) => (
+                  <>
+                    {index > 0 && " · "}
+                    <a href={proof.url} rel="noopener">
+                      {proof.label}
+                    </a>
+                  </>
+                ))}
+                {row.proofs.length > 0 && <br />}
+                <span class="small">{row.proofNote}</span>
+                {row.command && (
+                  <details class="plain plain--inline">
+                    <summary>Command</summary>
+                    <code class="break">{row.command}</code>
+                  </details>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section" id="reproduce">
+    <div class="section__head">
+      <h2>Reproduce</h2>
+      <p>no key and no account needed for any of it</p>
+    </div>
+    {m.reproduce.map((block) => (
+      <>
+        <h3 class="sub">{block.title}</h3>
+        {block.note && <p>{block.note}</p>}
+        <Commands
+          commands={block.commands.split(/\n\n/).flatMap((chunk) => {
+            const lines = chunk.split("\n");
+            const comment = lines[0]?.startsWith("# ") ? lines[0].slice(2) : null;
+            const rest = comment ? lines.slice(1) : lines;
+            return comment ? [{ comment, command: rest.join("\n") }] : rest.map((command) => ({ command }));
+          })}
+        />
+      </>
+    ))}
+  </section>
+
+  <section class="section" id="limits">
+    <div class="section__head">
+      <h2>Every disclosed limit</h2>
+      <p>{m.limits.total} entries from three documents</p>
+    </div>
+    <p>{m.limits.note}</p>
+    <ul>
+      {m.limits.documents.map((d) => (
+        <li>
+          Launch {d.launch}: {d.count} entries, from <code>{d.path}</code>
+        </li>
+      ))}
+    </ul>
+    <div class="tablewrap">
+      <table class="wide stack">
+        <thead>
+          <tr>
+            <th style="width:7%">Launch</th>
+            <th style="width:7%">Entry</th>
+            <th style="width:16%">Part of the document</th>
+            <th>The limit</th>
+          </tr>
+        </thead>
+        <tbody>
+          {m.limits.rows.map((row) => (
+            <tr id={`limit-${row.launch}-${row.id}`}>
+              <td data-label="Launch">{row.launch}</td>
+              <th scope="row">{row.id}</th>
+              <td data-label="Part of the document">{row.section}</td>
+              <td data-label="The limit">
+                {row.text}
+                {row.since && (
+                  <>
+                    <br />
+                    <span class="small">
+                      <strong>Since:</strong> {row.since}
+                    </span>
+                  </>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section" id="desk">
+    <div class="section__head">
+      <h2>Launch B: the receipt check and the hire desk</h2>
+      <p>{m.desk.head}</p>
+    </div>
+    <p>{m.desk.intro}</p>
+    <div class="cols cols--ruled">
+      <ul>
+        {m.desk.points.map((line) => (
+          <li>{line}</li>
+        ))}
+      </ul>
+      <div>
+        <h3 class="sub sub--first">
+          Its status, in the words of its README as it stood on {m.desk.statusAsOf}
+        </h3>
+        <ul>
+          {m.desk.status.map((line) => (
+            <li>{line}</li>
+          ))}
+        </ul>
+        <p class="small">
+          The receipt check itself runs on this site today, against IdentityMD's registry and with no contract
+          of ours: <a href="/verify">check any job</a>. The forms for the desk are complete as pages and show
+          each transaction and its cast command: <a href="/hire">the hire form</a>,{" "}
+          <a href="/runners">the runner's steps</a>.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="not-live">
+    <div class="section__head">
+      <h2>What is not live yet</h2>
+      <p>stated plainly</p>
+    </div>
+    <div class="cols cols--ruled">
+      <ul>
+        {m.notLive.map((line) => (
+          <li>{line}</li>
+        ))}
+      </ul>
+      <div>
+        <h3 class="sub sub--first">What we do not claim</h3>
+        <ul>
+          {m.neverClaimed.map((line) => (
+            <li>{line}</li>
+          ))}
+        </ul>
+        <h3 class="sub">The receipt writer, read for this page</h3>
+        <p>
+          {m.receipts.observed}{" "}
+          {m.writer.stalled === true &&
+            "The WorkRegistry recorded no receipt in the last six hours of blocks."}
+          {m.writer.stalled === false &&
+            "The WorkRegistry recorded a receipt within the last six hours of blocks."}
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="house">
+    <div class="section__head">
+      <h2>House wallets</h2>
+      <p>activity from these is labelled HOUSE in every count</p>
+    </div>
+    <div class="tablewrap">
+      <table class="stack">
+        <thead>
+          <tr>
+            <th>Label</th>
+            <th>Address</th>
+            <th>Role</th>
+          </tr>
+        </thead>
+        <tbody>
+          {m.houseWallets.map((w) => (
+            <tr>
+              <th scope="row">{w.label}</th>
+              <td class="code" data-label="Address">
+                {w.address}
+              </td>
+              <td data-label="Role">{w.role}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <p class="small">
+      Machine-readable:{" "}
+      {m.machineReadable.map((e, index) => (
+        <>
+          {index > 0 && " · "}
+          <a href={e.url}>{e.label}</a>
+        </>
+      ))}
+    </p>
+  </section>
+</Layout>

@@ -1,0 +1,511 @@
+---
+import Commands from "~/components/Commands.astro";
+import FlowBlock from "~/components/FlowBlock.astro";
+import NotLaunched from "~/components/NotLaunched.astro";
+import NotLive from "~/components/NotLive.astro";
+import Stamp from "~/components/Stamp.astro";
+import Theirs from "~/components/Theirs.astro";
+import Layout from "~/layouts/Layout.astro";
+import { formatImd, formatInt, formatUtc, shortAddress } from "~/lib/format";
+import { pageData } from "~/lib/page";
+import type { Stamp as StampModel } from "~/models/cards";
+import type { QuestionsModel, RequestRow } from "~/models/questions";
+
+const loaded = await pageData<QuestionsModel>(Astro);
+if (loaded instanceof Response) return loaded;
+const { model: m, meta } = loaded;
+const i = m.intake;
+const stampFor = (row: RequestRow): StampModel =>
+  row.statusKey === "delivered"
+    ? { text: "DELIVERED ON CHAIN", tone: "proof" }
+    : row.statusKey === "answered"
+      ? { text: "ANSWERED", tone: "filled" }
+      : row.statusKey === "open"
+        ? { text: "NEVER COMPLETED", tone: "void" }
+        : row.statusKey === "refused"
+          ? { text: "REFUSED", tone: "void" }
+          : { text: "NO ANSWER", tone: "void" };
+const answeredOnChain = m.houseFeeds.filter((f) => f.live?.exists && f.live.rounds > 0).length;
+---
+
+<Layout title={meta.title} description={meta.description} sources={m.sources} generatedAt={m.generatedAt}>
+  <header class="pagehead">
+    <h1 class="headline headline--wide">Three questions a contract keeps asking.</h1>
+    <p class="deck">
+      IdentityMD's oracle is a panel of swarm agents, and a contract can buy an answer from it through the
+      Intake on Ethereum. A Standing Question is a contract that keeps buying. Ours asks three: what the swarm
+      was paid, how many payments that was, and who paid most.
+    </p>
+    <dl class="figures">
+      <div class="figure">
+        <dt>House feed questions answered by the live oracle</dt>
+        <dd>
+          {m.houseFeeds.length} <small>of {m.houseFeeds.length}</small>
+        </dd>
+        <span class="note">once each, for a wallet, on 12 and 13 October 2026</span>
+      </div>
+      <div class="figure">
+        <dt>House feeds asking on chain</dt>
+        <dd>
+          {m.launched ? (m.feedCount === null ? "unread" : answeredOnChain) : 0}{" "}
+          <small>of {m.houseFeeds.length}</small>
+        </dd>
+        <span class="note">
+          {m.launched
+            ? m.feedCount === null
+              ? "Questions could not be read just now"
+              : "read from Questions"
+            : "Questions is not launched yet"}
+        </span>
+      </div>
+      <div class="figure">
+        <dt>Requests ever, Intake version 2</dt>
+        <dd>{i.current.nonce ?? "unread"}</dd>
+        <span class="note">nonce(), read live</span>
+      </div>
+      <div class="figure">
+        <dt>Requests ever, version 1</dt>
+        <dd>{i.legacy.nonce ?? "unread"}</dd>
+        <span class="note">legacy; nonce(), read live</span>
+      </div>
+      {i.current.priceWei !== null && (
+        <div class="figure">
+          <dt>Price of one</dt>
+          <dd>
+            {formatImd(i.current.priceWei)} <small>IMD</small>
+          </dd>
+        </div>
+      )}
+    </dl>
+  </header>
+
+  <section class="section section--first" id="feeds">
+    <div class="section__head">
+      <h2>The three house feeds</h2>
+      <p>Questions · {m.questions.label}</p>
+    </div>
+    <NotLaunched
+      contract={m.questions}
+      consequence="No feed exists on chain and no request has been bought by it. What follows is each house feed exactly as it will ask, with the one request of each that the live oracle has already answered."
+    />
+    {m.launched && (
+      <p>
+        {m.feedCount !== null &&
+          `${m.feedCount} feed${m.feedCount === 1 ? " has" : "s have"} been created in Questions.`}
+        {m.feedsError && (
+          <span class="spot">
+            {" "}
+            Questions could not be read{m.feedCount === null ? "" : " in full"} just now: {m.feedsError}
+          </span>
+        )}
+      </p>
+    )}
+    <NotLive notes={m.notLive} />
+    <p>
+      <strong>Payrolls and hires are recomputed by IdentityMD from chain data.</strong> The weekly employers
+      list is <strong>settled by panel agreement</strong>: IdentityMD does not recompute it, and nothing of
+      value should depend on it.
+    </p>
+
+    {m.houseFeeds.map((f) => (
+      <article id={`feed-${f.name}`}>
+        <h3 class="sub">
+          {f.name}: {f.title}
+        </h3>
+        <div class="cols cols--ruled">
+          <div class="prose">
+            <p>
+              <strong>What it asks.</strong> {f.asks}
+            </p>
+            <p>
+              <strong>How it is settled.</strong> {f.settled}
+            </p>
+            <ul>
+              <li>
+                Answer: <code>{f.answerType}</code>, from {f.panel}
+              </li>
+              <li>Cadence: {f.cadence}</li>
+              <li>Window: {f.window}</li>
+              <li>
+                Keeper tip: {f.tipImd} IMD, earned only by an answered round. Price cap: {f.maxPriceImd} IMD
+              </li>
+              <li>
+                Handing an answer in with <code>submit</code>:{" "}
+                {f.submitOpen
+                  ? "open thirty minutes after a request the Intake has not completed"
+                  : "closed, because a panel judges this feed: only the Intake's own callback can answer a round"}
+              </li>
+              <li>
+                Payroll keeps a position of its own on this meter, topped up to {f.payrollRunway} requests
+              </li>
+            </ul>
+            <p class="small">
+              Feed id <span class="data break">{f.id}</span>
+            </p>
+          </div>
+          <div class="prose">
+            <p>
+              <strong>Its meter.</strong>{" "}
+              {f.live === null ? (
+                <>
+                  Nothing yet: Questions is not launched, so there is no meter to fund and no round to show.
+                </>
+              ) : !f.live.exists ? (
+                <>{f.live.next}</>
+              ) : (
+                <>
+                  {f.live.meterImd} IMD
+                  {f.live.requestsFunded !== null
+                    ? `, enough for ${f.live.requestsFunded} request${f.live.requestsFunded === 1 ? "" : "s"} at ${f.live.costImd} IMD each (the Intake's price plus the keeper tip).`
+                    : ". No request can be bought right now, so no cost is stated."}
+                  {f.live.payrollPositionImd !== null &&
+                    ` Payroll's own position on it: ${f.live.payrollPositionImd} IMD.`}
+                </>
+              )}
+            </p>
+            {f.live?.exists && (
+              <>
+                <p>
+                  <strong>Latest answer.</strong> {f.live.latest}. Rounds so far: {formatInt(f.live.rounds)}.
+                </p>
+                <p>
+                  <strong>Next.</strong> {f.live.next}
+                </p>
+              </>
+            )}
+            <p>
+              <strong>Proven once on the live system.</strong> The oracle answered this body for{" "}
+              {f.proof.window} with <strong class="break">{f.proof.answer}</strong> ({f.proof.agreed};
+              attested {formatUtc(f.proof.attestedAt)}).{" "}
+              <a href={f.proof.url} rel="noopener">
+                IdentityMD's record of the request
+              </a>{" "}
+              ·{" "}
+              <a href={f.proof.requestTxUrl} rel="noopener">
+                the purchase
+              </a>
+              . The request named no callback, so nothing was delivered to a contract.
+            </p>
+            <p class="small">
+              {f.proof.bodyMatches ? (
+                <>
+                  The body below, for that window, hashes to the hash IdentityMD's Intake service recorded for
+                  the purchase
+                </>
+              ) : (
+                <span class="spot">The body below, for that window, does NOT hash to the recorded hash</span>
+              )}{" "}
+              (<span class="data break">{f.proof.bodyHash}</span>);{" "}
+              {f.proof.questionHashMatches ? (
+                <>the question hash built from this text is the one the oracle attested</>
+              ) : (
+                <span class="spot">the question hash built from this text is NOT the one attested</span>
+              )}{" "}
+              (<span class="data break">{f.proof.questionHash}</span>). Both were computed by this server for
+              this page.
+            </p>
+          </div>
+        </div>
+
+        {f.live?.exists && f.live.roundRows.length > 0 && (
+          <div class="tablewrap">
+            <table class="wide stack">
+              <caption>Every round read, newest first</caption>
+              <thead>
+                <tr>
+                  <th class="num">Round</th>
+                  <th>Window</th>
+                  <th>State</th>
+                  <th>Answer</th>
+                  <th>Requested</th>
+                  <th>Delivered by</th>
+                  <th>Who earned the tip</th>
+                </tr>
+              </thead>
+              <tbody>
+                {f.live.roundRows.map((r) => (
+                  <tr>
+                    <th scope="row" class="num">
+                      {r.round}
+                    </th>
+                    <td data-label="Window">{r.window}</td>
+                    <td data-label="State">{r.status}</td>
+                    <td class="break" data-label="Answer">
+                      {r.answer}
+                      {r.oracleRequestUrl && (
+                        <>
+                          {" "}
+                          <a class="small" href={r.oracleRequestUrl} rel="noopener">
+                            oracle record
+                          </a>
+                        </>
+                      )}
+                    </td>
+                    <td data-label="Requested">
+                      {r.requestedAt ? formatUtc(r.requestedAt) : ""}
+                      {r.openedTxUrl && (
+                        <>
+                          {" "}
+                          <a class="small" href={r.openedTxUrl} rel="noopener">
+                            tx
+                          </a>
+                        </>
+                      )}
+                    </td>
+                    <td class="break" data-label="Delivered by">
+                      {r.delivered ?? ""}
+                    </td>
+                    <td data-label="Who earned the tip">
+                      {r.tip}
+                      {r.settledTxUrl && (
+                        <>
+                          {" "}
+                          <a class="small" href={r.settledTxUrl} rel="noopener">
+                            tx
+                          </a>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {f.live?.exists && f.live.roundRows.length === 0 && (
+          <p class="notice notice--quiet">No round has been opened on this feed yet.</p>
+        )}
+
+        <div class="cmd cmd--plain" role="group" aria-label="The feed's exact body">
+          <div class="cmd__row" data-copy>
+            <p class="cmd__note">
+              Its exact body. The contract stores the two texts and writes the window's two block numbers
+              between them.
+            </p>
+            <pre>{`${f.bodyPrefix}<fromBlock>,"toBlock":<toBlock>}${f.bodyTail}`}</pre>
+          </div>
+        </div>
+      </article>
+    ))}
+
+    {m.eventsCoverage && <p class="small">{m.eventsCoverage}</p>}
+
+    {m.otherFeeds.length > 0 && (
+      <div class="tablewrap">
+        <table class="wide stack">
+          <caption>Feeds created by others</caption>
+          <thead>
+            <tr>
+              <th>Feed</th>
+              <th class="num">Rounds</th>
+              <th class="num">Latest value</th>
+              <th class="num">Meter, IMD</th>
+              <th class="num">Next request costs, IMD</th>
+            </tr>
+          </thead>
+          <tbody>
+            {m.otherFeeds.map((feed) => (
+              <tr>
+                <th scope="row" class="code">
+                  {feed.id}
+                </th>
+                <td class="num" data-label="Rounds">
+                  {formatInt(feed.rounds)}
+                </td>
+                <td class="num" data-label="Latest value">
+                  {feed.latest}
+                </td>
+                <td class="num" data-label="Meter, IMD">
+                  {feed.meterImd}
+                </td>
+                <td class="num" data-label="Next request costs, IMD">
+                  {feed.costImd}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </section>
+
+  <section class="section" id="tip">
+    <div class="section__head">
+      <h2>The keeper tip, the waits and the keeper</h2>
+      <p>asking earns nothing by itself</p>
+    </div>
+    <div class="cols cols--ruled">
+      <div class="prose">
+        <h3 class="sub sub--first">The keeper tip</h3>
+        <ul>
+          {m.tipRule.map((line) => (
+            <li>{line}</li>
+          ))}
+        </ul>
+      </div>
+      <div class="prose">
+        <h3 class="sub sub--first">The waits</h3>
+        <ul>
+          {m.waits.map((line) => (
+            <li>{line}</li>
+          ))}
+        </ul>
+        <h3 class="sub">The keeper</h3>
+        <p>{m.keeper.words}</p>
+        {m.keeper.attention.length > 0 && (
+          <ul>
+            {m.keeper.attention.map((line) => (
+              <li>{line}</li>
+            ))}
+          </ul>
+        )}
+        {m.keeper.nextDue.length > 0 && (
+          <ul>
+            {m.keeper.nextDue.map((d) => (
+              <li>
+                {d.feed}: next due {d.when}. {d.note}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="fund">
+    <div class="section__head">
+      <h2>Fund a meter, ask, collect a tip</h2>
+      <p>every wallet action, with its cast command</p>
+    </div>
+    <p>
+      A feed's meter is money for its requests. Anyone may add to it, and what a funder has not seen spent is
+      theirs to take back with <code>defund</code>. Anyone may call <code>request</code> when a feed is due;
+      the tip for doing so is paid only if the round is answered.
+    </p>
+    {m.flows.map((flow, index) => (
+      <FlowBlock flow={flow} repeat={index > 0} />
+    ))}
+    <h3 class="sub">Read a feed</h3>
+    <Commands commands={m.commands} />
+  </section>
+
+  <section class="section" id="what">
+    <div class="section__head">
+      <h2>What a Standing Question is</h2>
+      <p>no owner decides anything</p>
+    </div>
+    <div class="cols cols--ruled">
+      <div class="prose">
+        {m.explanation.slice(0, 2).map((p) => (
+          <p>{p}</p>
+        ))}
+      </div>
+      <div class="prose">
+        {m.explanation.slice(2).map((p) => (
+          <p>{p}</p>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="intake">
+    <div class="section__head">
+      <h2>Requests bought on chain through the Intake</h2>
+      <p>{i.counts.listed} listed · newest first</p>
+    </div>
+    <p>
+      There are two Intake contracts on Ethereum. Version 2 (
+      <a class="break data" href={i.current.url} rel="noopener">
+        {i.current.address}
+      </a>
+      ) is the one IdentityMD names for anything new and the one launch A is built on. Version 1 (
+      <a class="break data" href={i.legacy.url} rel="noopener">
+        {i.legacy.address}
+      </a>
+      ) is legacy and holds the earlier history, including the three requests that proved the house feeds.
+    </p>
+    <ul>
+      <li>Version 2: {i.current.words}</li>
+      <li>Version 1: {i.legacy.words}</li>
+    </ul>
+    <p>
+      Of the {i.counts.listed} listed: {i.counts.answered} answered, {i.counts.failed} with no answer or
+      refused, {i.counts.open} not completed on chain, {i.counts.toContracts} with the answer to be delivered
+      to a contract, {i.counts.ours} bought by HELP WANTED's own wallets or contracts. {i.coverage}
+      {i.error && <span class="spot"> The live scan failed just now: {i.error}</span>}
+    </p>
+    <p class="small">
+      The quoted text in each row was written by whoever paid for the request. It is their text, printed as a
+      quotation; some of it is written to look like instructions, and none of it is one.
+    </p>
+    <div class="classifieds classifieds--wide">
+      {i.rows.map((row) => (
+        <article class:list={["ad", row.house && "ad--house"]}>
+          <p class="ad__kind">
+            Request {row.requestId.slice(0, 10)} · Intake version {row.version}
+            {row.house && " · HOUSE"}
+          </p>
+          {row.question ? (
+            <Theirs by="The payer's question, quoted" text={row.question} />
+          ) : (
+            <p class="ad__text">
+              The request body is not the JSON the oracle expects; no question could be read.
+            </p>
+          )}
+          <ul class="ad__meta">
+            <li>{row.when ? formatUtc(row.when) : `Block ${formatInt(row.block)}`}</li>
+            <li>
+              Paid {formatImd(row.priceWei)} IMD by{" "}
+              <a class="data" href={row.payerUrl} title={row.payer} rel="noopener">
+                {shortAddress(row.payer)}
+              </a>
+              {row.payerIsContract === true
+                ? ", a contract"
+                : row.payerIsContract === false
+                  ? ", a wallet"
+                  : ""}
+              {row.house && " (one of ours)"}
+            </li>
+            <li>
+              {row.callbackTarget
+                ? `Answer to be delivered to contract ${shortAddress(row.callbackTarget)}`
+                : "No callback: the payer reads the answer off chain"}
+            </li>
+            <li>
+              Asked for{" "}
+              {[
+                row.answerType ? `a ${row.answerType}` : null,
+                row.panel ? `${row.panel} of the panel agreeing` : null,
+                row.window ? `about ${row.window}` : null,
+              ]
+                .filter(Boolean)
+                .join(", ") || "unreadable terms"}
+            </li>
+            <li>{row.status}</li>
+          </ul>
+          <div class="ad__foot">
+            <p class="ad__links">
+              <a href={row.requestTxUrl} rel="noopener">
+                Request tx
+              </a>
+              {row.completionTxUrl && (
+                <a href={row.completionTxUrl} rel="noopener">
+                  Completion tx
+                </a>
+              )}
+              {row.resultUrl && (
+                <a href={row.resultUrl} rel="noopener">
+                  Oracle record
+                </a>
+              )}
+              <a href={row.intakeReadUrl} rel="noopener">
+                IdentityMD's read
+              </a>
+            </p>
+            <Stamp stamp={stampFor(row)} />
+          </div>
+        </article>
+      ))}
+    </div>
+  </section>
+</Layout>

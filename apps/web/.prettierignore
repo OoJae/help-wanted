@@ -1,0 +1,8 @@
+# Real protocol data is kept byte for byte.
+test/fixtures/
+src/data/seed/
+dist/
+.astro/
+node_modules/
+pnpm-lock.yaml
+.shots/

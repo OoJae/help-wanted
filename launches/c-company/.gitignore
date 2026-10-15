@@ -1,0 +1,12 @@
+# Foundry build output (the nested project in integration/ writes its own out/ and cache/)
+out/
+out-*/
+cache/
+cache-*/
+broadcast/
+
+# Never commit keys
+.env
+.env.*
+
+.DS_Store

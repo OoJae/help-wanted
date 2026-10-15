@@ -1,0 +1,97 @@
+{
+  "about": "Function selectors, event topics and error selectors computed with `cast sig` and `cast sig-event` (Foundry 1.8.3) from the canonical signatures, independently of the ABI files under src/abi. OrderParams is spelled out as its tuple.",
+  "functions": {
+    "workRegistry": {
+      "latest(bytes16)": "0xebe9712c"
+    },
+    "seatAdapter": {
+      "bindingOf(uint256)": "0x4d69ebc2"
+    },
+    "intake": {
+      "request(bytes32,bytes,(address,bytes4),address,uint256)": "0x380c2cda",
+      "priceOf(bytes32,address)": "0x51102885"
+    },
+    "erc20": {
+      "approve(address,uint256)": "0x095ea7b3"
+    },
+    "workOrders": {
+      "createOrder((bytes32,uint96,uint96,uint32,uint32,uint40,uint96,uint8,address,address,address,bytes4,bytes32,uint8,uint256),bytes)": "0x3cc26202",
+      "accountOf(uint256)": "0x8f4e4321",
+      "claim(uint256)": "0x379607f5",
+      "register(uint256,bytes16)": "0x39c688a8",
+      "settle(uint256,bytes,address[])": "0xd9fa93ed",
+      "claimDelivered(uint256,bytes32)": "0x8f6bbad9",
+      "finalize(uint256)": "0x05261aea",
+      "reportFailed(uint256,bytes,address[])": "0x974bad9b",
+      "release(uint256)": "0x37bdc99b",
+      "challenge(uint256)": "0xab82d9a0",
+      "timeout(uint256)": "0x08148f7a",
+      "stamp(uint256,bytes,address[])": "0xddfffd23",
+      "evict(uint256)": "0xa3614115",
+      "trigger(uint256)": "0xed684cc6",
+      "orderOf(uint256)": "0xc7e85f94",
+      "claimOf(uint256)": "0x11c8dc5a",
+      "barred(uint256,address)": "0xa84c9ba0",
+      "priceNow(uint256)": "0x86568354",
+      "conditionOf(uint256)": "0xe1fa5d32",
+      "DISPUTE_WINDOW()": "0xf585dc57",
+      "MAX_DELIVERY()": "0x503865a9"
+    },
+    "workProof": {
+      "prove(bytes16,bytes,uint256)": "0x5b115367",
+      "scan(bytes,uint256)": "0xde768201",
+      "proveChunks(bytes16,address[],uint256)": "0xa41e6073"
+    },
+    "workEmployer": {
+      "onWorkDelivered(uint256,bytes16,bytes32)": "0xe878a4ab"
+    },
+    "payroll": {
+      "pay(uint256,bytes32)": "0x8e6bee97",
+      "tip(uint256[],uint256)": "0x36c5ef40"
+    },
+    "crowdPots": {
+      "chipInFor(uint256,uint256,address)": "0xc42ebc80"
+    },
+    "questions": {
+      "latest(bytes32)": "0x79feb107",
+      "fundFor(bytes32,uint256,address)": "0x0bbc7e6e"
+    }
+  },
+  "events": {
+    "workRegistry": {
+      "WorkRecorded(bytes16,bytes32,bytes32,string)": "0xc3e4ffeab3a1fc840bb179d634166017188a59d5df2db3c5f563052a5f6f2f86"
+    },
+    "workOrders": {
+      "OrderOpened(uint256,address,bytes32,bytes32,(bytes32,uint96,uint96,uint32,uint32,uint40,uint96,uint8,address,address,address,bytes4,bytes32,uint8,uint256),bytes)": "0xc966af6bce93322adfc9fe74d80dabf1b87ab78e70db67e575e5504dc7b1f306",
+      "Claimed(uint256,address,uint256,uint256,uint256,bytes32)": "0x5620607d3faea3dbfc623363481e2769cd175d4cc429d865ef85cd4cd43a2207",
+      "Registered(uint256,bytes16)": "0x48764ec201250a811332d7f00f80eccc2d164eb69d67e9b7ead149b654f952c8",
+      "DeliveryClaimed(uint256,bytes16,bytes32,uint256)": "0x61b4d62b9927bbdc0504752a05827d3ca1388fa051d011df2cd042d6cfc3515f",
+      "Challenged(uint256,address,uint256)": "0xf2cbc3bae809b898e4918c93cc3a0617e734ec62b3fccc2f3e58ce66cb15ad28",
+      "ClaimEnded(uint256,address,uint8,uint256,uint256,uint256,uint8)": "0x6af05829d2cc5cce86b4d7e189ae7365a169345a4c729d1a01f6d962a32be15e",
+      "Delivered(uint256,bytes16,address,bytes32,bool,uint256,uint256,uint256,uint256,uint256,uint256[])": "0x386ad0f7351076d90dfbd2bf1d3ba9423e8662737bb64cb8d45fe502f1b80b7c",
+      "Failed(uint256,bytes16,bytes32)": "0xa6699f9d8fc73e35bb818f19e392fa61f4b6f8bc63f63b3877eb9ba650f98bf4",
+      "Proven(uint256,bytes16,bytes32)": "0x4f60beeb95fad888faa83a1f0704b0e1a0cc30438535ad7f4eae1c36e8a77903"
+    },
+    "intake": {
+      "Requested(bytes32,address,bytes32,bytes,address,bytes4,address,uint256)": "0x1c521a43c9b0f72a335bc80a6918abce08af7949ebbd1c41fe2a576074379063"
+    },
+    "erc20": {
+      "Transfer(address,address,uint256)": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    }
+  },
+  "errors": {
+    "workProof": {
+      "Malformed(uint256)": "0x45ef4133",
+      "MissingKey()": "0x6daf24f7",
+      "WrongSchema()": "0x21b8eeb9",
+      "HeadTooLong()": "0x75c27a79",
+      "JobIdMismatch()": "0x4214447c"
+    }
+  },
+  "hashes": {
+    "keccak256(\"completed\")": "0x6216ba39af4188a6d7c765710d7e6075007c3444b59a22a973d1b958c43e60bb",
+    "keccak256(\"audit\")": "0x294581730c448338d12ce339c62128c40da67944d48abf7602945382589f22a1",
+    "bytes32(\"oracle.request@oracle-1\")": "0x6f7261636c652e72657175657374406f7261636c652d31000000000000000000",
+    "onOracleResult selector": "0x510379c7"
+  }
+}

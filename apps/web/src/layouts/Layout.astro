@@ -1,0 +1,353 @@
+---
+import "@fontsource-variable/source-serif-4/opsz.css";
+import "@fontsource-variable/source-serif-4/wght-italic.css";
+import "@fontsource/alfa-slab-one/latin-400.css";
+import "@fontsource/ibm-plex-mono/latin-400.css";
+import "@fontsource/ibm-plex-mono/latin-600.css";
+import "~/styles/global.css";
+// The three faces a first screen is set in, fetched early so the page does not re-flow under them.
+import serifFont from "@fontsource-variable/source-serif-4/files/source-serif-4-latin-opsz-normal.woff2?url";
+import slabFont from "@fontsource/alfa-slab-one/files/alfa-slab-one-latin-400-normal.woff2?url";
+import monoFont from "@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2?url";
+import { getSources } from "~/data";
+import { within } from "~/lib/cache";
+import { formatImd, formatInt, formatUtc, formatUtcLongDay } from "~/lib/format";
+import { toJson } from "~/lib/http";
+import { SITE_NAME, SITE_TAGLINE } from "~/lib/twins";
+import { PAID_ACTION_PRICE } from "@help-wanted/shared";
+import { isLivePath, STATIC_PATHS, twinPaths } from "~/models/registry";
+import type { SourceNote } from "~/models/types";
+
+interface Props {
+  title: string;
+  description: string;
+  /** The page's own path, for the twin links and the navigation. */
+  path?: string;
+  sources?: SourceNote[];
+  generatedAt?: string;
+  noindex?: boolean;
+}
+
+const { title, description, sources = [], generatedAt, noindex = false } = Astro.props;
+const path = Astro.props.path ?? Astro.url.pathname;
+const { env, chain, deployments } = getSources();
+// The block number in the masthead is a courtesy. It is never worth waiting for: if the RPC has not
+// answered in a moment, the masthead says "block unread" and the page goes out.
+const head = await within(chain.head(), 400).then(
+  (read) => (read.done ? read.value : null),
+  () => null,
+);
+const now = new Date(generatedAt ?? Date.now());
+const twins = twinPaths(path);
+// Only an address the operator configured is ever printed as this site's own. Without one, the
+// page carries no canonical link rather than one that points at whatever host the server guesses.
+const origin = env.siteOrigin;
+// A page moves out of "in press" by itself once its contract has an address in the deployments book.
+const live = STATIC_PATHS.filter((p) => isLivePath(p, deployments));
+const press = STATIC_PATHS.filter((p) => !isLivePath(p, deployments));
+const isCurrent = (p: string) => (p === "/" ? path === "/" : path === p || path.startsWith(`${p}/`));
+// The front page carries the full nameplate; every other page a running head.
+const front = path === "/";
+const fullTitle = front ? `${SITE_NAME}: ${SITE_TAGLINE}` : `${title} · ${SITE_NAME}`;
+// The share image is one file. Its address is absolute once the site knows its own origin; until
+// then it is relative, which a crawler resolves against the page it fetched.
+const shareImage = `${origin ?? ""}/og.png`;
+const shareAlt = `${SITE_NAME}. ${SITE_TAGLINE} A classified page with one red stamp: PROVEN ON CHAIN.`;
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  name: title,
+  description,
+  ...(origin ? { url: `${origin}${twins.html}` } : {}),
+  dateModified: now.toISOString(),
+  isPartOf: {
+    "@type": "WebSite",
+    name: SITE_NAME,
+    description: SITE_TAGLINE,
+    ...(origin ? { url: origin } : {}),
+  },
+};
+---
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex" />}
+    {origin && <link rel="canonical" href={`${origin}${twins.html}`} />}
+    <link rel="alternate" type="application/json" href={twins.json} title="This page as JSON" />
+    <link rel="alternate" type="text/markdown" href={twins.md} title="This page as Markdown" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preload" href={serifFont} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={slabFont} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={monoFont} as="font" type="font/woff2" crossorigin />
+    <meta property="og:site_name" content={SITE_NAME} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    {origin && <meta property="og:url" content={`${origin}${twins.html}`} />}
+    <meta property="og:image" content={shareImage} />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={shareAlt} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={shareImage} />
+    <meta name="twitter:image:alt" content={shareAlt} />
+    {env.xHandle && <meta name="twitter:site" content={`@${env.xHandle}`} />}
+    <meta name="theme-color" content="#f3eee2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#15130f" media="(prefers-color-scheme: dark)" />
+    <script is:inline>
+      (function () {
+        var root = document.documentElement;
+        root.classList.remove("no-js");
+        try {
+          var saved = localStorage.getItem("hw-theme");
+          if (saved === "light" || saved === "dark") root.setAttribute("data-theme", saved);
+        } catch (e) {}
+      })();
+    </script>
+    <script type="application/ld+json" is:inline set:html={toJson(jsonLd, false).replace(/</g, "\\u003c")} />
+  </head>
+  <body>
+    <a class="skip" href="#content">
+      Skip to the page
+    </a>
+    {env.sampleData && (
+      <p class="sample-banner" role="note">
+        Sample data: orders and pots marked SAMPLE are made up for design work. Nothing on this page is
+        evidence.
+      </p>
+    )}
+    <div class="page">
+      <header class="masthead">
+        {front ? (
+          <>
+            <p class="nameplate">
+              <a href="/" aria-label="HELP WANTED, front page">
+                Help Wanted
+              </a>
+            </p>
+            <p class="motto">{SITE_TAGLINE}</p>
+            <div class="folio">
+              <span class="folio__more">
+                Ethereum mainnet · {head ? <>block {formatInt(head.value.block)}</> : <>block unread</>}
+              </span>
+              <span class="folio__date">{formatUtcLongDay(now)}</span>
+              <span class="folio__facts">{formatImd(PAID_ACTION_PRICE)} IMD a job · no token · no owner</span>
+              <button class="theme-toggle needs-js" type="button" data-theme-toggle>
+                Night edition
+              </button>
+            </div>
+          </>
+        ) : (
+          <div class="runhead">
+            <a class="runhead__name" href="/" aria-label="HELP WANTED, front page">
+              Help Wanted
+            </a>
+            <div class="folio">
+              <span class="folio__more">
+                {formatUtcLongDay(now)} ·{" "}
+                {head ? <>block {formatInt(head.value.block)}</> : <>block unread</>}
+              </span>
+              <button class="theme-toggle needs-js" type="button" data-theme-toggle>
+                Night edition
+              </button>
+            </div>
+          </div>
+        )}
+        <nav class="nav" aria-label="Sections">
+          <div class="nav__group">
+            {live.map((p) => (
+              <a href={p.path} aria-current={isCurrent(p.path) ? "page" : undefined}>
+                {p.label}
+              </a>
+            ))}
+          </div>
+          {press.length > 0 && (
+            <div class="nav__group nav__group--press">
+              <span
+                class="nav__tag"
+                title="These pages are complete, but their contracts are not launched yet"
+              >
+                In press
+              </span>
+              {press.map((p) => (
+                <a href={p.path} aria-current={isCurrent(p.path) ? "page" : undefined}>
+                  {p.label}
+                </a>
+              ))}
+            </div>
+          )}
+        </nav>
+      </header>
+
+      <main id="content">
+        <slot />
+      </main>
+
+      <footer class="colophon">
+        <section class="colophon__site">
+          <h2>Every page</h2>
+          <ul class="directory">
+            {STATIC_PATHS.map((p) => (
+              <li>
+                <a href={p.path}>{p.label}</a>
+              </li>
+            ))}
+          </ul>
+        </section>
+        <section class="colophon__ways">
+          <h2>This page, three ways</h2>
+          <ul>
+            <li class="colophon__links">
+              <a href={twins.json}>As JSON</a>
+              <a href={twins.md}>As Markdown</a>
+            </li>
+            <li>Complete without JavaScript. No cookie wall, no bot challenge.</li>
+            <li class="colophon__links">
+              <a href="/llms.txt">llms.txt</a>
+              <a href="/llms-full.txt">llms-full.txt</a>
+              <a href="/api/v1">API</a>
+              <a href="/openapi.json">OpenAPI</a>
+              {origin && <a href="/sitemap.xml">Sitemap</a>}
+            </li>
+          </ul>
+        </section>
+        <section>
+          <h2>Where the numbers come from</h2>
+          <ul>
+            {sources.map((s) => (
+              <li>
+                <strong>{s.name}:</strong> {s.detail}.{" "}
+                {s.fetchedAt ? `Read ${formatUtc(s.fetchedAt)}${s.stale ? ", being refreshed" : ""}.` : null}
+                {!s.fetchedAt && !s.error && s.note ? `${s.note}.` : null}
+                {s.error ? <span class="spot"> Last read failed: {s.error}</span> : null}
+              </li>
+            ))}
+            <li>Page made {formatUtc(now)}. Upstream reads are cached for 30 to 60 seconds.</li>
+          </ul>
+        </section>
+        <section>
+          <h2>Colophon</h2>
+          <ul>
+            <li>
+              {SITE_NAME} is an entry in the IdentityMD hackathon.{" "}
+              <a href="/judges">What is live and what is not.</a>
+            </li>
+            <li>
+              {deployments.launchedCount === 0
+                ? "None of our contracts is launched yet."
+                : `${deployments.launchedCount} of our contracts are launched.`}
+              {env.repoUrl && (
+                <>
+                  {" "}
+                  <a href={env.repoUrl}>Source code.</a>
+                </>
+              )}
+            </li>
+            <li>Set in Alfa Slab One, Source Serif 4 and IBM Plex Mono.</li>
+          </ul>
+        </section>
+      </footer>
+    </div>
+
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+      <filter id="stamp-ink" x="-6%" y="-14%" width="112%" height="128%">
+        <feTurbulence
+          type="fractalNoise"
+          baseFrequency="0.03 0.06"
+          numOctaves="2"
+          seed="7"
+          result="warp"
+        ></feTurbulence>
+        <feDisplacementMap in="SourceGraphic" in2="warp" scale="2.4" result="warped"></feDisplacementMap>
+        <feTurbulence
+          type="fractalNoise"
+          baseFrequency="1.05"
+          numOctaves="2"
+          seed="11"
+          result="grain"
+        ></feTurbulence>
+        <feColorMatrix
+          in="grain"
+          type="matrix"
+          values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -7 0 0 0 5.1"
+          result="wear"
+        ></feColorMatrix>
+        <feComposite in="warped" in2="wear" operator="in"></feComposite>
+      </filter>
+    </svg>
+
+    <script is:inline>
+      (function () {
+        var root = document.documentElement;
+        function current() {
+          var set = root.getAttribute("data-theme");
+          if (set) return set;
+          return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light";
+        }
+        var toggles = document.querySelectorAll("[data-theme-toggle]");
+        function label() {
+          toggles.forEach(function (toggle) {
+            toggle.textContent = current() === "dark" ? "Day edition" : "Night edition";
+          });
+        }
+        label();
+        toggles.forEach(function (toggle) {
+          toggle.addEventListener("click", function () {
+            var next = current() === "dark" ? "light" : "dark";
+            root.setAttribute("data-theme", next);
+            try {
+              localStorage.setItem("hw-theme", next);
+            } catch (e) {}
+            label();
+          });
+        });
+        if (navigator.clipboard) {
+          document.querySelectorAll("[data-copy]").forEach(function (row) {
+            var pre = row.querySelector("pre");
+            if (!pre) return;
+            var button = document.createElement("button");
+            button.type = "button";
+            button.className = "copy";
+            button.textContent = "Copy";
+            button.addEventListener("click", function () {
+              navigator.clipboard.writeText(pre.textContent || "").then(function () {
+                button.textContent = "Copied";
+                setTimeout(function () {
+                  button.textContent = "Copy";
+                }, 1400);
+              });
+            });
+            row.appendChild(button);
+          });
+        }
+        // A folded table is still part of a printed page: open every fold for the printer, and
+        // close again the ones the reader had left closed.
+        var opened = [];
+        window.addEventListener("beforeprint", function () {
+          document.querySelectorAll("details:not([open])").forEach(function (d) {
+            d.setAttribute("open", "");
+            opened.push(d);
+          });
+        });
+        window.addEventListener("afterprint", function () {
+          opened.forEach(function (d) {
+            d.removeAttribute("open");
+          });
+          opened = [];
+        });
+      })();
+    </script>
+  </body>
+</html>

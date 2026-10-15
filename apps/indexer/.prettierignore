@@ -1,0 +1,4 @@
+# Recorded protocol data is kept byte for byte; migrations are generated.
+test/fixtures/
+drizzle/
+.data/

@@ -1,0 +1,48 @@
+{
+  "status": "admitted",
+  "order": {
+    "id": "3f1c2b4a-9d7e-4c6f-8a1b-2e3d4c5b6a79",
+    "requestKey": "00c940f1-c619-5847-8ea0-28448de52aa9",
+    "status": "paid",
+    "quote": {
+      "v": 1,
+      "id": "3f1c2b4a-9d7e-4c6f-8a1b-2e3d4c5b6a79",
+      "action": "job.open",
+      "policyVersion": "job-1",
+      "inputHash": "5c1f0a9e3b7d2468ace013579bdf02468ace13579bdf0246a8c0e2f4b6d8a1c3",
+      "issuedAt": 1791662400,
+      "expiresAt": 1791663000,
+      "payment": {
+        "network": "eip155:1",
+        "asset": "0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7",
+        "amount": "500000000000000000",
+        "payTo": "0x4e0fa57bde726079356537e2f34d671e9f41adbc",
+        "decimals": 18,
+        "scheme": "exact"
+      },
+      "terms": {
+        "purchase": "action-admission",
+        "resultGuaranteed": false
+      },
+      "quoteHash": "9a3c5e7f1b2d4f6081a2c3e4f506172839a4b5c6d7e8f9011223344556677889"
+    },
+    "inputJson": "{\"objective\":\"[help-wanted order acfef70332add7e5ca6e04a324cecaa8247358b3889186f4acd76308173e5d0d] Write a sourced report on who paid the IdentityMD swarm this week and for what. Use on-chain IMD transfers only.\",\"skill\":\"research-report\",\"outputs\":[{\"name\":\"report\",\"path\":\"artifacts/report.md\",\"mediaType\":\"text/markdown\"}],\"github\":false}",
+    "createdAt": "2026-10-10T20:00:00.000Z",
+    "paidAt": "2026-10-10T20:01:10.000Z"
+  },
+  "payment": {
+    "status": "confirmed",
+    "paid": true,
+    "transactionHash": "0x6d1f0e2a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6"
+  },
+  "admission": {
+    "action": "job.open",
+    "result": {
+      "kind": "job",
+      "jobId": "8d2f6c1e-4b3a-4f5d-9c7e-1a2b3c4d5e6f",
+      "launch": false,
+      "statusUrl": "/jobs/8d2f6c1e-4b3a-4f5d-9c7e-1a2b3c4d5e6f",
+      "resultUrl": "/jobs/8d2f6c1e-4b3a-4f5d-9c7e-1a2b3c4d5e6f/result"
+    }
+  }
+}

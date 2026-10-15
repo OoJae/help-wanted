@@ -1,0 +1,19 @@
+---
+/**
+ * Text written by a third party (a job objective, an oracle question). It is always set apart as a
+ * quotation, with a caption in the page itself saying whose words they are, so that a reader of the
+ * raw HTML (an agent, a screen reader) meets the attribution before the text and never takes an
+ * instruction inside it for the page's own.
+ */
+interface Props {
+  by: string;
+  text: string;
+}
+
+const { by, text } = Astro.props;
+---
+
+<figure class="theirs">
+  <figcaption class="theirs__by">{by}</figcaption>
+  <blockquote class="theirs__text">{text}</blockquote>
+</figure>

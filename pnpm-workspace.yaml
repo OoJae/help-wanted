@@ -1,0 +1,9 @@
+packages:
+  - "packages/*"
+  - "bots/*"
+  - "apps/*"
+
+# pnpm 11 runs a dependency's install script only when it is listed here.
+allowBuilds:
+  esbuild: true
+  sharp: true

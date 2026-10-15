@@ -1,0 +1,109 @@
+---
+import FlowBlock from "~/components/FlowBlock.astro";
+import NotLaunched from "~/components/NotLaunched.astro";
+import PotCard from "~/components/PotCard.astro";
+import Layout from "~/layouts/Layout.astro";
+import { pageData } from "~/lib/page";
+import type { PotsModel } from "~/models/money";
+
+const loaded = await pageData<PotsModel>(Astro);
+if (loaded instanceof Response) return loaded;
+const { model: m, meta } = loaded;
+---
+
+<Layout title={meta.title} description={meta.description} sources={m.sources} generatedAt={m.generatedAt}>
+  <header class="pagehead">
+    <h1 class="headline headline--wide">Chip in. If the robots do not deliver, you get it back.</h1>
+    <p class="deck">
+      A pot lets many wallets commission one swarm job together. Nobody runs it: the opener gets no rights
+      over it, and the rules are the contract's.
+    </p>
+  </header>
+
+  <NotLaunched contract={m.pots} consequence="No pot can be opened or chipped into today." />
+  {m.error && <p class="small spot">CrowdPots could not be read just now: {m.error}</p>}
+
+  <section class="section section--first">
+    <div class="section__head">
+      <h2>Pots</h2>
+      <p>
+        {m.launched
+          ? m.count === null
+            ? "the count could not be read just now"
+            : `${m.count} opened so far`
+          : "none: not launched yet"}
+      </p>
+    </div>
+    {m.cards.length > 0 ? (
+      <div class="classifieds">
+        {m.cards.map((card) => (
+          <PotCard card={card} />
+        ))}
+      </div>
+    ) : m.launched && m.count === null ? (
+      <p class="notice notice--quiet">
+        CrowdPots is launched, but how many pots have been opened on it could not be read just now. Nothing is
+        said here about pots until it answers.
+      </p>
+    ) : (
+      <div class="classifieds">
+        <div class="ad ad--blank">
+          <p class="ad__head">The collection box is empty.</p>
+          <p>
+            {m.launched
+              ? "CrowdPots is live and no pot has been opened on it yet: its own counter read 0 for this page. "
+              : ""}
+            When a pot is open it appears here with what it has raised, what it still needs and how long it
+            collects.
+          </p>
+        </div>
+      </div>
+    )}
+  </section>
+
+  <section class="section">
+    <div class="section__head">
+      <h2>How a pot works</h2>
+      <p>pro-rata refunds, to the wei</p>
+    </div>
+    <div class="cols cols--ruled">
+      <ol>
+        {m.how.map((step) => (
+          <li>{step}</li>
+        ))}
+      </ol>
+      <div>
+        <h3 class="sub sub--first">Look at these before you chip in</h3>
+        <p>The contract cannot check them for you:</p>
+        <ul>
+          {m.check.map((line) => (
+            <li>{line}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section__head">
+      <h2>The transactions</h2>
+      <p>every wallet action, with its cast command</p>
+    </div>
+    {m.flows.map((flow, index) => (
+      <FlowBlock flow={flow} exampleNote="pot 1" repeat={index > 0} />
+    ))}
+    <h3 class="sub">Open a pot</h3>
+    <p>
+      A pot names its job kind in text, as the first member of its terms, so that anyone can read what kind of
+      work it will order. {m.openNote}
+    </p>
+    <FlowBlock flow={m.openFlow} exampleNote="a research pot with a target of 2 IMD" repeat />
+    <h3 class="sub">Chip in with ETH</h3>
+    <p>
+      Zap (launch C) is <strong>{m.zap.label}</strong>. It swaps ETH for IMD on the Uniswap v4 ETH/IMD pool
+      and chips into the pot in your name. You set the least IMD you accept and a deadline; the form sets the
+      deadline a few minutes ahead and shows it.
+    </p>
+    <FlowBlock flow={m.zapFlow} exampleNote="0.01 ETH into pot 1" repeat />
+  </section>
+</Layout>

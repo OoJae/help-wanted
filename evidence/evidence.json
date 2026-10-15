@@ -1,0 +1,1696 @@
+{
+  "schema": "help-wanted-evidence-v1",
+  "about": "What exists on chain of HELP WANTED, read at one pinned block. Written by scripts/evidence/build.ts (pnpm evidence) and by nothing else; do not edit by hand.",
+  "chainId": 1,
+  "pinnedBlock": {
+    "number": 26197296,
+    "hash": "0x3a9d9757d6c67ec1304de63f46237c77b4f23d35ecd8779cd1de32b0f440dcd2",
+    "timestamp": 1792059863,
+    "time": "2026-10-15T10:24:23Z",
+    "finality": "finalized"
+  },
+  "houseRule": "HOUSE is the activity of the wallets the team publishes in evidence/house-wallets.json and of HELP WANTED's own contracts; everything else is OUTSIDE. Each event is counted for one account: the one that made the call, the one the event pays, or the one an earlier event settled (the opener of a round, the employer of an order). When the account made the call itself, the count is HOUSE if that account or the sender of the transaction is on the list. scripts/evidence/contracts.ts holds the rule of every event.",
+  "house": [
+    {
+      "label": "W1",
+      "address": "0x871e507B6a70F858Ad4B414bddb77473630C366b",
+      "kind": "wallet",
+      "note": "Pays for every launch and paid action; the prize wallet; the team's depositor"
+    },
+    {
+      "label": "H1",
+      "address": "0x60CcC928eb8EEE1d64CA0164565BfA9858669560",
+      "kind": "wallet",
+      "note": "Hot key for the runner and keeper bots; holds a small float only"
+    },
+    {
+      "label": "Questions",
+      "address": "0xEECE4628ceb091C13393fc64056Be8b8501fD3F6",
+      "kind": "contract",
+      "note": "launch A, from the deployments book"
+    },
+    {
+      "label": "JobsReport",
+      "address": "0x58963B57E179f7fE4E95090C21E8e9D75353BCE4",
+      "kind": "contract",
+      "note": "launch A, from the deployments book"
+    },
+    {
+      "label": "Payroll",
+      "address": "0x6e4362a5cEc59Eb3F611af6b2d81915CF5b45f1F",
+      "kind": "contract",
+      "note": "launch A, from the deployments book"
+    },
+    {
+      "label": "WorkProof",
+      "address": "0xB268297dB06985ba0b806Ba97BcB90364b137469",
+      "kind": "contract",
+      "note": "launch B, from the deployments book"
+    },
+    {
+      "label": "WorkOrders",
+      "address": "0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2",
+      "kind": "contract",
+      "note": "launch B, from the deployments book"
+    },
+    {
+      "label": "CrowdPots",
+      "address": "0x8C2FfCdcb103659aa05c772b8F2059868B496EB5",
+      "kind": "contract",
+      "note": "launch B, from the deployments book"
+    },
+    {
+      "label": "Doorbell",
+      "address": "0xFd5ab7E03E8554210Faa3cCd3b9D47C622fffcCb",
+      "kind": "contract",
+      "note": "launch B, from the deployments book"
+    }
+  ],
+  "headline": {
+    "contractsInTheBook": 10,
+    "contractsLaunched": 7,
+    "contractsWithCode": 7,
+    "transactions": {
+      "total": 55,
+      "house": 54,
+      "outside": 0,
+      "byIdentityMd": 1
+    }
+  },
+  "launches": {
+    "a": {
+      "key": "a",
+      "title": "Standing Questions, the Robot Jobs Report and Payroll",
+      "project": "launches/a-payroll",
+      "threats": "launches/a-payroll/docs/THREATS.md",
+      "launched": true,
+      "status": "live: IdentityMD launch 1531, block 26182869",
+      "launchNumber": 1531,
+      "transaction": {
+        "hash": "0x9ce6111c9f454373ac208cc9b54ebd0a4b09e58706f20e568f0f9e8bbb392c58",
+        "block": 26182869,
+        "time": "2026-10-13T10:07:59Z",
+        "from": "0xcECc29B037f5064fCdF45a5C318F132ef76aA551",
+        "to": "0xfF03410d0Fe5fa8f7F59F743de35E333D9857120",
+        "succeeded": true,
+        "factoryLaunchNumber": 1531
+      },
+      "contracts": [
+        {
+          "key": "questions",
+          "name": "Questions",
+          "source": "launches/a-payroll/src/questions/Questions.sol",
+          "address": "0xEECE4628ceb091C13393fc64056Be8b8501fD3F6",
+          "code": {
+            "nonEmpty": true,
+            "bytes": 22233,
+            "keccak256": "0xf876f5265e4ae5015645fbbee2c47e280391c23fc8256b46b688688a388618f7"
+          },
+          "namedInLaunchTransaction": true,
+          "imdHeldWei": "160000000000000000",
+          "events": {
+            "AnswerRevealed": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the sender of the transaction"
+            },
+            "CompletionSeen": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the sender of the transaction"
+            },
+            "Defunded": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the funder that took IMD back"
+            },
+            "EIP712DomainChanged": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the launch itself (emitted by the constructor)"
+            },
+            "FeedCreated": {
+              "total": 3,
+              "house": 3,
+              "outside": 0,
+              "countedFor": "the feed's creator"
+            },
+            "Funded": {
+              "total": 5,
+              "house": 5,
+              "outside": 0,
+              "countedFor": "the funder"
+            },
+            "FundedFor": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the payer"
+            },
+            "OracleSignerSet": {
+              "total": 1,
+              "house": 1,
+              "outside": 0,
+              "countedFor": "the launch itself (emitted by the constructor)"
+            },
+            "RoundAnswered": {
+              "total": 3,
+              "house": 3,
+              "outside": 0,
+              "countedFor": "whoever handed the answer in with submit; the round's opener when the Intake's callback delivered it"
+            },
+            "RoundFailed": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "whoever closed the round (the sender of the transaction)"
+            },
+            "RoundOpened": {
+              "total": 3,
+              "house": 3,
+              "outside": 0,
+              "countedFor": "the keeper that opened the round"
+            },
+            "SharesRescaled": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the sender of the transaction"
+            },
+            "SharesRetired": {
+              "total": 2,
+              "house": 2,
+              "outside": 0,
+              "countedFor": "the sender of the transaction"
+            },
+            "TipsCollected": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the keeper that collected"
+            }
+          }
+        },
+        {
+          "key": "jobsReport",
+          "name": "JobsReport",
+          "source": "launches/a-payroll/src/payroll/JobsReport.sol",
+          "address": "0x58963B57E179f7fE4E95090C21E8e9D75353BCE4",
+          "code": {
+            "nonEmpty": true,
+            "bytes": 9320,
+            "keccak256": "0xb050a81690b40963e1cbdffb17aafb3fcdf42ddd432a05023be7e23873207432"
+          },
+          "namedInLaunchTransaction": true,
+          "imdHeldWei": "0",
+          "events": {
+            "BestDay": {
+              "total": 1,
+              "house": 1,
+              "outside": 0,
+              "countedFor": "whoever called print (the sender of the transaction)"
+            },
+            "CountRecorded": {
+              "total": 1,
+              "house": 1,
+              "outside": 0,
+              "countedFor": "whoever called print (the sender of the transaction)"
+            },
+            "Counted": {
+              "total": 1,
+              "house": 1,
+              "outside": 0,
+              "countedFor": "whoever called print (the sender of the transaction)"
+            },
+            "EmployersOfTheWeek": {
+              "total": 1,
+              "house": 1,
+              "outside": 0,
+              "countedFor": "whoever called crown (the sender of the transaction)"
+            },
+            "Printed": {
+              "total": 1,
+              "house": 1,
+              "outside": 0,
+              "countedFor": "whoever called print (the sender of the transaction)"
+            },
+            "RoundSkipped": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "whoever called print (the sender of the transaction)"
+            }
+          }
+        },
+        {
+          "key": "payroll",
+          "name": "Payroll",
+          "source": "launches/a-payroll/src/payroll/Payroll.sol",
+          "address": "0x6e4362a5cEc59Eb3F611af6b2d81915CF5b45f1F",
+          "code": {
+            "nonEmpty": true,
+            "bytes": 11846,
+            "keccak256": "0xa962b0633998d594b2720984ad5f76fce369148592da0762b9d9acf399367236"
+          },
+          "namedInLaunchTransaction": true,
+          "imdHeldWei": "88367063492063491",
+          "events": {
+            "Booked": {
+              "total": 1,
+              "house": 1,
+              "outside": 0,
+              "countedFor": "the sender of the transaction that booked the IMD"
+            },
+            "Dripped": {
+              "total": 11,
+              "house": 11,
+              "outside": 0,
+              "countedFor": "the caller of drip"
+            },
+            "FeedBudgetAged": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the sender of the transaction"
+            },
+            "FeedBudgetReleased": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the sender of the transaction that called fundFeeds"
+            },
+            "FeedFunded": {
+              "total": 2,
+              "house": 2,
+              "outside": 0,
+              "countedFor": "the sender of the transaction that called fundFeeds"
+            },
+            "FeedFundingFailed": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the sender of the transaction that called fundFeeds"
+            },
+            "Paid": {
+              "total": 1,
+              "house": 1,
+              "outside": 0,
+              "countedFor": "the payer; for a fee the hire desk pays, the employer of the order named in the memo"
+            },
+            "SeatClaimed": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the seat's owner, who is paid"
+            },
+            "StreamLevelled": {
+              "total": 1,
+              "house": 1,
+              "outside": 0,
+              "countedFor": "the sender of the transaction"
+            },
+            "TipClaimed": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the seat's owner, who is paid"
+            },
+            "TipSwept": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the sender of the transaction"
+            },
+            "Tipped": {
+              "total": 1,
+              "house": 1,
+              "outside": 0,
+              "countedFor": "the payer; for a tip the hire desk pays, the employer of the order settled in the same transaction"
+            }
+          }
+        }
+      ],
+      "logs": {
+        "fromBlock": 26182869,
+        "toBlock": 26197296,
+        "count": 39,
+        "transactions": 28
+      },
+      "evidence": {
+        "questions": {
+          "intake": "0xa43e6F75ee006411F79Ac1C84120606C2330DE82",
+          "feedsCreated": {
+            "total": 3,
+            "house": 3,
+            "outside": 0
+          },
+          "feeds": [
+            {
+              "feedId": "0x4bf83605cd50e9658472bde9be314bb3848a563301fa793328bef17ad2a07b61",
+              "houseFeed": "payrolls",
+              "creator": "0x60CcC928eb8EEE1d64CA0164565BfA9858669560",
+              "side": "HOUSE",
+              "createdTx": "0xae0f188392827e37895600f0eb6fcb625c31f99d13c6def8f1ca3dbbef7c5cbe",
+              "createdBlock": 26183604,
+              "cadenceBlocks": 7000,
+              "meterWei": "5000000000000000",
+              "rounds": {
+                "opened": 1,
+                "answeredBySubmit": 1,
+                "answeredByCallback": 0,
+                "closed": 0,
+                "pending": 0
+              },
+              "latest": {
+                "round": 1,
+                "value": "112000000000000000000",
+                "fromBlock": 26176608,
+                "toBlock": 26183607,
+                "updatedAt": 1791896927
+              }
+            },
+            {
+              "feedId": "0xfde22d9c1b97b7ce9763dff388a66366f9012d4ba7c57c3239377a75532bee4d",
+              "houseFeed": "hires",
+              "creator": "0x60CcC928eb8EEE1d64CA0164565BfA9858669560",
+              "side": "HOUSE",
+              "createdTx": "0x8bd0530e54a7502f557195ab64d6f4bd43c75f05e8d99ea08d186c694c0d07ac",
+              "createdBlock": 26183605,
+              "cadenceBlocks": 7000,
+              "meterWei": "5000000000000000",
+              "rounds": {
+                "opened": 1,
+                "answeredBySubmit": 1,
+                "answeredByCallback": 0,
+                "closed": 0,
+                "pending": 0
+              },
+              "latest": {
+                "round": 1,
+                "value": "223",
+                "fromBlock": 26176610,
+                "toBlock": 26183609,
+                "updatedAt": 1791897023
+              }
+            },
+            {
+              "feedId": "0x22ad8df0e0af07aa59e29aa7f5540e0022fbfda0651ccae3eccb968553a14835",
+              "houseFeed": "employers",
+              "creator": "0x60CcC928eb8EEE1d64CA0164565BfA9858669560",
+              "side": "HOUSE",
+              "createdTx": "0xd08f84e5de4b984a35de837f13ff3aafa3c31ec81fe2db94071f59084aa6c1bd",
+              "createdBlock": 26183608,
+              "cadenceBlocks": 49000,
+              "meterWei": "0",
+              "rounds": {
+                "opened": 1,
+                "answeredBySubmit": 0,
+                "answeredByCallback": 1,
+                "closed": 0,
+                "pending": 0
+              },
+              "latest": {
+                "round": 1,
+                "value": "42073678670894866441324453801975447869762946790873191575450077339037486760450",
+                "fromBlock": 26133211,
+                "toBlock": 26183610,
+                "updatedAt": 1791911927
+              }
+            }
+          ],
+          "meterFunding": {
+            "total": 5,
+            "house": 5,
+            "outside": 0,
+            "imd": {
+              "totalWei": "1660000000000000000",
+              "houseWei": "1660000000000000000",
+              "outsideWei": "0"
+            }
+          },
+          "meterDefunding": {
+            "total": 0,
+            "house": 0,
+            "outside": 0,
+            "imd": {
+              "totalWei": "0",
+              "houseWei": "0",
+              "outsideWei": "0"
+            }
+          },
+          "roundsOpened": {
+            "total": 3,
+            "house": 3,
+            "outside": 0
+          },
+          "endings": {
+            "answeredBySubmit": {
+              "total": 2,
+              "house": 2,
+              "outside": 0
+            },
+            "answeredByCallback": {
+              "total": 1,
+              "house": 1,
+              "outside": 0
+            },
+            "closedWithoutAnswer": {
+              "total": 0,
+              "house": 0,
+              "outside": 0
+            },
+            "pending": {
+              "total": 0,
+              "house": 0,
+              "outside": 0
+            }
+          },
+          "submits": {
+            "total": 2,
+            "house": 2,
+            "outside": 0
+          },
+          "paidToIntake": {
+            "totalWei": "1500000000000000000",
+            "houseWei": "1500000000000000000",
+            "outsideWei": "0"
+          },
+          "keeperTips": {
+            "earned": {
+              "total": 3,
+              "house": 3,
+              "outside": 0,
+              "imd": {
+                "totalWei": "150000000000000000",
+                "houseWei": "150000000000000000",
+                "outsideWei": "0"
+              }
+            },
+            "collected": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "imd": {
+                "totalWei": "0",
+                "houseWei": "0",
+                "outsideWei": "0"
+              }
+            }
+          },
+          "answersRevealed": {
+            "total": 0,
+            "house": 0,
+            "outside": 0
+          },
+          "rounds": [
+            {
+              "feedId": "0x4bf83605cd50e9658472bde9be314bb3848a563301fa793328bef17ad2a07b61",
+              "houseFeed": "payrolls",
+              "round": 1,
+              "request": {
+                "tx": "0x9fea43c9e0fd05c8c55b977284e6e543410f71c74363e5448747b1b482056b06",
+                "block": 26183619,
+                "time": "2026-10-13T12:37:59Z",
+                "intakeRequestId": "0x8b62aeadfbd380a68797107a800d55f2d1697849f94ac6564eb69856cc071841",
+                "questionHash": "0x514e77764a21eaf0d9c2af8fde1cca8fc6fe0e1b2ad307d545589e892973771e",
+                "fromBlock": 26176608,
+                "toBlock": 26183607,
+                "priceWei": "500000000000000000",
+                "tipWei": "50000000000000000"
+              },
+              "opener": "0x60CcC928eb8EEE1d64CA0164565BfA9858669560",
+              "openerSide": "HOUSE",
+              "ending": "answered by submit",
+              "ended": {
+                "tx": "0xfd95b06615de1f0a1002fd4b8178c18d92a76e8f0ee11737c11f5cb6d1832ca5",
+                "block": 26183772,
+                "time": "2026-10-13T13:08:47Z",
+                "by": "0x60CcC928eb8EEE1d64CA0164565BfA9858669560",
+                "bySide": "HOUSE"
+              },
+              "answer": {
+                "value": "112000000000000000000",
+                "figure": "112000000000000000000",
+                "agreed": 6,
+                "oracleRequestId": "f8ffb991-55b7-4316-9461-44a94d5270aa"
+              }
+            },
+            {
+              "feedId": "0xfde22d9c1b97b7ce9763dff388a66366f9012d4ba7c57c3239377a75532bee4d",
+              "houseFeed": "hires",
+              "round": 1,
+              "request": {
+                "tx": "0x943a265217afcd2f60bdc7c9f13cc070504cb2582d470ac0ed44e3c8658d6001",
+                "block": 26183621,
+                "time": "2026-10-13T12:38:23Z",
+                "intakeRequestId": "0xb5b449716f98becc4b2cd31f18d0dffff6243f6b0a2f68ca68b3665424f91339",
+                "questionHash": "0xd359fef6c938fde3db4fa3d1a1ce0af789ade880734349466f002a7427eecf54",
+                "fromBlock": 26176610,
+                "toBlock": 26183609,
+                "priceWei": "500000000000000000",
+                "tipWei": "50000000000000000"
+              },
+              "opener": "0x60CcC928eb8EEE1d64CA0164565BfA9858669560",
+              "openerSide": "HOUSE",
+              "ending": "answered by submit",
+              "ended": {
+                "tx": "0x80138b296f005b1cd378e493c9e13d7daca5e347d592832184e3e34557455e61",
+                "block": 26183780,
+                "time": "2026-10-13T13:10:23Z",
+                "by": "0x60CcC928eb8EEE1d64CA0164565BfA9858669560",
+                "bySide": "HOUSE"
+              },
+              "answer": {
+                "value": "223",
+                "figure": "223",
+                "agreed": 7,
+                "oracleRequestId": "0a94afe2-c48e-4254-9184-79de6d8f98a1"
+              }
+            },
+            {
+              "feedId": "0x22ad8df0e0af07aa59e29aa7f5540e0022fbfda0651ccae3eccb968553a14835",
+              "houseFeed": "employers",
+              "round": 1,
+              "request": {
+                "tx": "0x4ef3313d793940eca2847b7d01969ea76c56f92fab92aa7601e863dd92660204",
+                "block": 26183622,
+                "time": "2026-10-13T12:38:35Z",
+                "intakeRequestId": "0xa81622f556b9441f6de3c0418d908b5a25dacc22c92c8c734be7a685fb6d02d9",
+                "questionHash": "0xc0ef4cd53c286eab225f3de79d6092088238a650d0e28757c90cef4107544aa1",
+                "fromBlock": 26133211,
+                "toBlock": 26183610,
+                "priceWei": "500000000000000000",
+                "tipWei": "50000000000000000"
+              },
+              "opener": "0x60CcC928eb8EEE1d64CA0164565BfA9858669560",
+              "openerSide": "HOUSE",
+              "ending": "answered by the Intake's callback",
+              "ended": {
+                "tx": "0xfed277e7525f289f8e8bad0333148c8823f42c779836280189ff874500de051b",
+                "block": 26185017,
+                "time": "2026-10-13T17:18:47Z",
+                "by": "0xa43e6F75ee006411F79Ac1C84120606C2330DE82",
+                "bySide": null
+              },
+              "answer": {
+                "value": "42073678670894866441324453801975447869762946790873191575450077339037486760450",
+                "figure": "678000000000000000000",
+                "agreed": 5,
+                "oracleRequestId": "4831e033-1ddd-4308-9d26-396a8d340e82"
+              }
+            }
+          ]
+        },
+        "jobsReport": {
+          "prints": {
+            "total": 1,
+            "house": 1,
+            "outside": 0
+          },
+          "countsRecorded": {
+            "total": 1,
+            "house": 1,
+            "outside": 0
+          },
+          "crowns": {
+            "total": 1,
+            "house": 1,
+            "outside": 0
+          },
+          "roundsSkipped": {
+            "total": 0,
+            "house": 0,
+            "outside": 0
+          },
+          "summary": {
+            "prints": 1,
+            "totalWei": "112000000000000000000",
+            "counts": 1,
+            "totalCount": "223",
+            "bestAmountWei": "112000000000000000000",
+            "bestIndex": 0,
+            "streak": 1,
+            "longestStreak": 1,
+            "crowns": 1
+          },
+          "printRows": [
+            {
+              "index": 0,
+              "tx": "0x691890b4affed91496538e012610b632c72a739b5a2ec703b285d51961edb192",
+              "block": 26183781,
+              "time": "2026-10-13T13:10:35Z",
+              "printedBy": "0x60CcC928eb8EEE1d64CA0164565BfA9858669560",
+              "side": "HOUSE",
+              "amountWei": "112000000000000000000",
+              "payrollsRound": 1,
+              "fromBlock": 26176608,
+              "toBlock": 26183607,
+              "totalWei": "112000000000000000000",
+              "streak": 1,
+              "bestDay": true,
+              "count": {
+                "count": "223",
+                "hiresRound": 1,
+                "fromBlock": 26176610,
+                "toBlock": 26183609
+              }
+            }
+          ],
+          "crownRows": [
+            {
+              "round": 1,
+              "tx": "0x7794ad3cee6dfeb8ff8ed4fc925574c07e16fce1b3166728d21a0bcdc7d3cdf8",
+              "block": 26185036,
+              "first": "0x21919137E69ed667aC404c7FcB71B8179b645F46",
+              "second": "0x7B8C742F2e1eEB3fB2C10d72967Fa6d4a22f0479",
+              "third": "0xC94400e90bB652AFA02740bFf50824E14069c133",
+              "fromBlock": 26133211,
+              "toBlock": 26183610
+            }
+          ]
+        },
+        "payroll": {
+          "ledger": {
+            "receivedWei": "50000000000000000",
+            "toStakersWei": "25000000000000000",
+            "toSeatsWei": "15000000000000000",
+            "toFeedsWei": "10000000000000000",
+            "drippedWei": "1632936507936509",
+            "seatClaimedWei": "0",
+            "tipsInWei": "50000000000000000",
+            "tipsClaimedWei": "0",
+            "feedsFundedWei": "10000000000000000",
+            "tipsToSeatsWei": "0",
+            "feedsReleasedWei": "0"
+          },
+          "owed": {
+            "stakersWei": "23367063492063491",
+            "seatsWei": "15000000000000000",
+            "tipsWei": "50000000000000000",
+            "feedsWei": "0",
+            "totalWei": "88367063492063491"
+          },
+          "unbookedWei": "0",
+          "paid": {
+            "total": 1,
+            "house": 1,
+            "outside": 0,
+            "imd": {
+              "totalWei": "50000000000000000",
+              "houseWei": "50000000000000000",
+              "outsideWei": "0"
+            }
+          },
+          "booked": {
+            "total": 1,
+            "house": 1,
+            "outside": 0,
+            "imd": {
+              "totalWei": "50000000000000000",
+              "houseWei": "50000000000000000",
+              "outsideWei": "0"
+            }
+          },
+          "tips": {
+            "total": 1,
+            "house": 1,
+            "outside": 0,
+            "imd": {
+              "totalWei": "50000000000000000",
+              "houseWei": "50000000000000000",
+              "outsideWei": "0"
+            }
+          },
+          "tipsClaimed": {
+            "total": 0,
+            "house": 0,
+            "outside": 0,
+            "imd": {
+              "totalWei": "0",
+              "houseWei": "0",
+              "outsideWei": "0"
+            }
+          },
+          "tipsSwept": {
+            "total": 0,
+            "house": 0,
+            "outside": 0,
+            "imd": {
+              "totalWei": "0",
+              "houseWei": "0",
+              "outsideWei": "0"
+            }
+          },
+          "drips": {
+            "total": 11,
+            "house": 11,
+            "outside": 0,
+            "imd": {
+              "totalWei": "1632936507936509",
+              "houseWei": "1632936507936509",
+              "outsideWei": "0"
+            }
+          },
+          "seatClaims": {
+            "total": 0,
+            "house": 0,
+            "outside": 0,
+            "imd": {
+              "totalWei": "0",
+              "houseWei": "0",
+              "outsideWei": "0"
+            }
+          },
+          "feedTopUps": {
+            "total": 2,
+            "house": 2,
+            "outside": 0,
+            "imd": {
+              "totalWei": "10000000000000000",
+              "houseWei": "10000000000000000",
+              "outsideWei": "0"
+            }
+          },
+          "feedBudgetReleased": {
+            "total": 0,
+            "house": 0,
+            "outside": 0,
+            "imd": {
+              "totalWei": "0",
+              "houseWei": "0",
+              "outsideWei": "0"
+            }
+          }
+        }
+      }
+    },
+    "b": {
+      "key": "b",
+      "title": "WorkProof, the hire desk, crowd pots and the Doorbell",
+      "project": "launches/b-desk",
+      "threats": "launches/b-desk/docs/THREATS.md",
+      "launched": true,
+      "status": "live: IdentityMD launch 1573, block 26184581",
+      "launchNumber": 1573,
+      "transaction": {
+        "hash": "0xfb28bef9c477cfe3777231d8c41f202e691673fc4cec98ecb8b07f1bfff7bf9c",
+        "block": 26184581,
+        "time": "2026-10-13T15:51:11Z",
+        "from": "0xcECc29B037f5064fCdF45a5C318F132ef76aA551",
+        "to": "0xfF03410d0Fe5fa8f7F59F743de35E333D9857120",
+        "succeeded": true,
+        "factoryLaunchNumber": 1573
+      },
+      "contracts": [
+        {
+          "key": "workProof",
+          "name": "WorkProof",
+          "source": "launches/b-desk/src/proof/WorkProof.sol",
+          "address": "0xB268297dB06985ba0b806Ba97BcB90364b137469",
+          "code": {
+            "nonEmpty": true,
+            "bytes": 4579,
+            "keccak256": "0x0a514db427f7f3845166e923929d67816f4a27e661d8ed510b7e910d730e5fba"
+          },
+          "namedInLaunchTransaction": true,
+          "imdHeldWei": "0",
+          "events": {}
+        },
+        {
+          "key": "workOrders",
+          "name": "WorkOrders",
+          "source": "launches/b-desk/src/desk/WorkOrders.sol",
+          "address": "0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2",
+          "code": {
+            "nonEmpty": true,
+            "bytes": 19289,
+            "keccak256": "0xb06dfaf6410132828e12647f4ee5199a092f8c0fb9f0c0d2275b5f655262ffb3"
+          },
+          "namedInLaunchTransaction": true,
+          "imdHeldWei": "0",
+          "events": {
+            "CallbackFailed": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the order's employer"
+            },
+            "Cancelled": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the order's employer"
+            },
+            "Challenged": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the challenger"
+            },
+            "ClaimEnded": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the runner whose claim ended"
+            },
+            "Claimed": {
+              "total": 1,
+              "house": 1,
+              "outside": 0,
+              "countedFor": "the runner"
+            },
+            "Delivered": {
+              "total": 1,
+              "house": 1,
+              "outside": 0,
+              "countedFor": "the order's employer"
+            },
+            "DeliveryClaimed": {
+              "total": 1,
+              "house": 1,
+              "outside": 0,
+              "countedFor": "the runner that holds the order"
+            },
+            "Failed": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the order's employer"
+            },
+            "OrderOpened": {
+              "total": 1,
+              "house": 1,
+              "outside": 0,
+              "countedFor": "the employer"
+            },
+            "PayrollFallback": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the order's employer"
+            },
+            "Proven": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the order's employer"
+            },
+            "Redelivered": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the order's employer"
+            },
+            "Refunded": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the order's employer"
+            },
+            "Registered": {
+              "total": 1,
+              "house": 1,
+              "outside": 0,
+              "countedFor": "the runner that holds the order"
+            },
+            "Resolved": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the arbiter"
+            },
+            "Triggered": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the order's employer"
+            }
+          }
+        },
+        {
+          "key": "crowdPots",
+          "name": "CrowdPots",
+          "source": "launches/b-desk/src/pots/CrowdPots.sol",
+          "address": "0x8C2FfCdcb103659aa05c772b8F2059868B496EB5",
+          "code": {
+            "nonEmpty": true,
+            "bytes": 14177,
+            "keccak256": "0x282560809f9474cbb416a8d6235fac38fe2679ff3e729a87ff88859006beb1c2"
+          },
+          "namedInLaunchTransaction": true,
+          "imdHeldWei": "0",
+          "events": {
+            "ChippedIn": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the payer of the chip"
+            },
+            "PotFilled": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the pot's opener"
+            },
+            "PotLaunched": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "whoever launched the pot"
+            },
+            "PotOpened": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the pot's opener"
+            },
+            "PotSettled": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the pot's opener"
+            },
+            "RefundPaid": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the contributor, who is paid"
+            },
+            "SeriesOpened": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the series' opener"
+            },
+            "SpecPinned": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the sender of the transaction"
+            },
+            "WorkDelivered": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the pot's opener"
+            }
+          }
+        },
+        {
+          "key": "doorbell",
+          "name": "Doorbell",
+          "source": "launches/b-desk/src/pots/Doorbell.sol",
+          "address": "0xFd5ab7E03E8554210Faa3cCd3b9D47C622fffcCb",
+          "code": {
+            "nonEmpty": true,
+            "bytes": 5972,
+            "keccak256": "0xda26e8196bf95c4117124ef25c308be050bee1823ff5c6ccf287a5d788bfe43c"
+          },
+          "namedInLaunchTransaction": true,
+          "imdHeldWei": "0",
+          "events": {
+            "Delivered": {
+              "total": 1,
+              "house": 1,
+              "outside": 0,
+              "countedFor": "the Doorbell, as the order's employer"
+            },
+            "HireSkipped": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the ringer (the sender of the transaction)"
+            },
+            "Hired": {
+              "total": 1,
+              "house": 1,
+              "outside": 0,
+              "countedFor": "the ringer whose ring hired"
+            },
+            "Rang": {
+              "total": 25,
+              "house": 25,
+              "outside": 0,
+              "countedFor": "the ringer"
+            }
+          }
+        }
+      ],
+      "logs": {
+        "fromBlock": 26184581,
+        "toBlock": 26197296,
+        "count": 32,
+        "transactions": 29
+      },
+      "evidence": {
+        "workOrders": {
+          "ordersOpened": {
+            "total": 1,
+            "house": 1,
+            "outside": 0,
+            "imd": {
+              "totalWei": "1000000000000000000",
+              "houseWei": "1000000000000000000",
+              "outsideWei": "0"
+            }
+          },
+          "openedByOurEmployers": {
+            "doorbell": 1,
+            "crowdPots": 0,
+            "rules": 0
+          },
+          "claimsTaken": {
+            "total": 1,
+            "house": 1,
+            "outside": 0
+          },
+          "jobsRegistered": {
+            "total": 1,
+            "house": 1,
+            "outside": 0
+          },
+          "settledProven": {
+            "total": 1,
+            "house": 1,
+            "outside": 0,
+            "imd": {
+              "totalWei": "1000000000000000000",
+              "houseWei": "1000000000000000000",
+              "outsideWei": "0"
+            }
+          },
+          "paidOnAClaim": {
+            "total": 0,
+            "house": 0,
+            "outside": 0,
+            "imd": {
+              "totalWei": "0",
+              "houseWei": "0",
+              "outsideWei": "0"
+            }
+          },
+          "provenLater": {
+            "total": 0,
+            "house": 0,
+            "outside": 0
+          },
+          "refunded": {
+            "total": 0,
+            "house": 0,
+            "outside": 0,
+            "imd": {
+              "totalWei": "0",
+              "houseWei": "0",
+              "outsideWei": "0"
+            }
+          },
+          "cancelled": {
+            "total": 0,
+            "house": 0,
+            "outside": 0,
+            "imd": {
+              "totalWei": "0",
+              "houseWei": "0",
+              "outsideWei": "0"
+            }
+          },
+          "deliveryClaims": {
+            "total": 1,
+            "house": 1,
+            "outside": 0
+          },
+          "challenges": {
+            "total": 0,
+            "house": 0,
+            "outside": 0
+          },
+          "arbiterDecisions": {
+            "total": 0,
+            "house": 0,
+            "outside": 0
+          },
+          "claimsEnded": {
+            "total": 0,
+            "house": 0,
+            "outside": 0
+          },
+          "receiptsThatDidNotSettle": {
+            "total": 0,
+            "house": 0,
+            "outside": 0
+          },
+          "paidToRunnersWei": "900000000000000000",
+          "feesWei": "50000000000000000",
+          "tipsWei": "50000000000000000",
+          "payrollFallbacks": {
+            "total": 0,
+            "house": 0,
+            "outside": 0
+          },
+          "orders": [
+            {
+              "id": "1",
+              "employer": "0xFd5ab7E03E8554210Faa3cCd3b9D47C622fffcCb",
+              "side": "HOUSE",
+              "openedBy": "Doorbell",
+              "openedTx": "0xa9c9f25681b4512fc51d06cdd17d575e1ef3385d881b9ff62e25447bf8d815fb",
+              "openedBlock": 26184854,
+              "maxPayWei": "1000000000000000000",
+              "allowsClaimedPath": true,
+              "outcome": "settled, proven by a receipt",
+              "runner": "0x60CcC928eb8EEE1d64CA0164565BfA9858669560",
+              "jobId": "f7bd80ba-3e8b-483f-ad02-6ffbd16fef92",
+              "recordHash": "0x59f81da0ce7cde62693fca46e8dd10411c1dfae52102ffd68d25a66821451b68",
+              "settledTx": "0xa3f5b783fe194c35f348e411a10f0a199589ea89b668a16d1597794931217628"
+            }
+          ]
+        },
+        "crowdPots": {
+          "potsOpened": {
+            "total": 0,
+            "house": 0,
+            "outside": 0
+          },
+          "seriesOpened": {
+            "total": 0,
+            "house": 0,
+            "outside": 0
+          },
+          "chips": {
+            "total": 0,
+            "house": 0,
+            "outside": 0,
+            "imd": {
+              "totalWei": "0",
+              "houseWei": "0",
+              "outsideWei": "0"
+            }
+          },
+          "potsFilled": {
+            "total": 0,
+            "house": 0,
+            "outside": 0
+          },
+          "potsLaunched": {
+            "total": 0,
+            "house": 0,
+            "outside": 0
+          },
+          "potsSettled": {
+            "total": 0,
+            "house": 0,
+            "outside": 0
+          },
+          "refundsPaid": {
+            "total": 0,
+            "house": 0,
+            "outside": 0,
+            "imd": {
+              "totalWei": "0",
+              "houseWei": "0",
+              "outsideWei": "0"
+            }
+          }
+        },
+        "doorbell": {
+          "rings": {
+            "total": 25,
+            "house": 25,
+            "outside": 0
+          },
+          "hires": {
+            "total": 1,
+            "house": 1,
+            "outside": 0,
+            "imd": {
+              "totalWei": "1000000000000000000",
+              "houseWei": "1000000000000000000",
+              "outsideWei": "0"
+            }
+          },
+          "hiresSkipped": {
+            "total": 0,
+            "house": 0,
+            "outside": 0
+          },
+          "deliveries": {
+            "total": 1,
+            "house": 1,
+            "outside": 0
+          },
+          "funded": false,
+          "allowsClaimedPath": true
+        }
+      }
+    },
+    "c": {
+      "key": "c",
+      "title": "Rules, Endowments and Zap",
+      "project": "launches/c-company",
+      "threats": "launches/c-company/docs/THREATS.md",
+      "launched": false,
+      "status": "not launched: the deployments book holds no address for it",
+      "launchNumber": null,
+      "transaction": null,
+      "contracts": [
+        {
+          "key": "rules",
+          "name": "Rules",
+          "source": "launches/c-company/src/rules/Rules.sol",
+          "address": null,
+          "code": null,
+          "namedInLaunchTransaction": null,
+          "imdHeldWei": null,
+          "events": null
+        },
+        {
+          "key": "endowments",
+          "name": "Endowments",
+          "source": "launches/c-company/src/endowments/Endowments.sol",
+          "address": null,
+          "code": null,
+          "namedInLaunchTransaction": null,
+          "imdHeldWei": null,
+          "events": null
+        },
+        {
+          "key": "zap",
+          "name": "Zap",
+          "source": "launches/c-company/src/rules/Zap.sol",
+          "address": null,
+          "code": null,
+          "namedInLaunchTransaction": null,
+          "imdHeldWei": null,
+          "events": null
+        }
+      ],
+      "logs": null,
+      "evidence": null
+    }
+  },
+  "checks": [
+    {
+      "what": "Questions is built on IdentityMD's Intake, version 2",
+      "expected": "0xa43e6F75ee006411F79Ac1C84120606C2330DE82",
+      "expectedFrom": "IdentityMD's addresses in packages/shared",
+      "contractSays": "0xa43e6F75ee006411F79Ac1C84120606C2330DE82",
+      "agree": true
+    },
+    {
+      "what": "Questions pays in IMD",
+      "expected": "0xD34a99Bc0f67aE1bbd63C660e6d0b0dd03E263B7",
+      "expectedFrom": "IdentityMD's addresses in packages/shared",
+      "contractSays": "0xD34a99Bc0f67aE1bbd63C660e6d0b0dd03E263B7",
+      "agree": true
+    },
+    {
+      "what": "Questions accepts answers signed by IdentityMD's oracle signer",
+      "expected": "0x5598Aa9146215Bc13eb26f2c692Ad1461Fd32982",
+      "expectedFrom": "IdentityMD's addresses in packages/shared",
+      "contractSays": "0x5598Aa9146215Bc13eb26f2c692Ad1461Fd32982",
+      "agree": true
+    },
+    {
+      "what": "Questions: feeds created",
+      "expected": "3",
+      "expectedFrom": "logs",
+      "contractSays": "3",
+      "agree": true
+    },
+    {
+      "what": "Questions: rounds opened on the payrolls feed",
+      "expected": "1",
+      "expectedFrom": "logs",
+      "contractSays": "1",
+      "agree": true
+    },
+    {
+      "what": "Questions: the payrolls feed has a round pending",
+      "expected": "false",
+      "expectedFrom": "logs",
+      "contractSays": "false",
+      "agree": true
+    },
+    {
+      "what": "Questions: newest answered round of the payrolls feed",
+      "expected": "1",
+      "expectedFrom": "logs",
+      "contractSays": "1",
+      "agree": true
+    },
+    {
+      "what": "Questions: newest answer of the payrolls feed",
+      "expected": "112000000000000000000",
+      "expectedFrom": "logs",
+      "contractSays": "112000000000000000000",
+      "agree": true
+    },
+    {
+      "what": "Questions: rounds opened on the hires feed",
+      "expected": "1",
+      "expectedFrom": "logs",
+      "contractSays": "1",
+      "agree": true
+    },
+    {
+      "what": "Questions: the hires feed has a round pending",
+      "expected": "false",
+      "expectedFrom": "logs",
+      "contractSays": "false",
+      "agree": true
+    },
+    {
+      "what": "Questions: newest answered round of the hires feed",
+      "expected": "1",
+      "expectedFrom": "logs",
+      "contractSays": "1",
+      "agree": true
+    },
+    {
+      "what": "Questions: newest answer of the hires feed",
+      "expected": "223",
+      "expectedFrom": "logs",
+      "contractSays": "223",
+      "agree": true
+    },
+    {
+      "what": "Questions: rounds opened on the employers feed",
+      "expected": "1",
+      "expectedFrom": "logs",
+      "contractSays": "1",
+      "agree": true
+    },
+    {
+      "what": "Questions: the employers feed has a round pending",
+      "expected": "false",
+      "expectedFrom": "logs",
+      "contractSays": "false",
+      "agree": true
+    },
+    {
+      "what": "Questions: newest answered round of the employers feed",
+      "expected": "1",
+      "expectedFrom": "logs",
+      "contractSays": "1",
+      "agree": true
+    },
+    {
+      "what": "Questions: newest answer of the employers feed",
+      "expected": "42073678670894866441324453801975447869762946790873191575450077339037486760450",
+      "expectedFrom": "logs",
+      "contractSays": "42073678670894866441324453801975447869762946790873191575450077339037486760450",
+      "agree": true
+    },
+    {
+      "what": "JobsReport: prints",
+      "expected": "1",
+      "expectedFrom": "logs",
+      "contractSays": "1",
+      "agree": true
+    },
+    {
+      "what": "JobsReport: IMD over all prints, in wei",
+      "expected": "112000000000000000000",
+      "expectedFrom": "logs",
+      "contractSays": "112000000000000000000",
+      "agree": true
+    },
+    {
+      "what": "JobsReport: counts recorded",
+      "expected": "1",
+      "expectedFrom": "logs",
+      "contractSays": "1",
+      "agree": true
+    },
+    {
+      "what": "JobsReport: payments over all counts",
+      "expected": "223",
+      "expectedFrom": "logs",
+      "contractSays": "223",
+      "agree": true
+    },
+    {
+      "what": "JobsReport: crowns",
+      "expected": "1",
+      "expectedFrom": "logs",
+      "contractSays": "1",
+      "agree": true
+    },
+    {
+      "what": "JobsReport is bound to the Questions address in the book",
+      "expected": "0xEECE4628ceb091C13393fc64056Be8b8501fD3F6",
+      "expectedFrom": "the deployments book",
+      "contractSays": "0xEECE4628ceb091C13393fc64056Be8b8501fD3F6",
+      "agree": true
+    },
+    {
+      "what": "Payroll: IMD booked, in wei",
+      "expected": "50000000000000000",
+      "expectedFrom": "logs",
+      "contractSays": "50000000000000000",
+      "agree": true
+    },
+    {
+      "what": "Payroll: tips taken in, in wei",
+      "expected": "50000000000000000",
+      "expectedFrom": "logs",
+      "contractSays": "50000000000000000",
+      "agree": true
+    },
+    {
+      "what": "Payroll: IMD sent to sIMD, in wei",
+      "expected": "1632936507936509",
+      "expectedFrom": "logs",
+      "contractSays": "1632936507936509",
+      "agree": true
+    },
+    {
+      "what": "Payroll: IMD claimed by seats, in wei",
+      "expected": "0",
+      "expectedFrom": "logs",
+      "contractSays": "0",
+      "agree": true
+    },
+    {
+      "what": "Payroll: tips claimed, in wei",
+      "expected": "0",
+      "expectedFrom": "logs",
+      "contractSays": "0",
+      "agree": true
+    },
+    {
+      "what": "Payroll: tips that joined the seat pool, in wei",
+      "expected": "0",
+      "expectedFrom": "logs",
+      "contractSays": "0",
+      "agree": true
+    },
+    {
+      "what": "Payroll: feed budget released to stakers, in wei",
+      "expected": "0",
+      "expectedFrom": "logs",
+      "contractSays": "0",
+      "agree": true
+    },
+    {
+      "what": "Payroll is bound to the Questions address in the book",
+      "expected": "0xEECE4628ceb091C13393fc64056Be8b8501fD3F6",
+      "expectedFrom": "the deployments book",
+      "contractSays": "0xEECE4628ceb091C13393fc64056Be8b8501fD3F6",
+      "agree": true
+    },
+    {
+      "what": "WorkOrders: orders opened",
+      "expected": "1",
+      "expectedFrom": "logs",
+      "contractSays": "1",
+      "agree": true
+    },
+    {
+      "what": "CrowdPots: pots and series opened",
+      "expected": "0",
+      "expectedFrom": "logs",
+      "contractSays": "0",
+      "agree": true
+    },
+    {
+      "what": "Doorbell: rings",
+      "expected": "25",
+      "expectedFrom": "logs",
+      "contractSays": "25",
+      "agree": true
+    },
+    {
+      "what": "Doorbell: hires",
+      "expected": "1",
+      "expectedFrom": "logs",
+      "contractSays": "1",
+      "agree": true
+    },
+    {
+      "what": "Doorbell: deliveries",
+      "expected": "1",
+      "expectedFrom": "logs",
+      "contractSays": "1",
+      "agree": true
+    },
+    {
+      "what": "WorkProof reads IdentityMD's WorkRegistry",
+      "expected": "0xb6d0a187b050FA5Bb0B87033a203f37BECF4a775",
+      "expectedFrom": "IdentityMD's addresses in packages/shared",
+      "contractSays": "0xb6d0a187b050FA5Bb0B87033a203f37BECF4a775",
+      "agree": true
+    },
+    {
+      "what": "WorkOrders is bound to the WorkProof address in the book",
+      "expected": "0xB268297dB06985ba0b806Ba97BcB90364b137469",
+      "expectedFrom": "the deployments book",
+      "contractSays": "0xB268297dB06985ba0b806Ba97BcB90364b137469",
+      "agree": true
+    },
+    {
+      "what": "CrowdPots is bound to the WorkOrders address in the book",
+      "expected": "0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2",
+      "expectedFrom": "the deployments book",
+      "contractSays": "0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2",
+      "agree": true
+    },
+    {
+      "what": "The Doorbell is bound to the WorkOrders address in the book",
+      "expected": "0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2",
+      "expectedFrom": "the deployments book",
+      "contractSays": "0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2",
+      "agree": true
+    },
+    {
+      "what": "WorkOrders is bound to the Payroll address in the book",
+      "expected": "0x6e4362a5cEc59Eb3F611af6b2d81915CF5b45f1F",
+      "expectedFrom": "the deployments book",
+      "contractSays": "0x6e4362a5cEc59Eb3F611af6b2d81915CF5b45f1F",
+      "agree": true
+    },
+    {
+      "what": "Launch A: the ProjectFactory's log in the launch transaction names every address in the book",
+      "expected": "true",
+      "expectedFrom": "the deployments book",
+      "contractSays": "true",
+      "agree": true
+    },
+    {
+      "what": "Launch A: the launch number in the ProjectFactory's log",
+      "expected": "1531",
+      "expectedFrom": "the deployments book",
+      "contractSays": "1531",
+      "agree": true
+    },
+    {
+      "what": "Launch A: the launch transaction succeeded",
+      "expected": "true",
+      "expectedFrom": "the deployments book",
+      "contractSays": "true",
+      "agree": true
+    },
+    {
+      "what": "Launch B: the ProjectFactory's log in the launch transaction names every address in the book",
+      "expected": "true",
+      "expectedFrom": "the deployments book",
+      "contractSays": "true",
+      "agree": true
+    },
+    {
+      "what": "Launch B: the launch number in the ProjectFactory's log",
+      "expected": "1573",
+      "expectedFrom": "the deployments book",
+      "contractSays": "1573",
+      "agree": true
+    },
+    {
+      "what": "Launch B: the launch transaction succeeded",
+      "expected": "true",
+      "expectedFrom": "the deployments book",
+      "contractSays": "true",
+      "agree": true
+    }
+  ],
+  "identitymd": {
+    "read": true,
+    "reason": null,
+    "base": "https://api.imd.fun",
+    "fetchedAt": "2026-10-15T10:39:51.796Z",
+    "launches": [
+      {
+        "launch": "a",
+        "launchNumber": 1531,
+        "id": "92bb495f-f565-414a-9b0d-d4bc62e699ac",
+        "status": "live",
+        "kind": "evm_contracts",
+        "sourceRepoUrl": "https://github.com/identity-md-launches/launch-1531-please-deploy-repository-contracts",
+        "sourceCommit": "3507c0e002c14ce8cde713bd7c62e6e6e522db4b",
+        "artifacts": [
+          {
+            "name": "JobsReport",
+            "address": "0x58963B57E179f7fE4E95090C21E8e9D75353BCE4",
+            "verifiedAt": null
+          },
+          {
+            "name": "Payroll",
+            "address": "0x6e4362a5cEc59Eb3F611af6b2d81915CF5b45f1F",
+            "verifiedAt": null
+          },
+          {
+            "name": "Questions",
+            "address": "0xEECE4628ceb091C13393fc64056Be8b8501fD3F6",
+            "verifiedAt": null
+          }
+        ],
+        "addressesMatchTheBook": true
+      },
+      {
+        "launch": "b",
+        "launchNumber": 1573,
+        "id": "90de809f-6038-4f0c-9a1f-f3711ea865a9",
+        "status": "live",
+        "kind": "evm_contracts",
+        "sourceRepoUrl": "https://github.com/identity-md-launches/launch-1573-please-deploy-repository-contracts",
+        "sourceCommit": "99f4ab0997bc8c9717f2203d8f3834f15d3220e1",
+        "artifacts": [
+          {
+            "name": "CrowdPots",
+            "address": "0x8C2FfCdcb103659aa05c772b8F2059868B496EB5",
+            "verifiedAt": null
+          },
+          {
+            "name": "Doorbell",
+            "address": "0xFd5ab7E03E8554210Faa3cCd3b9D47C622fffcCb",
+            "verifiedAt": null
+          },
+          {
+            "name": "WorkOrders",
+            "address": "0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2",
+            "verifiedAt": null
+          },
+          {
+            "name": "WorkProof",
+            "address": "0xB268297dB06985ba0b806Ba97BcB90364b137469",
+            "verifiedAt": null
+          }
+        ],
+        "addressesMatchTheBook": true
+      }
+    ],
+    "pendingRounds": [],
+    "launchRequests": []
+  },
+  "reads": {
+    "rpcHosts": [
+      "rpc.mevblocker.io",
+      "ethereum-rpc.publicnode.com"
+    ],
+    "chunkSize": 1500,
+    "logChunks": 19
+  }
+}

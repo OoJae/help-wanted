@@ -1,0 +1,559 @@
+---
+import Commands from "~/components/Commands.astro";
+import FlowBlock from "~/components/FlowBlock.astro";
+import NotLive from "~/components/NotLive.astro";
+import Rich from "~/components/Rich.astro";
+import Stamp from "~/components/Stamp.astro";
+import Layout from "~/layouts/Layout.astro";
+import { bpsPercent, formatImd, formatInt, formatUtc, shortAddress, utcClock, utcDay } from "~/lib/format";
+import { pageData } from "~/lib/page";
+import { etherscanAddress } from "~/config/chain";
+import type { JobsReportModel } from "~/models/jobsReport";
+
+const loaded = await pageData<JobsReportModel>(Astro);
+if (loaded instanceof Response) return loaded;
+const { model: m, meta } = loaded;
+const t = m.tally;
+const o = m.official;
+
+// Chart 1: IMD paid per hour. One series, so the bars are ink and the title names them.
+const W = 720;
+const H = 230;
+const pad = { left: 46, right: 6, top: 22, bottom: 30 };
+const hours = t?.hours ?? [];
+const imd = (wei: bigint) => Number(wei / 10n ** 14n) / 10_000;
+const peak = hours.reduce((max, h) => Math.max(max, imd(h.totalWei)), 0);
+const niceMax = (() => {
+  if (peak <= 0) return 1;
+  const pow = 10 ** Math.floor(Math.log10(peak));
+  // The smallest round ceiling at or above the peak, so the tallest column fills most of the plot.
+  for (const step of [1, 1.5, 2, 3, 4, 5, 6, 8, 10]) if (step * pow >= peak) return step * pow;
+  return 10 * pow;
+})();
+const plotW = W - pad.left - pad.right;
+const plotH = H - pad.top - pad.bottom;
+const slot = hours.length > 0 ? plotW / hours.length : plotW;
+const barW = Math.max(3, Math.min(24, slot - 2));
+const peakIndex = hours.findIndex((h) => imd(h.totalWei) === peak && peak > 0);
+const bars = hours.map((h, index) => {
+  const value = imd(h.totalWei);
+  const height = (value / niceMax) * plotH;
+  const x = pad.left + index * slot + (slot - barW) / 2;
+  const y = pad.top + plotH - height;
+  // Square columns: ink on paper, nothing rounded.
+  const r = 0;
+  const base = pad.top + plotH;
+  const path =
+    height <= 0
+      ? ""
+      : `M${x.toFixed(1)},${base} L${x.toFixed(1)},${(y + r).toFixed(1)} Q${x.toFixed(1)},${y.toFixed(1)} ${(x + r).toFixed(1)},${y.toFixed(1)} L${(x + barW - r).toFixed(1)},${y.toFixed(1)} Q${(x + barW).toFixed(1)},${y.toFixed(1)} ${(x + barW).toFixed(1)},${(y + r).toFixed(1)} L${(x + barW).toFixed(1)},${base} Z`;
+  return {
+    path,
+    cx: x + barW / 2,
+    y,
+    label: `${utcDay(h.start * 1000)} ${utcClock(h.start * 1000)} UTC: ${formatImd(h.totalWei)} IMD in ${h.payments} payment${h.payments === 1 ? "" : "s"}`,
+    tick: new Date(h.start * 1000).getUTCHours() % 6 === 0 ? utcClock(h.start * 1000) : null,
+    value,
+  };
+});
+const ticks = [0, niceMax / 2, niceMax];
+const maxShare = t?.topPayers[0]?.totalWei ?? 0n;
+---
+
+<Layout title={meta.title} description={meta.description} sources={m.sources} generatedAt={m.generatedAt}>
+  <header class="pagehead">
+    <div class="release__head">
+      <div>
+        <h1 class="headline headline--wide">What the robots were paid.</h1>
+        <p class="deck">
+          {o.printed
+            ? "The Robot Jobs Report: the IMD paid for swarm work, as a contract with no owner buys the figure from the swarm's own oracle and stores it on chain. This site's unofficial tally of the same logs is kept beside it."
+            : "The Robot Jobs Report: a running count of the IMD paid for swarm work, from public Transfer logs. It becomes an on-chain release when a contract buys the same figures from the swarm itself; until that contract prints, this is an unofficial tally."}
+        </p>
+      </div>
+      <p class="release__stamp">
+        <Stamp
+          stamp={
+            o.printed
+              ? { text: "OFFICIAL RELEASE", tone: "proof" }
+              : { text: "UNOFFICIAL TALLY", tone: "void" }
+          }
+          mid
+        />
+      </p>
+    </div>
+    <ul class="release__slug">
+      <li>
+        <strong>Statistical release {m.releaseNumber}</strong> · {m.releaseDay}
+      </li>
+      <li>Recomputed about once a minute · last made {formatUtc(m.generatedAt)}</li>
+      <li class="noprint">
+        Technical information: <a href="/jobs-report.json">as JSON</a> ·{" "}
+        <a href="/jobs-report.md">as Markdown</a> · <a href="#technical">technical notes</a> ·{" "}
+        <a href="#reproduce">reproduce it</a>
+      </li>
+    </ul>
+  </header>
+
+  {o.printed && (
+    <section class="section section--first" id="official">
+      <div class="section__head">
+        <h2>The official release</h2>
+        <p>
+          JobsReport{" "}
+          <a class="break data" href={o.contract.url} rel="noopener">
+            {o.contract.address}
+          </a>
+        </p>
+      </div>
+      <p class="release__lede">{m.headline}</p>
+      {o.summary && (
+        <dl class="figures">
+          <div class="figure">
+            <dt>Prints so far</dt>
+            <dd>{formatInt(o.summary.prints)}</dd>
+          </div>
+          <div class="figure">
+            <dt>IMD in all prints</dt>
+            <dd>
+              {formatImd(o.summary.totalWei)} <small>IMD</small>
+            </dd>
+          </div>
+          <div class="figure">
+            <dt>Payments counted</dt>
+            <dd>{formatInt(o.summary.totalCount)}</dd>
+            <span class="note">in {formatInt(o.summary.counts)} counts</span>
+          </div>
+          <div class="figure">
+            <dt>Days printed in a row</dt>
+            <dd>{formatInt(o.summary.streak)}</dd>
+            <span class="note">longest: {formatInt(o.summary.longestStreak)}</span>
+          </div>
+        </dl>
+      )}
+      <div class="tablewrap">
+        <table class="wide stack">
+          <caption>
+            Prints stored on chain, newest first, each beside this site's recount of the same logs
+          </caption>
+          <thead>
+            <tr>
+              <th>Print</th>
+              <th>Blocks</th>
+              <th class="num">IMD paid</th>
+              <th class="num">Payments</th>
+              <th>This site's recount of the same logs</th>
+            </tr>
+          </thead>
+          <tbody>
+            {o.prints.map((print) => (
+              <tr>
+                <th scope="row">{print.index !== null ? `no. ${print.index + 1}` : ""}</th>
+                <td data-label="Blocks">
+                  {formatInt(print.fromBlock)} to {formatInt(print.toBlock)}
+                </td>
+                <td class="num" data-label="IMD paid">
+                  {formatImd(print.amountWei)}
+                </td>
+                <td class="num" data-label="Payments">
+                  {print.countWords}
+                </td>
+                <td data-label="This site's recount of the same logs">
+                  <span class:list={[print.differs && "spot"]}>{print.checkWords}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Payrolls and hires are recomputed by IdentityMD's oracle from chain data before it signs. A count is
+        attached to the print it shares more than half its blocks with, so a count may cover a window shifted
+        by a few blocks: this site recounts the amount over the print's blocks and the count over the count's
+        own.{" "}
+        {o.crown
+          ? `Employers of the week (round ${o.crown.round}, blocks ${formatInt(o.crown.fromBlock)} to ${formatInt(o.crown.toBlock)}): ${o.crown.places.join(", ")}. This list is settled by panel agreement; IdentityMD does not recompute it.`
+          : "Employers of the week: no round has been crowned. That list comes from a feed a panel judges, and the report is complete without it."}
+      </p>
+      <Commands commands={m.officialCommands} />
+    </section>
+  )}
+
+  {t ? (
+    <>
+      <h2 class="release__title">
+        {`${o.printed ? "The unofficial tally, beside it" : "The robot employment situation"}${m.coverage?.span ? `: ${m.coverage.span} to block ${formatInt(t.window.toBlock)}` : ""}`}
+      </h2>
+      <p class="release__lede">{m.summary}</p>
+
+      <dl class="figures">
+        <div class="figure">
+          <dt>Non-human payrolls</dt>
+          <dd>
+            {formatImd(t.totalWei)} <small>IMD</small>
+          </dd>
+        </div>
+        <div class="figure">
+          <dt>Payments</dt>
+          <dd>{formatInt(t.payments)}</dd>
+        </div>
+        <div class="figure">
+          <dt>Employers</dt>
+          <dd>{formatInt(t.payers)}</dd>
+        </div>
+        <div class="figure">
+          <dt>From our own wallets (HOUSE)</dt>
+          <dd>
+            {formatImd(t.houseWei)} <small>IMD</small>
+          </dd>
+        </div>
+      </dl>
+      {m.coverage && (
+        <p class="small" style="margin:0.6rem 0 1.6rem">
+          Coverage: {m.coverage.words}
+          {m.coverage.approxTimes && " Some payment times were estimated from block numbers."}
+        </p>
+      )}
+
+      <aside class="notice notice--spot" aria-label="Unofficial">
+        <span class="label">
+          {o.printed
+            ? "A cross-check, beside the on-chain release"
+            : "Unofficial until the on-chain feed prints"}
+        </span>
+        <p>
+          {o.printed
+            ? `The official figures are the JobsReport contract's own, above. This tally is this site's own arithmetic over the same kind of log, counted the same way: every IMD Transfer log to the fee address, a transfer of zero included. Its block range is its own (the newest day of blocks), so it need not equal a print; where this server holds a print's blocks, the table above counts those exact blocks.`
+            : o.unread
+              ? `The JobsReport contract is at ${o.contract.address}, but it could not be read just now, so this page does not say whether it has printed. Everything here is this site's own arithmetic over public logs, counted as the on-chain feeds count: every IMD Transfer log to the fee address, a transfer of zero included.`
+              : o.launched
+                ? `The JobsReport contract is live at ${o.contract.address} and has not printed yet, so no official figure exists. Everything here is this site's own arithmetic over public logs, counted as the on-chain feeds count: every IMD Transfer log to the fee address, a transfer of zero included.`
+                : `The official report is a contract (JobsReport, launch A) that reads answers bought from IdentityMD's oracle. It is not launched yet, so no official figure exists. Everything here is this site's own arithmetic over public logs, for the block range it states, counted as the on-chain feeds will count: every IMD Transfer log to the fee address, a transfer of zero included. It can be reproduced with the commands at the foot of the page.`}
+        </p>
+      </aside>
+
+      {bars.length > 0 && peak > 0 && (
+        <section class="section">
+          <figure class="chart">
+            <figcaption>
+              Chart 1. IMD paid to the swarm's fee address, by hour{" "}
+              <span>· UTC; the newest {bars.length} hours of the range</span>
+            </figcaption>
+            <svg
+              viewBox={`0 0 ${W} ${H}`}
+              role="img"
+              aria-label={`Column chart of IMD paid per hour. Peak ${peak} IMD.`}
+            >
+              {ticks.map((tick) => {
+                const y = pad.top + plotH - (tick / niceMax) * plotH;
+                return (
+                  <>
+                    {tick > 0 && <line class="grid" x1={pad.left} x2={W - pad.right} y1={y} y2={y} />}
+                    <text x={pad.left - 6} y={y + 4} text-anchor="end">
+                      {tick}
+                    </text>
+                  </>
+                );
+              })}
+              {bars.map((bar) => (
+                <>
+                  {bar.path && (
+                    <path class="bar" d={bar.path} tabindex="0">
+                      <title>{bar.label}</title>
+                    </path>
+                  )}
+                  {bar.tick && (
+                    <text x={bar.cx} y={H - 9} text-anchor="middle">
+                      {bar.tick}
+                    </text>
+                  )}
+                </>
+              ))}
+              {peakIndex >= 0 && bars[peakIndex] && (
+                <text class="peak" x={bars[peakIndex].cx} y={bars[peakIndex].y - 5} text-anchor="middle">
+                  {bars[peakIndex].value}
+                </text>
+              )}
+              <line class="axis" x1={pad.left} x2={W - pad.right} y1={pad.top + plotH} y2={pad.top + plotH} />
+              <text x={pad.left - 6} y={12} text-anchor="end">
+                IMD
+              </text>
+            </svg>
+          </figure>
+          <p class="small noprint">Hover or focus a column for its figures. The same data is in Table E.</p>
+        </section>
+      )}
+
+      <section class="section">
+        <div class="section__head">
+          <h2>Tables</h2>
+          <p>all amounts in IMD · HOUSE means paid by a wallet or contract of ours</p>
+        </div>
+        <div class="cols">
+          <div class="tablewrap">
+            <table>
+              <caption>
+                Table A. Summary <span>· for the block range above</span>
+              </caption>
+              <thead>
+                <tr>
+                  <th>Measure</th>
+                  <th class="num">Total</th>
+                  <th class="num">House</th>
+                  <th class="num">Outside</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">Non-human payrolls, IMD</th>
+                  <td class="num">{formatImd(t.totalWei)}</td>
+                  <td class="num">{formatImd(t.houseWei)}</td>
+                  <td class="num">{formatImd(t.outsideWei)}</td>
+                </tr>
+                <tr>
+                  <th scope="row">Payments</th>
+                  <td class="num">{formatInt(t.payments)}</td>
+                  <td class="num">{formatInt(t.housePayments)}</td>
+                  <td class="num">{formatInt(t.outsidePayments)}</td>
+                </tr>
+                <tr>
+                  <th scope="row">Employers (distinct payers)</th>
+                  <td class="num">{formatInt(t.payers)}</td>
+                  <td class="num" />
+                  <td class="num" />
+                </tr>
+                <tr>
+                  <th scope="row">Largest single payment, IMD</th>
+                  <td class="num">{formatImd(t.largestWei)}</td>
+                  <td class="num" />
+                  <td class="num" />
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="tablewrap">
+            <table>
+              <caption>
+                Table B. By UTC day{" "}
+                <span>· the same range; a day is whole only if the range covers all of it</span>
+              </caption>
+              <thead>
+                <tr>
+                  <th>Day</th>
+                  <th class="num">IMD paid</th>
+                  <th class="num">Payments</th>
+                  <th class="num">Employers</th>
+                  <th>Coverage</th>
+                </tr>
+              </thead>
+              <tbody>
+                {t.days.map((day) => (
+                  <tr>
+                    <th scope="row" class="nowrap">
+                      {day.day}
+                    </th>
+                    <td class="num">{formatImd(day.totalWei)}</td>
+                    <td class="num">{formatInt(day.payments)}</td>
+                    <td class="num">{formatInt(day.payers)}</td>
+                    <td class="small">{day.partial ? "part of the day" : "whole day"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tablewrap">
+          <table class="wide">
+            <caption>
+              Table C. Employers of the period <span>· the ten largest payers</span>
+            </caption>
+            <thead>
+              <tr>
+                <th class="num">Rank</th>
+                <th>Payer</th>
+                <th class="num">IMD paid</th>
+                <th class="num">Payments</th>
+                <th class="num">Share</th>
+                <th style="width:24%">Share of the total</th>
+                <th>Origin</th>
+              </tr>
+            </thead>
+            <tbody>
+              {t.topPayers.length === 0 && (
+                <tr>
+                  <td colspan="7">No payments in the range.</td>
+                </tr>
+              )}
+              {t.topPayers.map((p) => (
+                <tr>
+                  <td class="num">{p.rank}</td>
+                  <td class="code">
+                    <a href={etherscanAddress(p.address)} title={p.address} rel="noopener">
+                      {shortAddress(p.address)}
+                    </a>
+                  </td>
+                  <td class="num">{formatImd(p.totalWei)}</td>
+                  <td class="num">{formatInt(p.payments)}</td>
+                  <td class="num">{bpsPercent(p.shareBps)}</td>
+                  <td>
+                    <span
+                      class="sharebar"
+                      style={`width:${maxShare > 0n ? Math.max(1, Number((p.totalWei * 100n) / maxShare)) : 0}%`}
+                    />
+                  </td>
+                  <td class="small">{p.house ? "HOUSE" : "OUTSIDE"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="cols">
+          <div class="tablewrap">
+            <table>
+              <caption>
+                Table D. Payments by size <span>· one paid action costs 0.5 IMD</span>
+              </caption>
+              <thead>
+                <tr>
+                  <th class="num">Payment, IMD</th>
+                  <th class="num">Count</th>
+                  <th class="num">IMD in all</th>
+                </tr>
+              </thead>
+              <tbody>
+                {t.sizes.length === 0 && (
+                  <tr>
+                    <td colspan="3">No payments in the range.</td>
+                  </tr>
+                )}
+                {t.sizes.slice(0, 8).map((size) => (
+                  <tr>
+                    <td class="num">{formatImd(size.amountWei)}</td>
+                    <td class="num">{formatInt(size.payments)}</td>
+                    <td class="num">{formatImd(size.totalWei)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <details class="plain">
+            <summary>Table E. By hour: the data behind Chart 1</summary>
+            <div class="tablewrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Hour starting (UTC)</th>
+                    <th class="num">IMD paid</th>
+                    <th class="num">Payments</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {t.hours.map((hour) => (
+                    <tr>
+                      <th scope="row" class="nowrap">
+                        {utcDay(hour.start * 1000)} {utcClock(hour.start * 1000)}
+                      </th>
+                      <td class="num">{formatImd(hour.totalWei)}</td>
+                      <td class="num">{formatInt(hour.payments)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </div>
+        {m.earlier && m.earlier.days.length > 0 && (
+          <>
+            <div class="tablewrap">
+              <table>
+                <caption>
+                  Table F. Earlier days held by this server{" "}
+                  <span>· not part of the release above; needs an archive RPC to reproduce</span>
+                </caption>
+                <thead>
+                  <tr>
+                    <th>Day</th>
+                    <th class="num">IMD paid</th>
+                    <th class="num">Payments</th>
+                    <th class="num">Employers</th>
+                    <th>Coverage</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {m.earlier.days.map((day) => (
+                    <tr>
+                      <th scope="row" class="nowrap">
+                        {day.day}
+                      </th>
+                      <td class="num">{formatImd(day.totalWei)}</td>
+                      <td class="num">{formatInt(day.payments)}</td>
+                      <td class="num">{formatInt(day.payers)}</td>
+                      <td class="small">{day.partial ? "part of the day" : "whole day"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p class="small">{m.earlier.note}</p>
+          </>
+        )}
+      </section>
+    </>
+  ) : (
+    <p class="notice">
+      <span class="label">No figures</span>
+      The chain could not be read, so there is no tally to print: {m.tallyError}
+    </p>
+  )}
+
+  <section class="section" id="print">
+    <div class="section__head">
+      <h2>{o.printed ? "Print the next one" : "The official print"}</h2>
+      <p>JobsReport · {o.contract.label}</p>
+    </div>
+    {!o.printed && (
+      <>
+        <p>
+          {o.unread
+            ? "The JobsReport contract could not be read just now. A print appears here as soon as one can be read; the commands below read the contract directly."
+            : o.launched
+              ? "The JobsReport contract is live and has not printed yet. A print appears here as soon as an answered round of the payrolls feed has been copied into it; anyone may call print()."
+              : "Nothing has printed: the JobsReport contract is not launched yet. Once it is, a contract with no owner buys these same figures from IdentityMD's oracle once a day, checks the signed answers and stores them, and this page leads with them as the official release."}{" "}
+          <a href="/questions">The questions it asks, word for word.</a>
+          {o.error && <span class="spot"> The contract could not be read just now: {o.error}</span>}
+        </p>
+        <Commands commands={m.officialCommands} />
+      </>
+    )}
+    {m.flows.map((flow, index) => (
+      <FlowBlock flow={flow} repeat={index > 0} />
+    ))}
+  </section>
+
+  <NotLive notes={m.notLive} />
+
+  <section class="section" id="technical">
+    <div class="section__head">
+      <h2>Technical notes</h2>
+      <p>
+        fee address{" "}
+        <a class="break data" href={m.payeeUrl} rel="noopener">
+          {m.payee}
+        </a>
+      </p>
+    </div>
+    <ol class="footnotes">
+      {m.technicalNotes.map((note) => (
+        <li>
+          <Rich text={note} />
+        </li>
+      ))}
+    </ol>
+    <h3 class="sub" id="reproduce">
+      Reproduce it
+    </h3>
+    <Commands commands={m.commands} />
+  </section>
+</Layout>

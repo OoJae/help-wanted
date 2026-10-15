@@ -1,0 +1,16 @@
+{
+  "note": "Read from Ethereum mainnet with eth_call on 10 Oct 2026 (https://ethereum-rpc.publicnode.com). Raw return and revert bytes, exactly as the node gave them, so the offline tests replay what Payroll will meet on mainnet.",
+  "chainId": 1,
+  "blockNumber": 26164272,
+  "adapter": "0xde152AfB7db5373F34876E1499fbD893A82dD336",
+  "seats": "0x0000eC93127BAA929E58E97dd0095A2BFb38ec1D",
+  "seatCount": 2000,
+  "boundAgentId": 52211,
+  "boundTokenId": 1998,
+  "bindingOfReturn": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ec93127baa929e58e97dd0095a2bfb38ec1d00000000000000000000000000000000000000000000000000000000000007ce",
+  "ownerOfBoundSeat": "0xF98c3BF5F3544F64E60560304b58DcA900A3c4DB",
+  "unboundAgentId": 1,
+  "unboundRevertData": "0x7b65190b0000000000000000000000000000000000000000000000000000000000000001",
+  "missingSeatId": 2000,
+  "missingSeatRevertData": "0xceea21b6"
+}

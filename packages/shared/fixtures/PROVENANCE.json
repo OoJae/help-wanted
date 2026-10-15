@@ -1,0 +1,436 @@
+{
+  "about": "Where every file under fixtures/ came from. All are responses of public, read-only IdentityMD routes, saved byte for byte as served; none was edited. The file name of a work record is its keccak256, which is also the hash WorkRegistry.latest(jobId) holds for its job.",
+  "files": [
+    {
+      "file": "api/health.json",
+      "bytes": 3452,
+      "sha256": "f7dd764ed4a5d7c119836b9800ca78b8993c72aecec79c06872f3b428b8c3247",
+      "source": "GET https://api.imd.fun/health",
+      "fetched": "2026-10-10T19:29Z",
+      "note": "the build's reference folder (REF/protocol), fetched by the coordinator"
+    },
+    {
+      "file": "api/requests-capabilities.json",
+      "bytes": 5964,
+      "sha256": "4d94028a27c17a24fad8a841eea3d4b5c7885356cf7220e6224ea6a3e9fbc695",
+      "source": "GET https://api.imd.fun/requests/capabilities",
+      "fetched": "2026-10-10",
+      "note": "the build's reference folder (REF/protocol), fetched by the coordinator"
+    },
+    {
+      "file": "api/openapi.json",
+      "bytes": 23132,
+      "sha256": "be142840c010710cb2a5b9e5c73e71d8e79ec4054c15661699d60bfa627be96a",
+      "source": "GET https://api.imd.fun/openapi.json",
+      "fetched": "2026-10-10",
+      "note": "the build's reference folder (REF/protocol), fetched by the coordinator"
+    },
+    {
+      "file": "api/job-e9efec16.json",
+      "bytes": 9981,
+      "sha256": "d03c3fc9771942647ae3258220172d54b3c474006b4bb30eb2a2120849bf26ec",
+      "source": "GET https://api.imd.fun/jobs/e9efec16-56f3-40d3-9243-52c453effc7d",
+      "fetched": "2026-10-10",
+      "note": "the build's reference folder (REF/protocol), fetched by the coordinator"
+    },
+    {
+      "file": "api/job-records-e9efec16.json",
+      "bytes": 329,
+      "sha256": "ef7e5a5f88b09b488049ed2d90f9316964731451931c40db5cb2e1d7e37f8310",
+      "source": "GET https://api.imd.fun/jobs/e9efec16-56f3-40d3-9243-52c453effc7d/records",
+      "fetched": "2026-10-10T19:48Z",
+      "note": "fetched by the proof area; copied from its working folder"
+    },
+    {
+      "file": "api/job-result-e9efec16.json",
+      "bytes": 911,
+      "sha256": "20a997d3fe8036d8a0113c7697663af477f87013ce4ecb0621a4f4799f3a0c94",
+      "source": "GET https://api.imd.fun/jobs/e9efec16-56f3-40d3-9243-52c453effc7d/result",
+      "fetched": "2026-10-10T19:58Z"
+    },
+    {
+      "file": "api/launches-limit3.json",
+      "bytes": 2977,
+      "sha256": "fa760f45856fbe76d8a1952fcb5107e3e01ce718ef4ea0c248052feebe2de581",
+      "source": "GET https://api.imd.fun/launches?limit=3",
+      "fetched": "2026-10-10T19:58Z"
+    },
+    {
+      "file": "api/jobs-limit3.json",
+      "bytes": 1662,
+      "sha256": "3a1104aec29a3df08003927ac2101f3fc73f4030ef1700fe28713e62477875cb",
+      "source": "GET https://api.imd.fun/jobs?limit=3&exclude=oracle",
+      "fetched": "2026-10-10T19:59Z"
+    },
+    {
+      "file": "oracle/requests-list.json",
+      "bytes": 115065,
+      "sha256": "6878d7a89db14678b32d46b81a30d08c7eeb80ef5bbb8499b0246566e4834516",
+      "source": "GET https://api.imd.fun/oracle/requests (the 100 newest)",
+      "fetched": "2026-10-10",
+      "note": "the build's reference folder (REF/protocol), fetched by the coordinator"
+    },
+    {
+      "file": "oracle/requests/0247fa06-196b-4e1c-b0a2-7b8d877dec61.json",
+      "bytes": 4458,
+      "sha256": "ed8e32306101dab69437805cc678c2d2ae3a0fec52666cd94be0a6d526f101b3",
+      "source": "GET https://api.imd.fun/oracle/requests/0247fa06-196b-4e1c-b0a2-7b8d877dec61?members=0",
+      "fetched": "2026-10-10T19:53Z to 19:58Z"
+    },
+    {
+      "file": "oracle/requests/03f89e74-3db8-4c10-8fa8-d3424c9a18d4.json",
+      "bytes": 3402,
+      "sha256": "d842641e7386d405291497e04c5128436520b4ea296b70b13a9a5c7758a2ea40",
+      "source": "GET https://api.imd.fun/oracle/requests/03f89e74-3db8-4c10-8fa8-d3424c9a18d4?members=0",
+      "fetched": "2026-10-10T19:53Z to 19:58Z"
+    },
+    {
+      "file": "oracle/requests/0e21ab1a-ca72-4618-b814-d1909aeb5437.json",
+      "bytes": 6360,
+      "sha256": "856b79d9a77f83d94e143811d073d01388b1f2e57967a46b73324246af061a39",
+      "source": "GET https://api.imd.fun/oracle/requests/0e21ab1a-ca72-4618-b814-d1909aeb5437?members=0",
+      "fetched": "2026-10-10T19:53Z to 19:58Z"
+    },
+    {
+      "file": "oracle/requests/4753a6c0-a7a6-4976-a2d6-b4938682f75b.json",
+      "bytes": 3562,
+      "sha256": "516720d3e4fc2cc16d938b1f5964aa7fef52aa93b319348ef6d4ad18f32d212f",
+      "source": "GET https://api.imd.fun/oracle/requests/4753a6c0-a7a6-4976-a2d6-b4938682f75b?members=0",
+      "fetched": "2026-10-10T19:53Z to 19:58Z"
+    },
+    {
+      "file": "oracle/requests/4a3fa40e-32c7-49d1-9a2c-08c30495a2a6.json",
+      "bytes": 3915,
+      "sha256": "870e25526b19c36592bcbb2f8a5a7569343426c34eabb53c0912773d475952ac",
+      "source": "GET https://api.imd.fun/oracle/requests/4a3fa40e-32c7-49d1-9a2c-08c30495a2a6?members=0",
+      "fetched": "2026-10-10T19:53Z to 19:58Z"
+    },
+    {
+      "file": "oracle/requests/5ae8d1b9-ec04-4dd0-ae5e-ce6103436530.json",
+      "bytes": 6763,
+      "sha256": "2ec27e363d72af6b07eb8ec55f627c0ed20991ff2c65538290ff1a628b628aea",
+      "source": "GET https://api.imd.fun/oracle/requests/5ae8d1b9-ec04-4dd0-ae5e-ce6103436530?members=0",
+      "fetched": "2026-10-10T19:53Z to 19:58Z"
+    },
+    {
+      "file": "oracle/requests/8fea4972-1933-4920-9073-216d4033e441.json",
+      "bytes": 14794,
+      "sha256": "0a4e0ed7a55a0d6c192131360d7fba8359bda6039a6ca12b9ca3f774ca98ba99",
+      "source": "GET https://api.imd.fun/oracle/requests/8fea4972-1933-4920-9073-216d4033e441?members=0",
+      "fetched": "2026-10-10T19:53Z to 19:58Z"
+    },
+    {
+      "file": "oracle/requests/9ff2581d-34cf-475e-9930-7c6d40a708ef.json",
+      "bytes": 4359,
+      "sha256": "8bd93da630d031a098a075709493362a6f96db52506155559423f9da86a95b69",
+      "source": "GET https://api.imd.fun/oracle/requests/9ff2581d-34cf-475e-9930-7c6d40a708ef?members=0",
+      "fetched": "2026-10-10T19:53Z to 19:58Z"
+    },
+    {
+      "file": "oracle/requests/a253e04a-7c81-450b-89b9-4952d6e6f9d2.json",
+      "bytes": 1179,
+      "sha256": "71a55f425c84a759515fa3d9af7d414a2880bb518af20ac7e44c0abad9e63923",
+      "source": "GET https://api.imd.fun/oracle/requests/a253e04a-7c81-450b-89b9-4952d6e6f9d2?members=0",
+      "fetched": "2026-10-10T19:53Z to 19:58Z"
+    },
+    {
+      "file": "oracle/requests/a3df0d27-9c5d-4603-b32f-bf9e748b3d36.json",
+      "bytes": 5985,
+      "sha256": "94e301c018c89308bccbdc02bbb11d8d808ecfb98fa42369e25593523b57d9f3",
+      "source": "GET https://api.imd.fun/oracle/requests/a3df0d27-9c5d-4603-b32f-bf9e748b3d36?members=0",
+      "fetched": "2026-10-10T19:53Z to 19:58Z"
+    },
+    {
+      "file": "oracle/requests/c5e21f11-5172-4f9b-a506-9babcdfa47c2.json",
+      "bytes": 2994,
+      "sha256": "948074f18cfa5d2ac4ebe046342e43ee394bd88f83deaae67b7937582952613f",
+      "source": "GET https://api.imd.fun/oracle/requests/c5e21f11-5172-4f9b-a506-9babcdfa47c2?members=0",
+      "fetched": "2026-10-10T19:53Z to 19:58Z"
+    },
+    {
+      "file": "oracle/requests/d5b04a1c-cefc-4177-98b8-b5908efec55e.json",
+      "bytes": 5198,
+      "sha256": "453d844ed38c90f04976e8e0eabba138c38db915dab91e83471dabbc6b869237",
+      "source": "GET https://api.imd.fun/oracle/requests/d5b04a1c-cefc-4177-98b8-b5908efec55e?members=0",
+      "fetched": "2026-10-10T19:53Z to 19:58Z"
+    },
+    {
+      "file": "oracle/requests/dbcac6c2-6328-47a9-8e07-4c7b55f78e45.json",
+      "bytes": 3074,
+      "sha256": "baf343879c08837f6bc4cb32592b4a092034fdaaa9b6ce9f70ed1a13cf168620",
+      "source": "GET https://api.imd.fun/oracle/requests/dbcac6c2-6328-47a9-8e07-4c7b55f78e45?members=0",
+      "fetched": "2026-10-10T19:53Z to 19:58Z"
+    },
+    {
+      "file": "oracle/requests/e8e13011-0901-430d-8f4b-4467e48a4897.json",
+      "bytes": 5969,
+      "sha256": "afb31a1513d33b87ea55db68870460fd16d88270171ccb9e179115b2b9f5fb56",
+      "source": "GET https://api.imd.fun/oracle/requests/e8e13011-0901-430d-8f4b-4467e48a4897?members=0",
+      "fetched": "2026-10-10T19:53Z to 19:58Z"
+    },
+    {
+      "file": "work-records/3db993254c94479c4bf74d1115c7db3bfb48e5859379a4e83467ab6c3338b2c5.json",
+      "bytes": 7339,
+      "sha256": "3324a6a19abd5a338b2f4ae6b3eb0a2c813982d88e19d8d771614a0839fc84a2",
+      "source": "GET https://api.imd.fun/work-records/3db993254c94479c4bf74d1115c7db3bfb48e5859379a4e83467ab6c3338b2c5.json",
+      "fetched": "2026-10-10",
+      "note": "the build's reference folder (REF/protocol), fetched by the coordinator"
+    },
+    {
+      "file": "work-records/7dd1a0a29fe4e46d70e158c199e15643aa79fd495b15a388d50ec5c30826069e.json",
+      "bytes": 8811,
+      "sha256": "0c10caa4c93e6fa849c1a52f982a17ae91cea47f45b9c4741fc458ed6fe0df3a",
+      "source": "GET https://api.imd.fun/work-records/7dd1a0a29fe4e46d70e158c199e15643aa79fd495b15a388d50ec5c30826069e.json",
+      "fetched": "2026-10-10",
+      "note": "fetched by the proof area (launches/b-desk/test/fixtures/proof/records); copied byte for byte"
+    },
+    {
+      "file": "work-records/96c17e09284ace5cfccd4898888e239377959d46750cb914ca93518be4b5ecdc.json",
+      "bytes": 14658,
+      "sha256": "6da88048b696cf41b6b139eb4d7f8f2ca9992938811f2da1e3a074357c815060",
+      "source": "GET https://api.imd.fun/work-records/96c17e09284ace5cfccd4898888e239377959d46750cb914ca93518be4b5ecdc.json",
+      "fetched": "2026-10-10",
+      "note": "fetched by the proof area (launches/b-desk/test/fixtures/proof/records); copied byte for byte"
+    },
+    {
+      "file": "work-records/a28927265e95c209bdc7ccdba4c0c28724137eab6444fc03849a66cb376f43dc.json",
+      "bytes": 3790,
+      "sha256": "132ce8df400753d25e8dbb48c136897c75b7923fe357a2b932c6caba613a1fc1",
+      "source": "GET https://api.imd.fun/work-records/a28927265e95c209bdc7ccdba4c0c28724137eab6444fc03849a66cb376f43dc.json",
+      "fetched": "2026-10-10",
+      "note": "fetched by the proof area (launches/b-desk/test/fixtures/proof/records); copied byte for byte"
+    },
+    {
+      "file": "work-records/b57f89128f5fb7b4f78c710f617d46001a588d2810255a28c2271c8b7b599d86.json",
+      "bytes": 6489,
+      "sha256": "9c8511453f30484321e314f26dae2f87a49c2d492f8cb3380b7df82868db6e4b",
+      "source": "GET https://api.imd.fun/work-records/b57f89128f5fb7b4f78c710f617d46001a588d2810255a28c2271c8b7b599d86.json",
+      "fetched": "2026-10-10",
+      "note": "fetched by the proof area (launches/b-desk/test/fixtures/proof/records); copied byte for byte"
+    },
+    {
+      "file": "work-records/c31895f6240944599210ed0ca59137dc9573673fb61f2aa0c91f047ed8cb7851.json",
+      "bytes": 4140,
+      "sha256": "0286e367f9cdb7b92197c46022694f78b67683bb069b236ade75929acb25df6d",
+      "source": "GET https://api.imd.fun/work-records/c31895f6240944599210ed0ca59137dc9573673fb61f2aa0c91f047ed8cb7851.json",
+      "fetched": "2026-10-10",
+      "note": "fetched by the proof area (launches/b-desk/test/fixtures/proof/records); copied byte for byte"
+    },
+    {
+      "file": "oracle/requests/01604a11-d04f-4960-9b1d-a3811a000048.json",
+      "bytes": 20804,
+      "sha256": "7ce8aa3fe72f91425a22bfe474b13e537fa15aa2c8b17b8fbb61d2189aace158",
+      "source": "GET https://api.imd.fun/oracle/requests/01604a11-d04f-4960-9b1d-a3811a000048?members=0",
+      "fetched": "2026-10-10",
+      "note": "fetched by the questions area (launches/a-payroll/test/fixtures/questions/requests); copied byte for byte"
+    },
+    {
+      "file": "oracle/requests/05ce467c-1900-4a32-87ec-70d499f98536.json",
+      "bytes": 3666,
+      "sha256": "13a119a19209c1269768d68fbcf201dff0957b8761f33c64ddb114e9121897af",
+      "source": "GET https://api.imd.fun/oracle/requests/05ce467c-1900-4a32-87ec-70d499f98536?members=0",
+      "fetched": "2026-10-10",
+      "note": "fetched by the questions area (launches/a-payroll/test/fixtures/questions/requests); copied byte for byte"
+    },
+    {
+      "file": "oracle/requests/13766f38-ef02-45f1-b168-7107d657ee44.json",
+      "bytes": 4200,
+      "sha256": "abf58d053ea1083eec00a1eaae8e5c56b5b385ba0681e922164ef713cdcc473f",
+      "source": "GET https://api.imd.fun/oracle/requests/13766f38-ef02-45f1-b168-7107d657ee44?members=0",
+      "fetched": "2026-10-10",
+      "note": "fetched by the questions area (launches/a-payroll/test/fixtures/questions/requests); copied byte for byte"
+    },
+    {
+      "file": "oracle/requests/18b11d16-705c-494e-b59a-22c6ecdb4cd1.json",
+      "bytes": 8879,
+      "sha256": "d3df9fcbbdbb3d28739717211fa136fe66770834170265a94425d9110999a119",
+      "source": "GET https://api.imd.fun/oracle/requests/18b11d16-705c-494e-b59a-22c6ecdb4cd1?members=0",
+      "fetched": "2026-10-10",
+      "note": "fetched by the questions area (launches/a-payroll/test/fixtures/questions/requests); copied byte for byte"
+    },
+    {
+      "file": "oracle/requests/286b7948-ba7c-41ae-9cc9-7ba15f497876.json",
+      "bytes": 12510,
+      "sha256": "c4742193bf2d294acd22a7216c271fe3b6b5be102d35ce17c883ad9af7667690",
+      "source": "GET https://api.imd.fun/oracle/requests/286b7948-ba7c-41ae-9cc9-7ba15f497876?members=0",
+      "fetched": "2026-10-10",
+      "note": "fetched by the questions area (launches/a-payroll/test/fixtures/questions/requests); copied byte for byte"
+    },
+    {
+      "file": "oracle/requests/383a398f-7fc1-4a43-8c88-37573e64c79d.json",
+      "bytes": 13552,
+      "sha256": "e31a2237ba1c4946fac37f7445191d8186d3c76e8d9c08c1bbd57a4a2768d7a9",
+      "source": "GET https://api.imd.fun/oracle/requests/383a398f-7fc1-4a43-8c88-37573e64c79d?members=0",
+      "fetched": "2026-10-10",
+      "note": "fetched by the questions area (launches/a-payroll/test/fixtures/questions/requests); copied byte for byte"
+    },
+    {
+      "file": "oracle/requests/4886cfab-425d-4130-bc58-a764627f3b26.json",
+      "bytes": 12372,
+      "sha256": "43ff115e0abdafc67ee72199c53ccd9732ec0a6acd114ba1cd3d15dd32f9037f",
+      "source": "GET https://api.imd.fun/oracle/requests/4886cfab-425d-4130-bc58-a764627f3b26?members=0",
+      "fetched": "2026-10-10",
+      "note": "fetched by the questions area (launches/a-payroll/test/fixtures/questions/requests); copied byte for byte"
+    },
+    {
+      "file": "oracle/requests/54d11aa3-3603-45a6-9e7d-abf63e359c29.json",
+      "bytes": 12194,
+      "sha256": "ee2358243528016e5fb638d9bcf6e15dee105423575cd20a383fd70101116975",
+      "source": "GET https://api.imd.fun/oracle/requests/54d11aa3-3603-45a6-9e7d-abf63e359c29?members=0",
+      "fetched": "2026-10-10",
+      "note": "fetched by the questions area (launches/a-payroll/test/fixtures/questions/requests); copied byte for byte"
+    },
+    {
+      "file": "oracle/requests/709556f3-b5c8-4034-a780-9e3a34eed0ee.json",
+      "bytes": 3006,
+      "sha256": "7a38edf89cf15bcb78d00409a2a13dd06201bcce75bdd209dd3b135c50557c20",
+      "source": "GET https://api.imd.fun/oracle/requests/709556f3-b5c8-4034-a780-9e3a34eed0ee?members=0",
+      "fetched": "2026-10-10",
+      "note": "fetched by the questions area (launches/a-payroll/test/fixtures/questions/requests); copied byte for byte"
+    },
+    {
+      "file": "oracle/requests/8f76e26f-125d-4b9f-9fa1-7671699256d9.json",
+      "bytes": 9961,
+      "sha256": "3fb3a6d7ab0b09e66b7aec1c6591c11cfa87635c9338cf2df76dc4e6a1a82f5d",
+      "source": "GET https://api.imd.fun/oracle/requests/8f76e26f-125d-4b9f-9fa1-7671699256d9?members=0",
+      "fetched": "2026-10-10",
+      "note": "fetched by the questions area (launches/a-payroll/test/fixtures/questions/requests); copied byte for byte"
+    },
+    {
+      "file": "oracle/requests/954eba86-a232-4fed-b3ea-e629ebc1e649.json",
+      "bytes": 8288,
+      "sha256": "d704edeffcb0beefa48ec3b77f800bccbddcea6704d367d0785a85891e0e3f2b",
+      "source": "GET https://api.imd.fun/oracle/requests/954eba86-a232-4fed-b3ea-e629ebc1e649?members=0",
+      "fetched": "2026-10-10",
+      "note": "fetched by the questions area (launches/a-payroll/test/fixtures/questions/requests); copied byte for byte"
+    },
+    {
+      "file": "oracle/requests/9b4aa012-184e-4b0b-8c6f-fab11f0cb9e6.json",
+      "bytes": 12644,
+      "sha256": "f0abff628a57fe6045b5d25db8f21c1c6e417caee465dcb7765f8182a2f5e689",
+      "source": "GET https://api.imd.fun/oracle/requests/9b4aa012-184e-4b0b-8c6f-fab11f0cb9e6?members=0",
+      "fetched": "2026-10-10",
+      "note": "fetched by the questions area (launches/a-payroll/test/fixtures/questions/requests); copied byte for byte"
+    },
+    {
+      "file": "oracle/requests/a4d33e90-1c2c-49bd-a4aa-2d8e3f6570f3.json",
+      "bytes": 3658,
+      "sha256": "5f638ed174c66265473bb681dea172866edcec4acdcf10b60e351db85264c4b9",
+      "source": "GET https://api.imd.fun/oracle/requests/a4d33e90-1c2c-49bd-a4aa-2d8e3f6570f3?members=0",
+      "fetched": "2026-10-10",
+      "note": "fetched by the questions area (launches/a-payroll/test/fixtures/questions/requests); copied byte for byte"
+    },
+    {
+      "file": "oracle/requests/b8c51269-16c2-405f-91f9-50722fdedda9.json",
+      "bytes": 5941,
+      "sha256": "b31ac7dfd7ec468772aca95a65df6b9aaec0e360214835e2248552efa12f8d57",
+      "source": "GET https://api.imd.fun/oracle/requests/b8c51269-16c2-405f-91f9-50722fdedda9?members=0",
+      "fetched": "2026-10-10",
+      "note": "fetched by the questions area (launches/a-payroll/test/fixtures/questions/requests); copied byte for byte"
+    },
+    {
+      "file": "oracle/requests/c72be526-171a-41db-8444-bdde0205f87f.json",
+      "bytes": 14803,
+      "sha256": "1e404d98658cc84e4e0a1f5fa5e58af21978a2e59edf046db8212fef9c5099c3",
+      "source": "GET https://api.imd.fun/oracle/requests/c72be526-171a-41db-8444-bdde0205f87f?members=0",
+      "fetched": "2026-10-10",
+      "note": "fetched by the questions area (launches/a-payroll/test/fixtures/questions/requests); copied byte for byte"
+    },
+    {
+      "file": "oracle/requests/cd04b41d-3f6c-4fcd-a1c0-865a62fbd102.json",
+      "bytes": 5713,
+      "sha256": "2d5580b7ca792cbc737bf729e5616082888a3ef6427ce51cc4ae7c5a3b464f0c",
+      "source": "GET https://api.imd.fun/oracle/requests/cd04b41d-3f6c-4fcd-a1c0-865a62fbd102?members=0",
+      "fetched": "2026-10-10",
+      "note": "fetched by the questions area (launches/a-payroll/test/fixtures/questions/requests); copied byte for byte"
+    },
+    {
+      "file": "oracle/requests/dcc0a889-47e2-4320-972e-6543c96eb98d.json",
+      "bytes": 13503,
+      "sha256": "506a294506b652f3d9c81602f34f90c6b60f3463270b29d4865590653bc11543",
+      "source": "GET https://api.imd.fun/oracle/requests/dcc0a889-47e2-4320-972e-6543c96eb98d?members=0",
+      "fetched": "2026-10-10",
+      "note": "fetched by the questions area (launches/a-payroll/test/fixtures/questions/requests); copied byte for byte"
+    },
+    {
+      "file": "oracle/requests/f9e472ad-8963-4c3f-9871-b14b4160a8af.json",
+      "bytes": 5533,
+      "sha256": "a5d29d538d8d38a8fb07ddae700858056b3659f1b8547f03aca2972c1ad34e2e",
+      "source": "GET https://api.imd.fun/oracle/requests/f9e472ad-8963-4c3f-9871-b14b4160a8af?members=0",
+      "fetched": "2026-10-10",
+      "note": "fetched by the questions area (launches/a-payroll/test/fixtures/questions/requests); copied byte for byte"
+    },
+    {
+      "file": "work-records/56cfc4e2e4c6a1395d96349c2a39c5ba16351881916539b32a188f13936eb4dc.json",
+      "bytes": 6284,
+      "sha256": "a1dfd6e12a7d6a1c9fe182e9c9bc24f431a40f013eda9a329ed5c9833e3797bf",
+      "source": "GET https://api.imd.fun/work-records/56cfc4e2e4c6a1395d96349c2a39c5ba16351881916539b32a188f13936eb4dc.json",
+      "fetched": "2026-10-10",
+      "note": "fetched by the proof area (launches/b-desk/test/fixtures/proof/records); copied byte for byte. The second, superseding record of job 97804d2b: its previousHash is b57f8912… (also kept here) and its signals list is empty"
+    },
+    {
+      "file": "api/requests-paid-by-424f7381.json",
+      "bytes": 32113,
+      "sha256": "e947d620f0d9caecaa85543e2df44c3c28357ff7b720b21a67c17434b1eee472",
+      "source": "GET https://api.imd.fun/requests/paid-by/0x424f7381b6cfe63963732c52613c87cb54c5c755",
+      "fetched": "2026-10-10T23:48Z",
+      "note": "the wallet that paid for job e9efec16 (its paidBy); 59 orders of five kinds, all admitted"
+    },
+    {
+      "file": "api/requests-capabilities-2026-10-13.json",
+      "bytes": 6096,
+      "sha256": "a6234d4f3135c91e3da370ef2e52c4e7e5ddf38e37a1da6e63cd667fab38cc9e",
+      "source": "GET https://api.imd.fun/requests/capabilities",
+      "fetched": "2026-10-13T07:08Z",
+      "note": "names version 2 of the Intake (0xa43e…de82) for chains 1, 4663 and 11155111, with version 1 under legacyIntakes; the older capabilities fixture beside it predates version 2"
+    },
+    {
+      "file": "api/intake/1-c75123bf-no-callback-completing.json",
+      "bytes": 1524,
+      "sha256": "2265b462fd9ad31ecfa1d5a4762b3e466332480f0038fb237e12c97da52d6da2",
+      "source": "GET https://api.imd.fun/intake/1/0xc75123bfb4cd49e0f1c55b236443b2a6d6d93ac981cd3e62f4f931bc2abc9cee",
+      "fetched": "2026-10-13T07:07Z",
+      "note": "the payrolls proof request of launch A (version 1 Intake, no callback), bought 2026-10-12T23:48Z and attested 52 seconds after admission: still `completing` with its completion `queued` and attempts 0, seven hours and nineteen minutes later"
+    },
+    {
+      "file": "api/intake/1-2673172b-callback-completed.json",
+      "bytes": 1760,
+      "sha256": "90cd0225c4a7f1b9c992e1a125469c0e6291b17479e4cf8fcf9d753a1cacf14c",
+      "source": "GET https://api.imd.fun/intake/1/0x2673172b19f78c88238896631db5f95613c9e803e466a325f3677a2b3e182391",
+      "fetched": "2026-10-13T07:08Z",
+      "note": "a request another contract made through version 2 with a callback (block 26,179,326): completed and delivered at block 26,180,690, four and a half hours after it was made"
+    },
+    {
+      "file": "api/intake/1-60f932bc-callback-completing.json",
+      "bytes": 1600,
+      "sha256": "b96124a0e8512f4b87528fd66b290441d6d1c0291741827c1ee2b297a3a4b150",
+      "source": "GET https://api.imd.fun/intake/1/0x60f932bc7896d9131c95406276f08c6f67c05e314e47c05e08828104dc029bdc",
+      "fetched": "2026-10-13T07:09Z",
+      "note": "a request another contract made through version 2 with a callback (block 26,179,877, admitted 00:07Z, attested 00:09Z): still `completing`, completion `queued`, attempts 0, seven hours later"
+    },
+    {
+      "file": "api/intake/1-f019b4aa-two-requests.json",
+      "bytes": 3408,
+      "sha256": "f619c3ccd1daa86a19e57d2c6dc26539be698c268dfb92a8423f498765349254",
+      "source": "GET https://api.imd.fun/intake/1/0xf019b4aa857b7feb10630c7c9c0acfa6c37b15c48fcc1c9931fa74f8b1932561",
+      "fetched": "2026-10-13T07:09Z",
+      "note": "one transaction that made two requests through version 2: two entries, both completed and delivered"
+    },
+    {
+      "file": "oracle/pending/ebe551f9-attestation.json",
+      "bytes": 1641,
+      "sha256": "038a8d9a1284ae55ad656b9e6b31781bec1af63c182ea4c2c1fb05da01d68ff9",
+      "source": "GET https://api.imd.fun/oracle/requests/ebe551f9-ceb1-4515-becb-2af7e69f5242/attestation",
+      "fetched": "2026-10-13T07:09Z",
+      "note": "the signed answer of the request in api/intake/1-60f932bc…: public seven hours before any callback. Its body named a `consumer` of its own, so the domain's verifying contract is that consumer and not the callback target"
+    },
+    {
+      "file": "oracle/pending/ebe551f9-request.json",
+      "bytes": 8559,
+      "sha256": "4c27f4718457bed84c6ea54368a6cdf02509d72c148ca5b1b19cd0170ef71d70",
+      "source": "GET https://api.imd.fun/oracle/requests/ebe551f9-ceb1-4515-becb-2af7e69f5242?members=0",
+      "fetched": "2026-10-13T07:09Z",
+      "note": "the oracle's record of the same request, with its `consumer`"
+    }
+  ]
+}

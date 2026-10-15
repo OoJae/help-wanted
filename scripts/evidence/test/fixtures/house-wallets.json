@@ -1,0 +1,39 @@
+{
+  "description": "Every wallet and contract the HELP WANTED team controls. Activity from these addresses is labelled HOUSE in every count we publish; everything else is OUTSIDE.",
+  "chainId": 1,
+  "wallets": [
+    {
+      "label": "W1",
+      "address": "0x871e507B6a70F858Ad4B414bddb77473630C366b",
+      "role": "Pays for every launch and paid action; the prize wallet; the team's depositor"
+    },
+    {
+      "label": "H1",
+      "address": "0x60CcC928eb8EEE1d64CA0164565BfA9858669560",
+      "role": "Hot key for the runner and keeper bots; holds a small float only"
+    }
+  ],
+  "contracts": [
+    {
+      "label": "Questions",
+      "launch": "A (#1531)",
+      "address": "0xEECE4628ceb091C13393fc64056Be8b8501fD3F6",
+      "deployedIn": "0x9ce6111c9f454373ac208cc9b54ebd0a4b09e58706f20e568f0f9e8bbb392c58",
+      "block": 26182869
+    },
+    {
+      "label": "JobsReport",
+      "launch": "A (#1531)",
+      "address": "0x58963B57E179f7fE4E95090C21E8e9D75353BCE4",
+      "deployedIn": "0x9ce6111c9f454373ac208cc9b54ebd0a4b09e58706f20e568f0f9e8bbb392c58",
+      "block": 26182869
+    },
+    {
+      "label": "Payroll",
+      "launch": "A (#1531)",
+      "address": "0x6e4362a5cEc59Eb3F611af6b2d81915CF5b45f1F",
+      "deployedIn": "0x9ce6111c9f454373ac208cc9b54ebd0a4b09e58706f20e568f0f9e8bbb392c58",
+      "block": 26182869
+    }
+  ]
+}

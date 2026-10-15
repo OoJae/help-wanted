@@ -1,0 +1,54 @@
+{
+  "name": "@help-wanted/indexer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The HELP WANTED indexer: one small process that mirrors the chain events and public API data the pages, the bots and the evidence pack read.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/db/schema.ts",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "hw-indexer": "./src/cli.ts"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "start": "tsx src/cli.ts run",
+    "dev": "tsx watch src/cli.ts run",
+    "once": "tsx src/cli.ts once",
+    "backfill": "tsx src/cli.ts backfill",
+    "skip": "tsx src/cli.ts skip",
+    "reproject": "tsx src/cli.ts reproject",
+    "rewind": "tsx src/cli.ts rewind",
+    "snapshot": "tsx src/cli.ts snapshot",
+    "status": "tsx src/cli.ts status",
+    "migrate": "tsx src/cli.ts migrate",
+    "db:generate": "drizzle-kit generate",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@help-wanted/shared": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "pg": "^8.23.1",
+    "tsx": "^4.23.15",
+    "viem": "^2.57.4",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.11",
+    "prettier": "^3.9.10",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

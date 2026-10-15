@@ -1,0 +1,54 @@
+# A second, optional Foundry project: Rules, Endowments and Zap run against the REAL sources of the
+# contracts they will meet on chain, which belong to the two earlier launches of HELP WANTED:
+# Questions (launch A, `a-payroll`), WorkOrders, WorkProof and CrowdPots (launch B, `b-desk`).
+#
+# It builds only where the three launch projects sit side by side, as they do in the HELP WANTED
+# repository:
+#
+#     launches/a-payroll   launches/b-desk   launches/c-company   (this folder is c-company/integration)
+#
+# Nothing is copied. The sibling sources are compiled from where they are, through the remappings
+# below, with the compiler settings a launch requires. The project one level up never compiles this
+# folder, so it builds and tests alone, as a repository root, with or without its siblings.
+#
+#     cd integration && forge test
+[profile.default]
+src = "test"
+test = "test"
+out = "out"
+cache_path = "cache"
+libs = ["../lib"]
+solc = "0.8.26"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+via_ir = true
+bytecode_hash = "none"
+cbor_metadata = false
+ffi = false
+allow_paths = ["../.."]
+remappings = [
+    "forge-std/=../lib/forge-std/src/",
+    "@openzeppelin/contracts/=../lib/openzeppelin-contracts/contracts/",
+    "c-company/=../",
+    "a-payroll/=../../a-payroll/",
+    "b-desk/=../../b-desk/",
+]
+# What the tests read besides their own code: one real IdentityMD work record stored by launch B, so
+# that the real WorkProof has real bytes to prove; this launch's documents, whose shell commands are
+# held against the real contracts; the ABIs the compiler wrote for those contracts; and the HELP
+# WANTED repository's book of deployed addresses, which the manifest's addresses are held against.
+# Nothing is written.
+fs_permissions = [
+    { access = "read", path = "../../../packages/shared/src/deployments.ts" },
+    { access = "read", path = "../../b-desk/test/fixtures/proof/records" },
+    { access = "read", path = "../docs" },
+    { access = "read", path = "../README.md" },
+    { access = "read", path = "./out" },
+]
+
+[profile.default.fuzz]
+runs = 256
+
+[fmt]
+line_length = 120

@@ -1,0 +1,17 @@
+# Applies to `docker build -f apps/web/Dockerfile .` from the repository root.
+# Everything is left out except what the site needs.
+**
+!package.json
+!pnpm-workspace.yaml
+!pnpm-lock.yaml
+!tsconfig.base.json
+!apps/web/**
+!packages/shared/**
+**/node_modules
+**/dist
+**/.astro
+**/.shots
+**/test
+**/.env
+**/.env.*
+!**/.env.example

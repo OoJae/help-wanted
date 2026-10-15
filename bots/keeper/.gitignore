@@ -1,0 +1,10 @@
+# The keeper's local state (what it sent, what it spent today) and its status file.
+data/
+*.KILL
+# Local settings. Never commit a key.
+.env
+.env.*
+!.env.example
+# Build output of the stand-in contracts used only by the integration test.
+contracts/out/
+contracts/cache/

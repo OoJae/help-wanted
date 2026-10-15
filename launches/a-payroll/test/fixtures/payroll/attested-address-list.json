@@ -1,0 +1,15 @@
+{
+  "note": "The answer bytes of a real attested address-list oracle request, copied from the request as the IdentityMD API served it (the Questions area keeps the full request in test/fixtures/questions/requests/a4d33e90-1c2c-49bd-a4aa-2d8e3f6570f3.json). JobsReport.crown is tested against these bytes: the list is ABI-encoded (offset, length, entries) and holds one address, because the signed list is cut to the request's head of 1.",
+  "requestId": "a4d33e90-1c2c-49bd-a4aa-2d8e3f6570f3",
+  "url": "/oracle/requests/a4d33e90-1c2c-49bd-a4aa-2d8e3f6570f3",
+  "question": "Which address sent the most PEPE (Pepe, token 0x6982508145454ce325ddbe47a25d4ec3d2311933) on Ethereum mainnet in the last 3 hours? Rank senders by the sum of value over Transfer events of that contract, grouped by from; answer the top 5, largest first, ties by ascending address.",
+  "answerType": "address[]",
+  "head": 1,
+  "chainId": 1,
+  "fromBlock": 26025547,
+  "toBlock": 26026440,
+  "answer": "0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000001000000000000000000000000700e0841ce0892969d2f9cf523c6298b3ef056a6",
+  "answerKeccak": "0x7858a708c529d1c9585c493500945ace758d8a8720db875167b9edf8ca16b2b1",
+  "first": "0x700e0841ce0892969d2f9cf523c6298b3ef056a6",
+  "places": 1
+}

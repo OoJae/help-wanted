@@ -1,0 +1,49 @@
+---
+import Stamp from "~/components/Stamp.astro";
+import Layout from "~/layouts/Layout.astro";
+import { STATIC_PATHS } from "~/models/registry";
+
+interface Props {
+  error?: unknown;
+}
+
+Astro.response.status = 500;
+---
+
+<Layout
+  title="This page could not be made"
+  description="The server failed while making this page. Nothing on it is evidence of anything."
+  path="/500"
+  noindex
+>
+  <header class="pagehead">
+    <div class="lost">
+      <div>
+        <h1 class="headline headline--wide">Stop press: this page could not be made.</h1>
+        <p class="deck">
+          The server failed while putting this page together. That is our fault, not a finding about any job
+          or contract. Try again in a minute, or read one of the pages below.
+        </p>
+        <p class="actions">
+          <a class="btn" href="/">
+            Back to the front page
+          </a>
+          <a class="btn btn--ghost" href="/api/v1/status">
+            Whether the data sources answer
+          </a>
+        </p>
+      </div>
+      <p class="release__stamp">
+        <Stamp stamp={{ text: "STOP PRESS", tone: "void" }} big />
+      </p>
+    </div>
+  </header>
+  <ul class="index">
+    {STATIC_PATHS.map((p) => (
+      <li>
+        <a href={p.path}>{p.label}</a>
+        <p>{p.blurb}</p>
+      </li>
+    ))}
+  </ul>
+</Layout>

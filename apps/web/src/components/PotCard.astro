@@ -1,0 +1,46 @@
+---
+import type { PotCard } from "~/models/cards";
+import { sentenceCase } from "~/lib/stamp";
+import Stamp from "./Stamp.astro";
+
+interface Props {
+  card: PotCard;
+}
+
+const { card } = Astro.props;
+const colon = card.headline.indexOf(": ");
+const cry = colon === -1 ? card.headline : card.headline.slice(0, colon + 1);
+const wanted = colon === -1 ? "" : card.headline.slice(colon + 2);
+---
+
+<article class="ad">
+  <h3 class="ad__head">
+    <a href={card.path}>
+      <span>{cry}</span> <span>{wanted}</span>
+    </a>
+  </h3>
+  <p class="ad__pay">{card.progress}</p>
+  {card.percent !== null && (
+    <div class="meter" role="img" aria-label={`${card.percent}% of the target raised`}>
+      <span style={`width:${Math.min(100, card.percent)}%`} />
+    </div>
+  )}
+  <ul class="ad__meta">
+    {card.deadlineWords && <li>{card.deadlineWords}</li>}
+    {card.paysOn && <li>{card.paysOn}</li>}
+    <li>
+      {card.sample && (
+        <>
+          <span class="tag tag--spot">SAMPLE</span>{" "}
+        </>
+      )}
+      Pot {card.id}
+    </li>
+  </ul>
+  <div class="ad__foot">
+    <p class="ad__links">
+      <a href={card.path}>The pot</a>
+    </p>
+    {card.stamp ? <Stamp stamp={card.stamp} /> : <span class="status">{sentenceCase(card.stageWords)}</span>}
+  </div>
+</article>

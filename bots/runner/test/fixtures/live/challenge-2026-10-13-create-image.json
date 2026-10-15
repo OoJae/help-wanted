@@ -1,0 +1,62 @@
+{
+  "requestId": "91f8b530-2041-4df2-94c6-1f25c6dab7a4",
+  "body": {
+    "x402Version": 2,
+    "resource": {
+      "url": "https://api.imd.fun/requests/91f8b530-2041-4df2-94c6-1f25c6dab7a4",
+      "description": "One job.open request",
+      "mimeType": "application/json"
+    },
+    "accepts": [
+      {
+        "scheme": "exact",
+        "network": "eip155:1",
+        "asset": "0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7",
+        "amount": "500000000000000000",
+        "payTo": "0x4e0fa57bde726079356537e2f34d671e9f41adbc",
+        "maxTimeoutSeconds": 300,
+        "extra": {
+          "assetTransferMethod": "permit2"
+        }
+      }
+    ],
+    "quote": {
+      "v": 1,
+      "id": "91f8b530-2041-4df2-94c6-1f25c6dab7a4",
+      "action": "job.open",
+      "policyVersion": "job-1",
+      "inputHash": "3722ce03ff104bd6c19f9d1751eb2be0af35ebc54354d08104fa492c80354d80",
+      "issuedAt": 1791911305,
+      "expiresAt": 1791911905,
+      "payment": {
+        "network": "eip155:1",
+        "asset": "0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7",
+        "amount": "500000000000000000",
+        "payTo": "0x4e0fa57bde726079356537e2f34d671e9f41adbc",
+        "decimals": 18,
+        "scheme": "exact"
+      },
+      "terms": {
+        "purchase": "action-admission",
+        "resultGuaranteed": false
+      },
+      "quoteHash": "17546e55dd2ec2f205fd71fbc144a8261073e977bea1852f10991d40bdf8995d"
+    },
+    "requesterScopeHash": "4effd6a1b671a2ba24a596f2efbd6f7a44e063e6c2bc04adbe3d5cb037189005",
+    "resourceUrl": "https://api.imd.fun/requests/91f8b530-2041-4df2-94c6-1f25c6dab7a4",
+    "input": {
+      "contracts": [],
+      "github": false,
+      "objective": "[help-wanted order bd87367fc83372def576d4f8a370d72e295e10e2572f796ec8f1af720fa36d80] Draw the doorbell of the day. Make one square picture of a single doorbell next to a front door, in a visual style chosen fresh for today so that no two days look alike. Write the current UTC date as YYYY-MM-DD in small plain lettering in the lower right corner and put no other text in the picture. This job was ordered on chain by the HELP WANTED Doorbell, a contract with no owner that hires the swarm on every 25th ring.",
+      "outputs": [
+        {
+          "mediaType": "image/png",
+          "name": "image",
+          "path": "artifacts/image.png"
+        }
+      ],
+      "skill": "create-image"
+    }
+  },
+  "paymentRequired": "eyJ4NDAyVmVyc2lvbiI6MiwicmVzb3VyY2UiOnsidXJsIjoiaHR0cHM6Ly9hcGkuaW1kLmZ1bi9yZXF1ZXN0cy85MWY4YjUzMC0yMDQxLTRkZjItOTRjNi0xZjI1YzZkYWI3YTQiLCJkZXNjcmlwdGlvbiI6Ik9uZSBqb2Iub3BlbiByZXF1ZXN0IiwibWltZVR5cGUiOiJhcHBsaWNhdGlvbi9qc29uIn0sImFjY2VwdHMiOlt7InNjaGVtZSI6ImV4YWN0IiwibmV0d29yayI6ImVpcDE1NToxIiwiYXNzZXQiOiIweGQzNGE5OWJjMGY2N2FlMWJiZDYzYzY2MGU2ZDBiMGRkMDNlMjYzYjciLCJhbW91bnQiOiI1MDAwMDAwMDAwMDAwMDAwMDAiLCJwYXlUbyI6IjB4NGUwZmE1N2JkZTcyNjA3OTM1NjUzN2UyZjM0ZDY3MWU5ZjQxYWRiYyIsIm1heFRpbWVvdXRTZWNvbmRzIjozMDAsImV4dHJhIjp7ImFzc2V0VHJhbnNmZXJNZXRob2QiOiJwZXJtaXQyIn19XX0="
+}

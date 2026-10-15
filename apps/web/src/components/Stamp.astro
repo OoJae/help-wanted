@@ -1,0 +1,35 @@
+---
+/**
+ * A rubber stamp. The final marks (FILLED, PROVEN ON CHAIN, REFUNDED) are drawn as stamps; a status
+ * that is still moving (TAKEN, AT WORK) is set in type instead, because nothing has been stamped yet.
+ */
+import type { Stamp } from "~/models/cards";
+import { sentenceCase, stampBox, stampClass, stampInner, stampStyle, type StampInk } from "~/lib/stamp";
+
+interface Props {
+  stamp: Stamp;
+  big?: boolean;
+  /** Between the card size and the verdict size. */
+  mid?: boolean;
+  tilt?: boolean;
+  fresh?: boolean;
+}
+
+const { stamp, big = false, mid = false, tilt = false, fresh = false } = Astro.props;
+const ink: StampInk | null = stamp.tone === "live" ? null : stamp.tone;
+const box = ink ? stampBox(stamp.text, ink) : null;
+---
+
+{ink && box ? (
+  <svg
+    class={stampClass({ ink, size: big ? "big" : mid ? "mid" : "card", tilt })}
+    viewBox={`0 0 ${box.width} ${box.height}`}
+    style={stampStyle(stamp.text, ink)}
+    role="img"
+    aria-label={`Stamped: ${stamp.text}`}
+    data-fresh={fresh ? "" : undefined}
+    set:html={stampInner(stamp.text, ink)}
+  />
+) : (
+  <span class="status">{sentenceCase(stamp.text)}</span>
+)}

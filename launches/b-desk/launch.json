@@ -1,0 +1,40 @@
+{
+  "kind": "evm_contracts",
+  "contracts": [
+    {
+      "contract": "WorkProof",
+      "constructorArgs": [
+        "0xb6d0a187b050fa5bb0b87033a203f37becf4a775"
+      ]
+    },
+    {
+      "contract": "WorkOrders",
+      "constructorArgs": [
+        "0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7",
+        "$contract:WorkProof",
+        "0x6e4362a5cec59eb3f611af6b2d81915cf5b45f1f"
+      ]
+    },
+    {
+      "contract": "CrowdPots",
+      "constructorArgs": [
+        "0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7",
+        "$contract:WorkOrders"
+      ]
+    },
+    {
+      "contract": "Doorbell",
+      "constructorArgs": [
+        "0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7",
+        "$contract:WorkOrders",
+        "0x7679ff00d2b015b122f4c00147c1004ea6657aada5fff65e72986b90c6869185",
+        "1000000000000000000",
+        "1000000000000000000",
+        "250000000000000000",
+        "604800",
+        "1"
+      ]
+    }
+  ],
+  "notes": "Contracts only. No token, no owner, nothing to call after deployment. WorkOrders' third argument is the address of Payroll from our earlier launch, number 1531."
+}

@@ -1,0 +1,4 @@
+{
+  "description": "Launches of HELP WANTED that have been requested from IdentityMD's launch pipeline and are not in the deployments book yet. Each entry names the pipeline job; the evidence builder reads that job's state from IdentityMD's public API and prints it under the launch, which stays \"not launched\" until its addresses are in the book. A requested launch is not a launch. Once a launch is in the book its entry here is ignored and can be removed.",
+  "requests": []
+}

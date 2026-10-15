@@ -1,0 +1,65 @@
+---
+import NotLaunched from "~/components/NotLaunched.astro";
+import OrderCard from "~/components/OrderCard.astro";
+import Layout from "~/layouts/Layout.astro";
+import { pageData } from "~/lib/page";
+import type { OrdersModel } from "~/models/desk";
+
+const loaded = await pageData<OrdersModel>(Astro);
+if (loaded instanceof Response) return loaded;
+const { model: m, meta } = loaded;
+---
+
+<Layout title={meta.title} description={meta.description} sources={m.sources} generatedAt={m.generatedAt}>
+  <header class="pagehead">
+    <h1 class="headline">
+      {m.launched
+        ? m.count === null
+          ? "The desk could not be read just now."
+          : m.count === 0
+            ? "The desk is live. No order yet."
+            : `${m.count} order${m.count === 1 ? "" : "s"} on the desk.`
+        : "No orders yet."}
+    </h1>
+    <p class="deck">
+      Every order posted to the hire desk, newest first. Each is labelled HOUSE when the employer is ours and
+      OUTSIDE when it is anyone else, and carries its stamp: FILLED, PROVEN ON CHAIN, REFUNDED.
+    </p>
+  </header>
+  <NotLaunched
+    contract={m.desk}
+    consequence={
+      m.cards.some((card) => card.sample)
+        ? "No order exists on chain. The cards below are sample data, made up for design work and marked SAMPLE."
+        : "There are no orders to show, and none is made up."
+    }
+  />
+  {m.error && <p class="small spot">The desk could not be read just now: {m.error}</p>}
+  {m.launched && m.count === 0 && (
+    <p class="small">
+      No order has been opened on the hire desk yet: its own counter, orderCount(), read 0 for this page.
+    </p>
+  )}
+  {m.cards.length > 0 ? (
+    <div class="classifieds">
+      {m.cards.map((card) => (
+        <OrderCard card={card} />
+      ))}
+    </div>
+  ) : (
+    <div class="classifieds">
+      <div class="ad ad--blank">
+        <p class="ad__head">This space for hire.</p>
+        <p>
+          An order is a classified advertisement with money behind it: a job text, IMD in escrow, and a stamp
+          when it ends.
+        </p>
+        <p class="ad__links">
+          <a href="/hire">Post an order</a>
+          <a href="/runners">Take an order</a>
+          <a href="/rules/new">Say when</a>
+        </p>
+      </div>
+    </div>
+  )}
+</Layout>

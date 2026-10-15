@@ -1,0 +1,163 @@
+---
+import Commands from "~/components/Commands.astro";
+import FlowBlock from "~/components/FlowBlock.astro";
+import NotLaunched from "~/components/NotLaunched.astro";
+import Layout from "~/layouts/Layout.astro";
+import { formatImd, formatUnits } from "~/lib/format";
+import { pageData } from "~/lib/page";
+import type { EndowmentsModel } from "~/models/money";
+
+const loaded = await pageData<EndowmentsModel>(Astro);
+if (loaded instanceof Response) return loaded;
+const { model: m, meta } = loaded;
+---
+
+<Layout title={meta.title} description={meta.description} sources={m.sources} generatedAt={m.generatedAt}>
+  <header class="pagehead">
+    <h1 class="headline headline--wide">Pay the robots with the interest. Keep the principal.</h1>
+    <p class="deck">
+      Deposit IMD, keep the right to take exactly that much back, and let only the staking yield pay for work:
+      a feed's answers, a recurring pot, or a recipient.
+    </p>
+  </header>
+
+  <NotLaunched contract={m.endowments} consequence="Nothing can be deposited today." />
+  {m.error && <p class="small spot">Endowments could not be read just now: {m.error}</p>}
+
+  {m.launched && (
+    <section class="section section--first" id="list">
+      <div class="section__head">
+        <h2>Endowments</h2>
+        <p>
+          {m.count === null ? "the count could not be read just now" : `${m.count} created · newest first`}
+        </p>
+      </div>
+      {m.rows.length > 0 ? (
+        <div class="tablewrap">
+          <table class="wide stack">
+            <thead>
+              <tr>
+                <th>Endowment</th>
+                <th>Yield goes to</th>
+                <th class="num">Principal, IMD</th>
+                <th class="num">Waiting to be staked, IMD</th>
+                <th class="num">Harvested so far, IMD</th>
+                <th>Harvestable now</th>
+              </tr>
+            </thead>
+            <tbody>
+              {m.rows.map((row) => (
+                <tr>
+                  <th scope="row">#{row.id}</th>
+                  <td class="break" data-label="Yield goes to">
+                    {row.target}
+                  </td>
+                  <td class="num" data-label="Principal, IMD">
+                    {row.principalImd}
+                  </td>
+                  <td class="num" data-label="Waiting to be staked, IMD">
+                    {row.waitingImd}
+                  </td>
+                  <td class="num" data-label="Harvested so far, IMD">
+                    {row.harvestedImd}
+                  </td>
+                  <td data-label="Harvestable now">{row.harvestable}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p class="notice notice--quiet">No endowment has been created yet.</p>
+      )}
+      {m.stakingNote && <p class="small">{m.stakingNote}</p>}
+    </section>
+  )}
+
+  <section class:list={["section", !m.launched && "section--first"]}>
+    <div class="section__head">
+      <h2>How it works</h2>
+      <p>only the yield is ever spent</p>
+    </div>
+    <div class="cols cols--ruled">
+      <ol>
+        {m.how.map((step) => (
+          <li>{step}</li>
+        ))}
+      </ol>
+      <div class="tablewrap">
+        <table>
+          <caption>What the yield can fund</caption>
+          <thead>
+            <tr>
+              <th>Target</th>
+              <th>What happens to the yield</th>
+            </tr>
+          </thead>
+          <tbody>
+            {m.targets.map((t) => (
+              <tr>
+                <th scope="row">{t.name}</th>
+                <td>{t.detail}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section__head">
+      <h2>sIMD today</h2>
+      <p>read live · no yield rate is quoted</p>
+    </div>
+    {m.staking ? (
+      <dl class="figures">
+        <div class="figure">
+          <dt>IMD held by sIMD</dt>
+          <dd>{formatImd(m.staking.totalAssetsWei, 0)}</dd>
+        </div>
+        <div class="figure">
+          <dt>One whole share converts to</dt>
+          <dd>
+            {formatUnits(m.staking.assetsPerShareWei, 18).slice(0, 10)} <small>IMD</small>
+          </dd>
+        </div>
+      </dl>
+    ) : (
+      <p class="small spot">sIMD could not be read just now: {m.stakingError}</p>
+    )}
+    <p style="margin-top:0.9rem">
+      This site quotes no yield rate: it has no history to measure one from yet, and will not guess.
+    </p>
+    <h3 class="sub">What "recoverable" does and does not mean</h3>
+    <ul>
+      {m.caveats.map((line) => (
+        <li>{line}</li>
+      ))}
+    </ul>
+  </section>
+
+  <section class="section">
+    <div class="section__head">
+      <h2>Create an endowment</h2>
+      <p>one form for each kind of target · the target is fixed for good</p>
+    </div>
+    {m.createFlows.map((flow, index) => (
+      <FlowBlock flow={flow} repeat={index > 0} />
+    ))}
+  </section>
+
+  <section class="section">
+    <div class="section__head">
+      <h2>Deposit, stake, harvest, withdraw</h2>
+      <p>every wallet action, with its cast command</p>
+    </div>
+    {m.flows.map((flow) => (
+      <FlowBlock flow={flow} exampleNote="endowment 1" repeat />
+    ))}
+    <h3 class="sub">Read an endowment</h3>
+    <Commands commands={m.commands} />
+  </section>
+</Layout>

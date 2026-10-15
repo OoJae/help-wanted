@@ -1,0 +1,21 @@
+# Applies to `docker build -f bots/keeper/Dockerfile .` from the repository root.
+# Everything is left out except what the keeper needs.
+**
+!package.json
+!pnpm-workspace.yaml
+!pnpm-lock.yaml
+!tsconfig.base.json
+!packages/shared/**
+!bots/keeper/**
+**/node_modules
+**/dist
+**/data
+**/.env
+**/.env.*
+!**/.env.example
+# Tests, fixtures and the stand-in contracts are not needed to run it.
+bots/keeper/test
+bots/keeper/contracts
+packages/shared/test
+packages/shared/fixtures
+packages/shared/vectors

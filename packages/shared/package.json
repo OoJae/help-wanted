@@ -1,0 +1,46 @@
+{
+  "name": "@help-wanted/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Protocol facts for HELP WANTED: addresses, the house feeds, canonical JSON, the order header, work records, the oracle question hash, a typed IdentityMD API client and ABIs (ours from the launch projects' build output). Exports its TypeScript sources: import it from a bundler, vitest or tsx (plain `node` cannot resolve them); `pnpm build` emits JavaScript to dist/ for anything else.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./abi": "./src/abi/index.ts",
+    "./api": "./src/api/index.ts",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "vectors"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "vectors": "python3 -I scripts/python/make_vectors.py .",
+    "vectors:scan": "sh scripts/scan-differential/run.sh",
+    "abis": "tsx scripts/make-abis.ts && prettier --write \"src/abi/*.ts\"",
+    "abi:gen": "tsx scripts/gen-abis.ts",
+    "feeds:gen": "tsx scripts/gen-house-feeds.ts",
+    "gen": "pnpm run abi:gen && pnpm run feeds:gen"
+  },
+  "dependencies": {
+    "viem": "^2.57.4",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

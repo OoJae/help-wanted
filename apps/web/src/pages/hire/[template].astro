@@ -1,0 +1,105 @@
+---
+import Commands from "~/components/Commands.astro";
+import FlowBlock from "~/components/FlowBlock.astro";
+import NotLaunched from "~/components/NotLaunched.astro";
+import Theirs from "~/components/Theirs.astro";
+import Layout from "~/layouts/Layout.astro";
+import { pageData } from "~/lib/page";
+import type { HireTemplateModel } from "~/models/desk";
+import { receiptFlowMeaning } from "~/models/receipts";
+
+const loaded = await pageData<HireTemplateModel>(Astro);
+if (loaded instanceof Response) return loaded;
+const { model: m, meta } = loaded;
+const t = m.template;
+---
+
+<Layout title={meta.title} description={meta.description} generatedAt={m.generatedAt}>
+  <header class="pagehead">
+    <p class="crumbs">
+      <a href="/hire">Hire</a> · {t.title}
+    </p>
+    <h1 class="headline headline--small">{m.cardLine}</h1>
+    <p class="deck">{t.delivers}</p>
+    <dl class="figures">
+      <div class="figure">
+        <dt>Who turns up</dt>
+        <dd class="figure__words">{t.staff}</dd>
+      </div>
+      <div class="figure">
+        <dt>Measured turnaround</dt>
+        <dd class="figure__words">{t.turnaround}</dd>
+        <span class="note">on real swarm jobs, 10 Oct 2026</span>
+      </div>
+      {t.recordSize && (
+        <div class="figure">
+          <dt>Work record</dt>
+          <dd class="figure__words">{t.recordSize}</dd>
+          <span class="note">what a proof carries</span>
+        </div>
+      )}
+      <div class="figure">
+        <dt>Record kind pinned</dt>
+        <dd class="figure__data">{t.kind}</dd>
+      </div>
+    </dl>
+  </header>
+
+  <NotLaunched contract={m.desk} consequence="This order cannot be posted today." />
+
+  {t.recordNote && (
+    <aside class="notice notice--quiet" aria-label="About this job's work record">
+      <span class="label">A large record</span>
+      <p>{t.recordNote}</p>
+    </aside>
+  )}
+
+  <section class="section section--first">
+    <div class="section__head">
+      <h2>Write the order</h2>
+      <p>two transactions: allow, then post</p>
+    </div>
+    <FlowBlock flow={m.flow} exampleNote="an example order" />
+    <h3 class="sub" id="claims">
+      Before you choose how it pays
+    </h3>
+    <p>
+      An order pays on an on-chain receipt. It may also accept a bonded delivery claim, and the form decides
+      how that box starts by one rule: it is ticked only while IdentityMD's receipts are stalled, which means
+      its WorkRegistry has recorded no receipt for six hours.
+    </p>
+    <aside
+      class:list={["notice", m.claim.preselected && "notice--spot"]}
+      aria-label="How the form starts today"
+    >
+      <span class="label">
+        {m.claim.preselected ? "The claim box starts ticked today" : "The claim box starts unticked today"}
+      </span>
+      <p>{m.claim.why}</p>
+    </aside>
+    <Commands
+      commands={[
+        {
+          comment:
+            "The test the form applies: receipts recorded by the WorkRegistry in the last six hours of blocks",
+          command: m.claim.command,
+        },
+      ]}
+    />
+    <p>
+      Read for this page as well: {m.receipts.observed} {receiptFlowMeaning(m.receipts)} If the order accepts
+      a bonded delivery claim, these are its limits:
+    </p>
+    <ol>
+      {m.claimLimits.map((line) => (
+        <li>{line}</li>
+      ))}
+    </ol>
+    <h3 class="sub">The job text the example carries</h3>
+    <Theirs by="Example job text" text={m.exampleSpec} />
+    <p class="small">
+      A runner sends exactly this text to the swarm after the order's 85-byte header. A work record settles
+      the order only if its objective is that header followed by this text, byte for byte.
+    </p>
+  </section>
+</Layout>

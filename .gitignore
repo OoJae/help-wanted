@@ -1,0 +1,27 @@
+# Foundry
+out/
+out-*/
+cache/
+cache-*/
+broadcast/
+
+# Node
+node_modules/
+dist/
+.astro/
+*.tsbuildinfo
+
+# Secrets and local config (never commit keys)
+.env
+.env.*
+!.env.example
+
+# Tooling leftovers
+.playwright-mcp/
+.DS_Store
+
+# Internal working notes (design references, protocol snapshots); not part of the product
+.build/
+
+# Private planning notes; never part of the public repository
+buildplan.md

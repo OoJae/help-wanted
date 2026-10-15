@@ -1,0 +1,50 @@
+---
+/**
+ * One order as a classified advertisement: the bold lead-in, the pay, the job in the employer's
+ * words, and, when the order has ended, its stamp.
+ */
+import type { OrderCard } from "~/models/cards";
+import Stamp from "./Stamp.astro";
+
+interface Props {
+  card: OrderCard;
+}
+
+const { card } = Astro.props;
+// "HELP WANTED: 4 robot auditors." is set as a cry and what follows it, so the two break between them.
+const colon = card.headline.indexOf(": ");
+const cry = colon === -1 ? card.headline : card.headline.slice(0, colon + 1);
+const wanted = colon === -1 ? "" : card.headline.slice(colon + 2);
+---
+
+<article class:list={["ad", card.origin === "HOUSE" && "ad--house"]}>
+  <h3 class="ad__head">
+    <a href={card.path}>
+      <span>{cry}</span> <span>{wanted}</span>
+    </a>
+  </h3>
+  <p class="ad__pay">
+    {card.pay} <span>{card.employerWords}</span>
+  </p>
+  {card.spec && <blockquote class="ad__text">{card.spec}</blockquote>}
+  <ul class="ad__meta">
+    <li>{card.statusWords}</li>
+    <li>
+      <span class:list={["tag", card.origin === "HOUSE" && "tag--solid"]}>{card.origin}</span>{" "}
+      {card.sample && (
+        <>
+          <span class="tag tag--spot">SAMPLE</span>{" "}
+        </>
+      )}
+      Order {card.id}
+      {card.conditional && " · say when"} · employer <span class="data break">{card.employerShort}</span>
+    </li>
+  </ul>
+  <div class="ad__foot">
+    <p class="ad__links">
+      <a href={card.path}>The order</a>
+      {card.jobId && <a href={`/verify/${card.jobId}`}>Verify</a>}
+    </p>
+    {card.stamp ? <Stamp stamp={card.stamp} /> : <span class="status">Open</span>}
+  </div>
+</article>

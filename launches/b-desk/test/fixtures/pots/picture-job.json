@@ -1,0 +1,13 @@
+{
+  "note": "Evidence for the Doorbell's kind hash. A real swarm job opened with the create-image skill: its work record is among the stored records (hexadecimal text of the bytes as served, see recordFile). keccak256 of the decoded bytes is recordHash, and WorkRegistry.latest(jobId) returned the same value when the record was fetched on 10 Oct 2026 (the pots fork test reads it again). The record's top-level kind is skill:create-image, so the Doorbell is deployed with kindHash below and a runner must open the Doorbell's job with the create-image skill.",
+  "jobUuid": "df6805ee-e8e4-4177-aec0-ec9e5ae43937",
+  "jobId": "0xdf6805eee8e44177aec0ec9e5ae43937",
+  "recordFile": "test/fixtures/proof/records/df6805ee-skill-create-image-7dd1a0a2.hex",
+  "recordHash": "0x7dd1a0a29fe4e46d70e158c199e15643aa79fd495b15a388d50ec5c30826069e",
+  "recordSize": 8811,
+  "kind": "skill:create-image",
+  "kindHash": "0x7679ff00d2b015b122f4c00147c1004ea6657aada5fff65e72986b90c6869185",
+  "state": "completed",
+  "receiptTx": "0xedd16ece7a88fac9f4ff5e507600c7bd99c0e8839ed9cb04fef6da2e6fc81dc8",
+  "source": "https://api.imd.fun/work-records/7dd1a0a29fe4e46d70e158c199e15643aa79fd495b15a388d50ec5c30826069e.json"
+}

@@ -1,0 +1,15 @@
+# Applies to `docker build -f bots/runner/Dockerfile .` from the repository root.
+# Everything is left out except what the runner needs.
+**
+!package.json
+!pnpm-workspace.yaml
+!pnpm-lock.yaml
+!tsconfig.base.json
+!packages/shared/**
+!bots/runner/**
+**/node_modules
+**/dist
+**/data
+**/.env
+**/.env.*
+!**/.env.example

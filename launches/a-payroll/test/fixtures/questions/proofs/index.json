@@ -1,0 +1,190 @@
+{
+  "what": "The records of the real requests that proved the three house feeds of launch A before launch: one request per feed, with exactly the bytes Questions sends for that feed, bought on Ethereum mainnet from an ordinary wallet with no callback. All three were attested. Also the record of the first body the employers feed had, which was not attested and is why that feed is now judged by the panel.",
+  "boughtThrough": {
+    "intake": "0x1397434cd35e8a9c8ac312a61d3a285eb31dea56",
+    "version": 1,
+    "note": "Version 1 of the Intake, on 12 and 13 October 2026, before version 2 (0xa43e6f75ee006411f79ac1c84120606c2330de82) was adopted for the launch. Version 2 keeps version 1's request function, events and getters; the body and the oracle behind it are the same."
+  },
+  "wallet": "0x871e507B6a70F858Ad4B414bddb77473630C366b",
+  "pricePaidEach": "500000000000000000",
+  "files": {
+    "<feed>.oracle.json": "GET https://api.imd.fun/oracle/requests/<oracleRequestId>, as saved by the team on 13 October 2026: the request, its pinned window, the members' answers, the agreement, the oracle's own computation, the attestation and its signature",
+    "<feed>.attestation.json": "GET https://api.imd.fun/oracle/requests/<oracleRequestId>/attestation, fetched 13 October 2026 01:54 UTC: the EIP-712 document, with the domain the answer was signed in (chain 1, verifying contract the zero address, because the request named no consumer)",
+    "<feed>.intake.json": "GET https://api.imd.fun/intake/1/<transaction>, fetched 13 October 2026 between 01:21 and 01:55 UTC: the Intake service's record of the purchase, with the hash of the body it received",
+    "employers-first-attempt.*": "the same two reads for the request that was not attested"
+  },
+  "proofs": [
+    {
+      "feed": "payrolls",
+      "feedId": "0x4bf83605cd50e9658472bde9be314bb3848a563301fa793328bef17ad2a07b61",
+      "transaction": "0xc75123bfb4cd49e0f1c55b236443b2a6d6d93ac981cd3e62f4f931bc2abc9cee",
+      "block": 26179783,
+      "intakeRequestId": "0x4d4174fc45852abb13c02e7baf636eae304507c05220222c3bb368f78544c69c",
+      "bodyHash": "0xbbf7d6fdf20fe61d71b05bfe3ba358d4d0e97be43c2c43d17f9b0678b0a2873d",
+      "oracleRequestId": "3744d864-8cbf-4fcf-8a8c-3529fb1736cb",
+      "evidence": "chain",
+      "status": "attested",
+      "fromBlock": 26172770,
+      "toBlock": 26179769,
+      "closingBlockHash": "0xc0e67ab9dc25db0cab3400cc707f50cbe5382aaf30a9118283cc243dd0555d96",
+      "questionHash": "0xa7eb81dbf5789fdd71e33f54c90cda86ac6cf4070c2320c6d1719e01e3a84dd3",
+      "answerType": "uint256",
+      "answer": "114000000000000000000",
+      "answerAbiEncoded": "0x0000000000000000000000000000000000000000000000062e115c008a880000",
+      "panelSize": 7,
+      "quorum": 5,
+      "agreed": 5,
+      "membersThatAnswered": 5,
+      "signer": "0x5598aa9146215bc13eb26f2c692ad1461fd32982",
+      "requestedAt": "2026-10-12T23:49:08.716Z",
+      "attestedAt": "2026-10-12T23:50:00.611Z"
+    },
+    {
+      "feed": "hires",
+      "feedId": "0xfde22d9c1b97b7ce9763dff388a66366f9012d4ba7c57c3239377a75532bee4d",
+      "transaction": "0xd7ad398293c0c9138cf7895262f5861465f0ab610861b81426efe6c7e27b16ea",
+      "block": 26179785,
+      "intakeRequestId": "0xb5ca523d0a4395f531e43f3fdd74ead0b5dbf3ac6eb7b53bc0bd576c123b5d35",
+      "bodyHash": "0xda6f13f65b9329f31f201dc06eed234f4c73bded9a9ebf64a061f4181a2b29a9",
+      "oracleRequestId": "df50bf76-41a0-4596-ae9e-9dcfd0e1ccd5",
+      "evidence": "chain",
+      "status": "attested",
+      "fromBlock": 26172772,
+      "toBlock": 26179771,
+      "closingBlockHash": "0x81ad56d00e79307008e58bc4d127014a10ecadaf5f68397a6562b44c1a48e982",
+      "questionHash": "0xdb20f183971eca9bda183646db40164a35cd6cec00acabff45918189f15e6dc5",
+      "answerType": "uint256",
+      "answer": "228",
+      "answerAbiEncoded": "0x00000000000000000000000000000000000000000000000000000000000000e4",
+      "panelSize": 7,
+      "quorum": 5,
+      "agreed": 5,
+      "membersThatAnswered": 5,
+      "signer": "0x5598aa9146215bc13eb26f2c692ad1461fd32982",
+      "requestedAt": "2026-10-12T23:49:29.579Z",
+      "attestedAt": "2026-10-12T23:50:31.358Z"
+    },
+    {
+      "feed": "employers",
+      "feedId": "0x22ad8df0e0af07aa59e29aa7f5540e0022fbfda0651ccae3eccb968553a14835",
+      "transaction": "0x14e7189cd2f65180452995c7a5ed1d12f9101dd8c42c23c63e21a1d86b48ba9d",
+      "block": 26179860,
+      "intakeRequestId": "0x9caa88fda73ff7e9faebd35482e6a788f2aa258ed722b037e97d3d2ba7e938da",
+      "bodyHash": "0xf0841684ac251fd3f07386cc34d41cccbaef1bd64b8c2353a8c25b641ccce54a",
+      "oracleRequestId": "2cbe6bb3-13f9-4617-98b9-5d83754f9e1a",
+      "evidence": "panel",
+      "status": "attested",
+      "fromBlock": 26129447,
+      "toBlock": 26179846,
+      "closingBlockHash": "0x30245eaa787ea93efcad20c3ec7953924e59d34567fd722f3ce567d300f8f8c2",
+      "questionHash": "0x3d14a9f53e3eaf1272d67871cff61223fc9b295f26e177c7a193ca5f90d52fc6",
+      "answerType": "address[]",
+      "answer": [
+        "0x21919137e69ed667ac404c7fcb71b8179b645f46",
+        "0x9fadab91f6fa03dbd7f4f8a08a338704baacf63f",
+        "0x7b8c742f2e1eeb3fb2c10d72967fa6d4a22f0479"
+      ],
+      "answerAbiEncoded": "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000300000000000000000000000021919137e69ed667ac404c7fcb71b8179b645f460000000000000000000000009fadab91f6fa03dbd7f4f8a08a338704baacf63f0000000000000000000000007b8c742f2e1eeb3fb2c10d72967fa6d4a22f0479",
+      "panelSize": 7,
+      "quorum": 5,
+      "agreed": 5,
+      "membersThatAnswered": 5,
+      "signer": "0x5598aa9146215bc13eb26f2c692ad1461fd32982",
+      "requestedAt": "2026-10-13T00:04:29.260Z",
+      "attestedAt": "2026-10-13T00:08:45.443Z"
+    }
+  ],
+  "firstAttempt": {
+    "feed": "employers, as written until 13 October 2026 (evidence chain, a pinned log-rank recipe with a filter)",
+    "transaction": "0x674b5e14572e1e53960802a3a664bac8403bdda0d0e39e6aad23fbaef2d38b0e",
+    "block": 26179787,
+    "intakeRequestId": "0x5391bcf96451cb23dbcf85655308b3e51656a7237c77f5492bf31947e84b6043",
+    "bodyHash": "0x326557a72141b77df838ca30c897d703ce5c446548b80fedbde9451b69b7984c",
+    "oracleRequestId": "c1d0ba09-c732-46e7-b257-2722841215fe",
+    "status": "mismatch",
+    "failure": "the recipe did not reproduce the panel's answer",
+    "fromBlock": 26129374,
+    "toBlock": 26179773,
+    "questionHash": "0x6ad2c9985500d1dba60b5e899cbc9f02b801155af0fa7f0bed0a41b12e7d2482",
+    "panelAnswer": [
+      "0x21919137e69ed667ac404c7fcb71b8179b645f46",
+      "0x9fadab91f6fa03dbd7f4f8a08a338704baacf63f",
+      "0x7b8c742f2e1eeb3fb2c10d72967fa6d4a22f0479"
+    ],
+    "agreed": 5,
+    "oracleRerunAnswer": [
+      "0x000000000004444c5dc75cb358380d2e3de08a90",
+      "0x894d4e6d3d2abc64fc0de0e4e2ea63a93bc9c520",
+      "0x8f10b468b06c6fd214b65f87778827f7d113f996",
+      "0xb92fe925dc43a0ecde6c8b1a2709c170ec4fff4f",
+      "0x666fedd4cdd4e890a5ad20e7b60975409435a64a"
+    ],
+    "requestedAt": "2026-10-12T23:49:50.935Z",
+    "decidedAt": "2026-10-12T23:51:13.489Z"
+  },
+  "recount": {
+    "what": "An independent recount of the IMD Transfer logs to the fee payee 0x4e0fa57bde726079356537e2f34d671e9f41adbc over each proven window, made on 13 October 2026 with `cast logs` (read-only RPC), without the oracle or its tools",
+    "payrolls": {
+      "rpc": "https://ethereum-rpc.publicnode.com",
+      "fromBlock": 26172770,
+      "toBlock": 26179769,
+      "logs": 228,
+      "sumOfValue": "114000000000000000000",
+      "senders": 61,
+      "zeroValueLogs": 0,
+      "agreesWithTheAttestedAnswer": true
+    },
+    "hires": {
+      "rpc": "https://ethereum-rpc.publicnode.com",
+      "fromBlock": 26172772,
+      "toBlock": 26179771,
+      "logs": 228,
+      "agreesWithTheAttestedAnswer": true
+    },
+    "employers": {
+      "rpc": "https://rpc.mevblocker.io",
+      "fromBlock": 26129447,
+      "toBlock": 26179846,
+      "logs": 2737,
+      "senders": 181,
+      "zeroValueLogs": 0,
+      "topFiveBySumOfValue": [
+        [
+          "0x21919137e69ed667ac404c7fcb71b8179b645f46",
+          "678000000000000000000"
+        ],
+        [
+          "0x9fadab91f6fa03dbd7f4f8a08a338704baacf63f",
+          "98000000000000000000"
+        ],
+        [
+          "0x7b8c742f2e1eeb3fb2c10d72967fa6d4a22f0479",
+          "93000000000000000000"
+        ],
+        [
+          "0xc94400e90bb652afa02740bff50824e14069c133",
+          "85000000000000000000"
+        ],
+        [
+          "0x0fadf5cda58268df799bef3be9cb0719224ac132",
+          "40000000000000000000"
+        ]
+      ],
+      "agreesWithTheAttestedAnswer": true
+    }
+  },
+  "onChainCompletion": "When the Intake records were fetched (13 October 2026, 01:21 to 01:55 UTC, up to two hours after the purchases) the service reported each of the four requests as `completing`, with its completion `queued`: the oracle had attested, or in the first attempt's case decided, within minutes, and the Intake's writer had not yet sent `complete` on chain (`Intake.requests(id).completed` was false for all four at block 26180249). None of the four named a callback, so nothing was waiting for that call.",
+  "sha256": {
+    "employers-first-attempt.intake.json": "eacf1d3071b86e610217db8c772eb8a91d32f1156edbd9a1d111c8371209f5b2",
+    "employers-first-attempt.oracle.json": "7d4efbac5adea3d181dcc03c798ecc12d07b44371e752d302be321db5632ffbe",
+    "employers.attestation.json": "4b2d7fedd4c68de9189e194e1d4d6ea28804a00421da650469acac2d265fe990",
+    "employers.intake.json": "5813c8274f8c3ac9267ffafab1e38e83f47215dde02a18c4406225b6b3b414c8",
+    "employers.oracle.json": "3f314fd879aef1c1ad6cb4ff990606d2f4932f2e092dd6e49bdf99e69dc1c8d0",
+    "hires.attestation.json": "d81d3f48458f390332cc4bfcc309b42cf44a0ef2a033b7620071df54dfcd7a97",
+    "hires.intake.json": "511ee16f9c5faae0369fa186741bed570f49e6135d6fe71249057293ba4317d2",
+    "hires.oracle.json": "ada9015f13930ae0f1e91fa3e21a428477b25cbf64abe6e5a2d8c843e651be7b",
+    "payrolls.attestation.json": "b2a40eb18757ca35549c7035ea4c9545e90fc14df32600f5a4f0caeaa3438eff",
+    "payrolls.intake.json": "2265b462fd9ad31ecfa1d5a4762b3e466332480f0038fb237e12c97da52d6da2",
+    "payrolls.oracle.json": "a13242842decd061ef066497b6061ba9f2daa92019bb4b375b0de964d4967aa1"
+  }
+}

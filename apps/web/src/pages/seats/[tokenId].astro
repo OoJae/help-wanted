@@ -1,0 +1,126 @@
+---
+import Commands from "~/components/Commands.astro";
+import FlowBlock from "~/components/FlowBlock.astro";
+import NotLaunched from "~/components/NotLaunched.astro";
+import NotLive from "~/components/NotLive.astro";
+import Layout from "~/layouts/Layout.astro";
+import { pageData } from "~/lib/page";
+import type { SeatModel } from "~/models/money";
+
+const loaded = await pageData<SeatModel>(Astro);
+if (loaded instanceof Response) return loaded;
+const { model: m, meta } = loaded;
+---
+
+<Layout title={meta.title} description={meta.description} sources={m.sources} generatedAt={m.generatedAt}>
+  <header class="pagehead">
+    <p class="crumbs">
+      <a href="/seats">Seats</a> · seat {m.tokenId} of 2,000
+    </p>
+    <h1 class="headline headline--small">Seat #{m.tokenId}</h1>
+    <dl class="figures">
+      <div class="figure figure--wide">
+        <dt>Owner</dt>
+        <dd class="figure__data">
+          {m.owner ? (
+            <a href={m.ownerUrl} rel="noopener">
+              {m.owner}
+            </a>
+          ) : (
+            "could not be read"
+          )}
+        </dd>
+        <span class="note">ownerOf, read live</span>
+      </div>
+      <div class="figure">
+        <dt>Bound agent</dt>
+        <dd class="figure__words">
+          {m.agents.length > 0 ? m.agents.map((a) => `#${a}`).join(", ") : "none seen"}
+        </dd>
+        <span class="note">
+          {m.agents.length > 0 ? "seen in a checked work record" : "the Adapter answers agent to seat only"}
+        </span>
+      </div>
+      <div class="figure">
+        <dt>Claimable</dt>
+        <dd class="figure__words">
+          {m.claimableImd !== null
+            ? `${m.claimableImd} IMD`
+            : m.launched
+              ? "could not be read"
+              : "not launched yet"}
+        </dd>
+        <span class="note">its share of the seat pool</span>
+      </div>
+      {m.paidImd !== null && (
+        <div class="figure">
+          <dt>Paid so far</dt>
+          <dd class="figure__words">{m.paidImd} IMD</dd>
+          <span class="note">seatPaid, read from Payroll</span>
+        </div>
+      )}
+    </dl>
+  </header>
+
+  <NotLaunched
+    contract={m.payroll}
+    consequence="This seat has nothing to claim yet. Its owner is read live."
+  />
+  <NotLive notes={m.notLive} />
+  {m.ownerError && <p class="small spot">The owner could not be read just now: {m.ownerError}</p>}
+  {m.claimError && <p class="small spot">Payroll could not be read just now: {m.claimError}</p>}
+
+  {m.agents.length === 0 && (
+    <p>
+      IdentityMD's Adapter maps an agent to its seat, not a seat to its agent. So this site can name a seat's
+      agent only after that agent has turned up in a work record it checked.{" "}
+      <a href="/seats">Look an agent up directly.</a>
+    </p>
+  )}
+  {m.tips.length > 0 && (
+    <div class="tablewrap">
+      <table>
+        <caption>Tips waiting for this seat's agents</caption>
+        <thead>
+          <tr>
+            <th>Agent</th>
+            <th class="num">Tips waiting</th>
+          </tr>
+        </thead>
+        <tbody>
+          {m.tips.map((tip) => (
+            <tr>
+              <th scope="row">Agent {tip.agentId}</th>
+              <td class="num">
+                {tip.owedImd !== null
+                  ? `${tip.owedImd} IMD`
+                  : m.launched
+                    ? "could not be read"
+                    : "not launched yet"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+
+  <section class="section">
+    <div class="section__head">
+      <h2>Check it yourself</h2>
+      <p>no key needed</p>
+    </div>
+    <Commands commands={m.commands} />
+  </section>
+
+  <section class="section">
+    <div class="section__head">
+      <h2>Claim</h2>
+      <p>the IMD goes to the owner · a contract that holds a seat claims for itself</p>
+    </div>
+    <p>{m.claimRule}</p>
+    {m.flows.map((flow, index) => (
+      <FlowBlock flow={flow} exampleNote={`seat ${m.tokenId}`} repeat={index > 0} />
+    ))}
+  </section>
+</Layout>

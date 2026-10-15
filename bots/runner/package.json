@@ -1,0 +1,40 @@
+{
+  "name": "@help-wanted/runner",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The open-source HELP WANTED runner: takes orders from the hire desk, buys the swarm job and collects.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "hw-runner": "./bin/hw-runner.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "start": "tsx --env-file-if-exists=.env src/cli.ts run",
+    "once": "tsx --env-file-if-exists=.env src/cli.ts once",
+    "status": "tsx --env-file-if-exists=.env src/cli.ts status",
+    "bootstrap": "tsx --env-file-if-exists=.env src/cli.ts bootstrap",
+    "resume": "tsx --env-file-if-exists=.env src/cli.ts resume",
+    "dev": "tsx watch --env-file-if-exists=.env src/cli.ts once",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "@help-wanted/shared": "workspace:*",
+    "@x402/core": "2.28.0",
+    "@x402/evm": "2.28.0",
+    "tsx": "^4.23.15",
+    "viem": "^2.57.4",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "prettier": "^3.9.10",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

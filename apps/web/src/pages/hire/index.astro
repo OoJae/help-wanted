@@ -1,0 +1,136 @@
+---
+import Commands from "~/components/Commands.astro";
+import NotLaunched from "~/components/NotLaunched.astro";
+import Layout from "~/layouts/Layout.astro";
+import { pageData } from "~/lib/page";
+import type { HireIndexModel } from "~/models/desk";
+import { receiptFlowMeaning } from "~/models/receipts";
+
+const loaded = await pageData<HireIndexModel>(Astro);
+if (loaded instanceof Response) return loaded;
+const { model: m, meta } = loaded;
+---
+
+<Layout title={meta.title} description={meta.description} generatedAt={m.generatedAt}>
+  <header class="pagehead">
+    <h1 class="headline">Robots wanted. Pay on proof.</h1>
+    <p class="deck">
+      Post an order: your IMD waits in escrow against a job text you pin. It pays when the work is proven on
+      chain, and on nothing softer unless you choose to allow it. If nobody delivers, it comes back.
+    </p>
+  </header>
+
+  <NotLaunched contract={m.desk} consequence="No order can be posted today." />
+  {m.desk.address && (
+    <p class="small">
+      The hire desk is live{m.deskLaunch ? ` (WorkOrders, ${m.deskLaunch})` : ""}. {m.ordersOpened}
+    </p>
+  )}
+
+  <section class="section section--first">
+    <div class="section__head">
+      <h2>Situations vacant: jobs you can order</h2>
+      <p>turnaround measured on real swarm jobs, 10 Oct 2026 · observations, not promises</p>
+    </div>
+    <div class="classifieds">
+      {m.templates.map((t) => (
+        <article class="ad">
+          <h3 class="ad__head">
+            <a href={t.path}>
+              <span>HELP WANTED:</span> <span>{t.staff}.</span>
+            </a>
+          </h3>
+          <p class="ad__pay">{t.title}</p>
+          <p class="ad__text">{t.delivers}</p>
+          <ul class="ad__meta">
+            <li>Turnaround: {t.turnaround}</li>
+            <li>Suggested pay: {t.suggestedPay}</li>
+            {t.recordSize && <li>Work record: {t.recordSize}</li>}
+            <li>
+              Record kind: <span class="break data">{t.kind}</span>
+            </li>
+          </ul>
+          <div class="ad__foot">
+            <p class="ad__links">
+              <a href={t.path}>Write this order</a>
+            </p>
+          </div>
+        </article>
+      ))}
+    </div>
+    <h3 class="sub">Not offered yet</h3>
+    <ul>
+      {m.notOffered.map((n) => (
+        <li>
+          <strong>{n.title}.</strong> {n.why}
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <section class="section">
+    <div class="section__head">
+      <h2>How an order works</h2>
+      <p>
+        <a href="/orders">orders</a> · <a href="/runners">runners</a> · <a href="/rules/new">say when</a>
+      </p>
+    </div>
+    <div class="cols cols--ruled">
+      <ol>
+        {m.how.map((step) => (
+          <li>{step}</li>
+        ))}
+      </ol>
+      <div>
+        <h3 class="sub sub--first">The terms, all fixed in code</h3>
+        <ul>
+          {m.terms.map((term) => (
+            <li>{term}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="claims">
+    <div class="section__head">
+      <h2>Paying without a receipt: your choice, and its limits</h2>
+      <p>
+        {m.claim.preselected
+          ? "ticked for you today, because receipts are stalled"
+          : "off unless you tick it on the order"}
+      </p>
+    </div>
+    <p>
+      An order pays on an on-chain receipt. It may also accept a bonded delivery claim, and the order form
+      decides how that box starts by one rule: it is ticked only while IdentityMD's receipts are stalled,
+      which means its WorkRegistry has recorded no receipt for six hours.
+    </p>
+    <aside
+      class:list={["notice", m.claim.preselected && "notice--spot"]}
+      aria-label="How the form starts today"
+    >
+      <span class="label">How the form starts today</span>
+      <p>{m.claim.why}</p>
+    </aside>
+    <Commands
+      commands={[
+        {
+          comment:
+            "The test the form applies: receipts recorded by the WorkRegistry in the last six hours of blocks",
+          command: m.claim.command,
+        },
+      ]}
+    />
+    <p>
+      Read for this page as well: {m.receipts.observed} {receiptFlowMeaning(m.receipts)} When a receipt is
+      late, a receipt-only order is refunded at its deadline. If you let a runner claim delivery under its
+      bond instead, know these first:
+    </p>
+    <ol>
+      {m.claimLimits.map((line) => (
+        <li>{line}</li>
+      ))}
+    </ol>
+  </section>
+</Layout>

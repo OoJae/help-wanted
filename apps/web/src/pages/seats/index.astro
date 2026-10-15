@@ -1,0 +1,222 @@
+---
+import Commands from "~/components/Commands.astro";
+import FlowBlock from "~/components/FlowBlock.astro";
+import NotLaunched from "~/components/NotLaunched.astro";
+import NotLive from "~/components/NotLive.astro";
+import Layout from "~/layouts/Layout.astro";
+import { formatInt } from "~/lib/format";
+import { parseIndex } from "~/lib/ids";
+import { pageData } from "~/lib/page";
+import { PUBLIC_RPC } from "~/models/common";
+import type { SeatsModel } from "~/models/money";
+
+const typedSeat = Astro.url.searchParams.get("seat");
+const seat = parseIndex(typedSeat, 1999);
+if (typedSeat !== null && seat !== null) return Astro.redirect(`/seats/${seat}`, 303);
+
+const loaded = await pageData<SeatsModel>(Astro);
+if (loaded instanceof Response) return loaded;
+const { model: m, meta } = loaded;
+---
+
+<Layout title={meta.title} description={meta.description} sources={m.sources} generatedAt={m.generatedAt}>
+  <header class="pagehead">
+    <h1 class="headline">Own a seat? HELP WANTED pays you twice.</h1>
+    <p class="deck">
+      There are {formatInt(m.seatCount)} IdentityMD seats. Every fee sets aside a share for all of them, and
+      every settled job tips the seats whose agents did the work. The IMD only ever goes to the seat's owner.
+    </p>
+  </header>
+
+  <NotLaunched
+    contract={m.payroll}
+    consequence="Nothing can be claimed yet. Seat owners and agent bindings are read live today."
+  />
+
+  <NotLive notes={m.notLive} />
+
+  <div class="cols">
+    <form class="lookup" method="get" action="/seats">
+      <label class="label" for="seat">
+        Look up a seat
+      </label>
+      <input
+        id="seat"
+        name="seat"
+        type="text"
+        inputmode="numeric"
+        placeholder="A seat number, 0 to 1999"
+        required
+      />
+      <button class="btn" type="submit">
+        Look up
+      </button>
+    </form>
+    <form class="lookup" method="get" action="/seats">
+      <label class="label" for="agent">
+        Or an agent
+      </label>
+      <input
+        id="agent"
+        name="agent"
+        type="text"
+        inputmode="numeric"
+        placeholder="An ERC-8004 agent id, like 52211"
+        required
+      />
+      <button class="btn btn--ghost" type="submit">
+        Find its seat
+      </button>
+    </form>
+  </div>
+  {m.rejected && (
+    <p class="spot small" role="alert">
+      {m.rejected}
+    </p>
+  )}
+
+  <section class="section" id="pool">
+    <div class="section__head">
+      <h2>The seat pool</h2>
+      <p>
+        {m.pool
+          ? "read from Payroll's ledger"
+          : m.launched
+            ? "Payroll could not be read just now"
+            : "empty: Payroll is not launched yet"}
+      </p>
+    </div>
+    {m.pool ? (
+      <dl class="figures">
+        <div class="figure">
+          <dt>Booked for seats</dt>
+          <dd>
+            {m.pool.bookedImd} <small>IMD</small>
+          </dd>
+          <span class="note">30% of every fee, plus tips that found no agent</span>
+        </div>
+        <div class="figure">
+          <dt>Claimed by seat owners</dt>
+          <dd>
+            {m.pool.claimedImd} <small>IMD</small>
+          </dd>
+        </div>
+        {m.pool.unclaimedImd !== null && (
+          <div class="figure">
+            <dt>Waiting to be claimed</dt>
+            <dd>
+              {m.pool.unclaimedImd} <small>IMD</small>
+            </dd>
+          </div>
+        )}
+        {m.pool.tipsWaitingImd !== null && (
+          <div class="figure">
+            <dt>Tips waiting for agents' seats</dt>
+            <dd>
+              {m.pool.tipsWaitingImd} <small>IMD</small>
+            </dd>
+          </div>
+        )}
+      </dl>
+    ) : (
+      <p class="notice notice--quiet">
+        {m.launched
+          ? `The seat pool could not be read from Payroll just now${m.poolError ? `: ${m.poolError}` : ""}. No figure is shown rather than a guessed one.`
+          : "Nothing has been booked for seats and nothing can be claimed: Payroll is not launched yet, so no figure exists."}{" "}
+        <a href="/company">The ledger, and the split it follows.</a>
+      </p>
+    )}
+  </section>
+
+  {m.agent && (
+    <section class="section">
+      <div class="section__head">
+        <h2>Agent {m.agent.agentId}</h2>
+        <p>
+          Adapter <span class="break data">{m.adapter}</span>
+        </p>
+      </div>
+      <div class="tablewrap">
+        <table class="kv">
+          <tbody>
+            <tr>
+              <th scope="row">Bound to</th>
+              <td>
+                {m.agent.bound ? (
+                  m.agent.isSeat ? (
+                    <a href={`/seats/${m.agent.tokenId}`}>Seat #{m.agent.tokenId}</a>
+                  ) : (
+                    "a token that is not an IdentityMD seat"
+                  )
+                ) : (
+                  "nothing: the Adapter knows no token for this agent"
+                )}
+              </td>
+            </tr>
+            {m.agent.owner && (
+              <tr>
+                <th scope="row">The seat's owner now</th>
+                <td class="code">{m.agent.owner}</td>
+              </tr>
+            )}
+            <tr>
+              <th scope="row">Tips waiting</th>
+              <td>
+                {m.agent.tipOwedImd !== null
+                  ? `${m.agent.tipOwedImd} IMD`
+                  : m.launched
+                    ? "could not be read from Payroll just now"
+                    : "Payroll is not launched yet"}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )}
+
+  <section class="section">
+    <div class="section__head">
+      <h2>How seats are paid</h2>
+      <p>
+        seats{" "}
+        <a class="break data" href={m.seatsUrl} rel="noopener">
+          {m.seats}
+        </a>
+      </p>
+    </div>
+    <div class="cols cols--ruled">
+      <ol>
+        {m.how.map((line) => (
+          <li>{line}</li>
+        ))}
+      </ol>
+      <div>
+        <h3 class="sub sub--first">A worked example</h3>
+        <p>
+          Job <a href={`/verify/${m.example.job}`}>{m.example.job.slice(0, 8)}</a> was done by agent{" "}
+          {m.example.agent}. IdentityMD's Adapter binds that agent to{" "}
+          <a href={`/seats/${m.example.seat}`}>seat #{m.example.seat}</a>. Had the job been ordered through
+          our desk, that seat's owner would have been tipped.
+        </p>
+        <Commands
+          commands={[
+            {
+              command: `cast call ${m.adapter} "bindingOf(uint256)((uint8,address,uint256))" ${m.example.agent} --rpc-url ${PUBLIC_RPC}`,
+            },
+          ]}
+        />
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section__head">
+      <h2>The transactions</h2>
+      <p>the IMD goes to the owner · a contract that holds a seat claims for itself</p>
+    </div>
+    {m.flows.map((flow, index) => (
+      <FlowBlock flow={flow} exampleNote="the worked example" repeat={index > 0} />
+    ))}
+  </section>
+</Layout>

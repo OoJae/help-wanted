@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"],
+    "typeRoots": ["../../packages/shared/node_modules/@types"],
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "paths": {
+      "vitest": ["../../packages/shared/node_modules/vitest/dist/index.d.ts"],
+      "viem": ["../../packages/shared/node_modules/viem/_types/index.d.ts"]
+    }
+  },
+  "include": ["*.ts", "test/**/*.ts"]
+}

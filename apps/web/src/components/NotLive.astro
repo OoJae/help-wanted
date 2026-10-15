@@ -1,0 +1,26 @@
+---
+/**
+ * What a page says about the launches it leans on that are not live: one plain sentence each, from
+ * the page's model (`notLiveNotes`). It follows the deployments book, so the slip shrinks as
+ * launches are written in and is gone when all of them are.
+ */
+interface Props {
+  notes: string[];
+}
+
+const { notes } = Astro.props;
+---
+
+{notes.length > 0 && (
+  <aside class="notice" aria-label="Not live yet">
+    <span class="label">Not live yet</span>
+    <ul>
+      {notes.map((note) => (
+        <li>{note}</li>
+      ))}
+    </ul>
+    <p class="small">
+      <a href="/judges#not-live">What is live and what is not.</a>
+    </p>
+  </aside>
+)}

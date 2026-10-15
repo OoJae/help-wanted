@@ -1,0 +1,75 @@
+{
+  "name": "payrolls",
+  "title": "Non-Human Payrolls: IMD paid to the swarm's fee payee, per day",
+  "feedId": "0x4bf83605cd50e9658472bde9be314bb3848a563301fa793328bef17ad2a07b61",
+  "feedIdRule": "keccak256(abi.encode(params, keccak256(qPrefix), keccak256(tail)))",
+  "params": {
+    "action": "0x6f7261636c652e72657175657374406f7261636c652d31000000000000000000",
+    "chainId": 1,
+    "answerType": 3,
+    "panelSize": 7,
+    "quorum": 5,
+    "minAgreed": 5,
+    "validFor": 86400,
+    "cadenceBlocks": 7000,
+    "maxWindowBlocks": 21600,
+    "lagBlocks": 12,
+    "contiguous": true,
+    "pinHash": true,
+    "maxPrice": "2000000000000000000",
+    "tip": "50000000000000000",
+    "gateCmp": 0,
+    "gateTarget": "0x0000000000000000000000000000000000000000",
+    "gateThreshold": "0",
+    "gateData": "0x"
+  },
+  "qPrefix": "{\"answerType\":\"uint256\",\"chainId\":1,\"definitions\":{\"recipe\":\"{\\\"kind\\\":\\\"log-sum\\\",\\\"address\\\":\\\"0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7\\\",\\\"event\\\":\\\"event Transfer(address indexed from, address indexed to, uint256 value)\\\",\\\"sumArg\\\":\\\"value\\\",\\\"abs\\\":false,\\\"filter\\\":{\\\"to\\\":\\\"0x4e0fa57bde726079356537e2f34d671e9f41adbc\\\"}} - write recipe exactly this, event text included.\"},\"question\":\"What is the sum of the value argument of every Transfer(address indexed from, address indexed to, uint256 value) event emitted by the token contract 0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7 whose to argument is 0x4e0fa57bde726079356537e2f34d671e9f41adbc in the window?\",\"v\":1,\"window\":{\"fromBlock\":",
+  "qPrefixHex": "0x7b22616e7377657254797065223a2275696e74323536222c22636861696e4964223a312c22646566696e6974696f6e73223a7b22726563697065223a227b5c226b696e645c223a5c226c6f672d73756d5c222c5c22616464726573735c223a5c223078643334613939626330663637616531626264363363363630653664306230646430336532363362375c222c5c226576656e745c223a5c226576656e74205472616e73666572286164647265737320696e64657865642066726f6d2c206164647265737320696e646578656420746f2c2075696e743235362076616c7565295c222c5c2273756d4172675c223a5c2276616c75655c222c5c226162735c223a66616c73652c5c2266696c7465725c223a7b5c22746f5c223a5c223078346530666135376264653732363037393335363533376532663334643637316539663431616462635c227d7d202d207772697465207265636970652065786163746c7920746869732c206576656e74207465787420696e636c756465642e227d2c227175657374696f6e223a2257686174206973207468652073756d206f66207468652076616c756520617267756d656e74206f66206576657279205472616e73666572286164647265737320696e64657865642066726f6d2c206164647265737320696e646578656420746f2c2075696e743235362076616c756529206576656e7420656d69747465642062792074686520746f6b656e20636f6e7472616374203078643334613939626330663637616531626264363363363630653664306230646430336532363362372077686f736520746f20617267756d656e742069732030783465306661353762646537323630373933353635333765326633346436373165396634316164626320696e207468652077696e646f773f222c2276223a312c2277696e646f77223a7b2266726f6d426c6f636b223a",
+  "tail": ",\"evidence\":\"chain\",\"panelSize\":7,\"quorum\":5,\"toleranceBps\":0,\"validForSeconds\":86400}",
+  "tailHex": "0x2c2265766964656e6365223a22636861696e222c2270616e656c53697a65223a372c2271756f72756d223a352c22746f6c6572616e6365427073223a302c2276616c6964466f725365636f6e6473223a38363430307d",
+  "example": {
+    "requestBlock": 26164239,
+    "fromBlock": 26157228,
+    "toBlock": 26164227,
+    "body": "{\"answerType\":\"uint256\",\"chainId\":1,\"definitions\":{\"recipe\":\"{\\\"kind\\\":\\\"log-sum\\\",\\\"address\\\":\\\"0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7\\\",\\\"event\\\":\\\"event Transfer(address indexed from, address indexed to, uint256 value)\\\",\\\"sumArg\\\":\\\"value\\\",\\\"abs\\\":false,\\\"filter\\\":{\\\"to\\\":\\\"0x4e0fa57bde726079356537e2f34d671e9f41adbc\\\"}} - write recipe exactly this, event text included.\"},\"question\":\"What is the sum of the value argument of every Transfer(address indexed from, address indexed to, uint256 value) event emitted by the token contract 0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7 whose to argument is 0x4e0fa57bde726079356537e2f34d671e9f41adbc in the window?\",\"v\":1,\"window\":{\"fromBlock\":26157228,\"toBlock\":26164227},\"evidence\":\"chain\",\"panelSize\":7,\"quorum\":5,\"toleranceBps\":0,\"validForSeconds\":86400}",
+    "bodyHex": "0x7b22616e7377657254797065223a2275696e74323536222c22636861696e4964223a312c22646566696e6974696f6e73223a7b22726563697065223a227b5c226b696e645c223a5c226c6f672d73756d5c222c5c22616464726573735c223a5c223078643334613939626330663637616531626264363363363630653664306230646430336532363362375c222c5c226576656e745c223a5c226576656e74205472616e73666572286164647265737320696e64657865642066726f6d2c206164647265737320696e646578656420746f2c2075696e743235362076616c7565295c222c5c2273756d4172675c223a5c2276616c75655c222c5c226162735c223a66616c73652c5c2266696c7465725c223a7b5c22746f5c223a5c223078346530666135376264653732363037393335363533376532663334643637316539663431616462635c227d7d202d207772697465207265636970652065786163746c7920746869732c206576656e74207465787420696e636c756465642e227d2c227175657374696f6e223a2257686174206973207468652073756d206f66207468652076616c756520617267756d656e74206f66206576657279205472616e73666572286164647265737320696e64657865642066726f6d2c206164647265737320696e646578656420746f2c2075696e743235362076616c756529206576656e7420656d69747465642062792074686520746f6b656e20636f6e7472616374203078643334613939626330663637616531626264363363363630653664306230646430336532363362372077686f736520746f20617267756d656e742069732030783465306661353762646537323630373933353635333765326633346436373165396634316164626320696e207468652077696e646f773f222c2276223a312c2277696e646f77223a7b2266726f6d426c6f636b223a32363135373232382c22746f426c6f636b223a32363136343232377d2c2265766964656e6365223a22636861696e222c2270616e656c53697a65223a372c2271756f72756d223a352c22746f6c6572616e6365427073223a302c2276616c6964466f725365636f6e6473223a38363430307d",
+    "questionHash": "0x233695a1a95af42a9483cf4c79e618312da9a813249184294a66b3a1a33f7f75"
+  },
+  "notes": {
+    "proof": {
+      "what": "one real request with exactly this feed's body, bought from an ordinary wallet through version 1 of the Intake (0x1397434cd35e8a9c8ac312a61d3a285eb31dea56) with no callback, before version 2 was adopted",
+      "transaction": "0xc75123bfb4cd49e0f1c55b236443b2a6d6d93ac981cd3e62f4f931bc2abc9cee",
+      "block": 26179783,
+      "intakeRequestId": "0x4d4174fc45852abb13c02e7baf636eae304507c05220222c3bb368f78544c69c",
+      "bodyHash": "0xbbf7d6fdf20fe61d71b05bfe3ba358d4d0e97be43c2c43d17f9b0678b0a2873d",
+      "oracleRequestId": "3744d864-8cbf-4fcf-8a8c-3529fb1736cb",
+      "fromBlock": 26172770,
+      "toBlock": 26179769,
+      "questionHash": "0xa7eb81dbf5789fdd71e33f54c90cda86ac6cf4070c2320c6d1719e01e3a84dd3",
+      "status": "attested",
+      "answer": "114000000000000000000 (114 IMD), agreed 5 of a panel of 7, attested 2026-10-12T23:50:00Z, 52 seconds after the request was admitted",
+      "record": "test/fixtures/questions/proofs/payrolls.oracle.json"
+    },
+    "what": "A log-sum of IMD Transfer value where the recipient is the fee payee. Windows tile: each starts at the block after the last answered one, so the prints add up to the total with no gap and no double count. One request a day (7,000 blocks is 23 h 20 min, so a keeper can press at the same clock time every day); after a missed day the next window covers up to three days.",
+    "modelledOn": "dbcac6c2-6328-47a9-8e07-4c7b55f78e45: the same sentence and the same recipe with `from` replaced by `to`, the token by Ethereum IMD and the address by the fee payee",
+    "confirmed": [
+      "questionHash rule: rebuilt for 23 attested requests and for 3 bodies read back from Intake Requested events (test/fixtures/questions/requests, intake/requested.json), and for this feed's own proof request (below)",
+      "pinning a recipe in definitions.recipe with the sentence '- write recipe exactly this, event text included.': attested requests dbcac6c2 and c5e21f11, and this feed's own proof",
+      "a contract building this kind of body on chain and buying it through the Intake with an explicit {fromBlock,toBlock} window: dbcac6c2 (Robinhood Chain, payer and consumer 0x3c81384a...), body bytes in intake/requested.json",
+      "panelSize 7, quorum 5, validForSeconds 86400, evidence chain: the values of dbcac6c2, attested with agreed 5; and of this feed's own proof, attested with agreed 5",
+      "a filter on the Transfer event's indexed `to` argument, the Ethereum IMD token as the log source, a window of 7,000 Ethereum blocks, and this body's key order (canonical order followed by the tail): this feed's own proof",
+      "log-sum over ERC-20 Transfer `value` with a filter on an indexed argument, abs false, answer uint256, toleranceBps 0: dbcac6c2, c5e21f11 (Robinhood Chain); log-sum on Ethereum mainnet: 383a398f",
+      "the body's key set is exactly that of dbcac6c2's on-chain body"
+    ],
+    "unconfirmed": [
+      "a catch-up window longer than the proven 7,000 blocks (the feed asks about up to 21,600 after a missed or failed round)",
+      "a real answer delivered to the launched contract by the Intake's callback: the proof was bought from a wallet with no callback, so it was signed for no consumer (the attestation's domain names the zero address) and proves the body, the question hash and the answer, not the delivery"
+    ],
+    "limits": [
+      "any IMD transfer to the fee payee is included, whatever it was for: the chain does not say which transfers bought an action from the swarm",
+      "the feeds' own purchases are included: every request the Questions contract buys from the Intake is itself an IMD Transfer from Questions to the fee payee, so it adds to the sum and to the count, and the Questions address can appear in the ranking",
+      "a zero-value transfer adds nothing to the sum, so this figure cannot be raised for gas alone",
+      "after a failed or a late round one print covers more than a day (up to 21,600 blocks, three days): take each print's period from its own fromBlock and toBlock"
+    ]
+  }
+}

@@ -1,0 +1,201 @@
+---
+import Commands from "~/components/Commands.astro";
+import FlowBlock from "~/components/FlowBlock.astro";
+import NotLaunched from "~/components/NotLaunched.astro";
+import Layout from "~/layouts/Layout.astro";
+import { pageData } from "~/lib/page";
+import type { RulesNewModel } from "~/models/money";
+
+const loaded = await pageData<RulesNewModel>(Astro);
+if (loaded instanceof Response) return loaded;
+const { model: m, meta } = loaded;
+---
+
+<Layout title={meta.title} description={meta.description} sources={m.sources} generatedAt={m.generatedAt}>
+  <header class="pagehead">
+    <h1 class="headline headline--wide">When a line is crossed, then hire.</h1>
+    <p class="deck">
+      Write one sentence: WHEN a contract's view call or a Standing Question crosses a line, THEN hire the
+      swarm or pay. There are two ways to say it: once, as an order nobody can take until its condition has
+      been seen true, or as a standing rule that holds its own escrow and fires as often as you allow.
+    </p>
+  </header>
+
+  <NotLaunched contract={m.desk} consequence="No rule can be written today." />
+
+  <section class="section section--first" id="once">
+    <div class="section__head">
+      <h2>Once: start from a sentence</h2>
+      <p>a preset fills the form below</p>
+    </div>
+    <div class="classifieds">
+      {m.presets.map((p) => (
+        <article class="ad">
+          <h3 class="ad__head">
+            <a href={`/rules/new?preset=${p.slug}`}>{p.title}</a>
+          </h3>
+          <p class="ad__text">{p.sentence}</p>
+          <div class="ad__foot">
+            <p class="ad__links">
+              <a href={`/rules/new?preset=${p.slug}`}>Use this sentence</a>
+            </p>
+            {m.activePreset === p.slug && <span class="status">Chosen</span>}
+          </div>
+        </article>
+      ))}
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section__head">
+      <h2>Write the rule</h2>
+      <p>an order with a condition, on the hire desk</p>
+    </div>
+    <FlowBlock flow={m.flow} exampleNote="an example that watches the IMD token itself" />
+  </section>
+
+  <section class="section">
+    <div class="section__head">
+      <h2>How it works</h2>
+      <p>once true, always open</p>
+    </div>
+    <div class="cols cols--ruled">
+      <ol>
+        {m.how.map((step) => (
+          <li>{step}</li>
+        ))}
+      </ol>
+      <div>
+        <h3 class="sub sub--first">The limits</h3>
+        <ul>
+          {m.limits.map((line) => (
+            <li>{line}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="standing">
+    <div class="section__head">
+      <h2>A standing rule: fires more than once</h2>
+      <p>Rules · {m.rules.label}</p>
+    </div>
+    {m.rules.address ? (
+      <p>
+        Rules is at{" "}
+        <a class="data break" href={m.rules.url} rel="noopener">
+          {m.rules.address}
+        </a>
+        .{" "}
+        {m.ruleCount === null
+          ? "How many rules have been created could not be read just now."
+          : `${m.ruleCount} rule${m.ruleCount === 1 ? " has" : "s have"} been created.`}
+      </p>
+    ) : (
+      <p class="notice notice--quiet">
+        <strong>Standing rules cannot be written yet: Rules (launch C) is not launched yet.</strong> The form
+        below is complete and shows the exact transaction and its cast command.
+      </p>
+    )}
+    {m.rulesError && <p class="small spot">Rules could not be read just now: {m.rulesError}</p>}
+    {m.ruleRows.length > 0 && (
+      <div class="tablewrap">
+        <table class="wide stack">
+          <caption>Rules that exist, newest first</caption>
+          <thead>
+            <tr>
+              <th>Rule</th>
+              <th>Sentence</th>
+              <th class="num">Escrow, IMD</th>
+              <th class="num">Tip, IMD</th>
+              <th>Fires</th>
+              <th>Now</th>
+            </tr>
+          </thead>
+          <tbody>
+            {m.ruleRows.map((row) => (
+              <tr>
+                <th scope="row">#{row.id}</th>
+                <td class="break" data-label="Sentence">
+                  {row.sentence}
+                </td>
+                <td class="num" data-label="Escrow, IMD">
+                  {row.escrowImd}
+                </td>
+                <td class="num" data-label="Tip, IMD">
+                  {row.tipImd}
+                </td>
+                <td data-label="Fires">{row.fires}</td>
+                <td data-label="Now">{row.ready}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+    <div class="cols cols--ruled">
+      <ol>
+        {m.ruleHow.map((step) => (
+          <li>{step}</li>
+        ))}
+      </ol>
+      <div>
+        <h3 class="sub sub--first">The limits</h3>
+        <ul>
+          {m.ruleLimits.map((line) => (
+            <li>{line}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+    <h3 class="sub">Write one</h3>
+    <p>
+      The example is the first rule proposed in launch C's launch document: when the IMD staked in sIMD
+      reaches two million, hire a report on who staked it.
+    </p>
+    <FlowBlock flow={m.ruleFlow} exampleNote="the first rule proposed for launch C" repeat />
+    <h3 class="sub">Fire, reconcile, cancel</h3>
+    {m.ruleFlows.map((flow) => (
+      <FlowBlock flow={flow} exampleNote="rule 1" repeat />
+    ))}
+    <h3 class="sub">Read a rule</h3>
+    <Commands commands={m.commands} />
+  </section>
+
+  <section class="section" id="doorbell">
+    <div class="section__head">
+      <h2>The Doorbell: a rule you can ring</h2>
+      <p>Doorbell · {m.doorbell.label}</p>
+    </div>
+    <p>
+      The Doorbell is a contract with no owner and one job text in its own code. Anyone calls{" "}
+      <code>ring()</code>. Every 25th ring, if it holds enough IMD, it opens an order on the hire desk: a
+      contract hiring the swarm, on demand, in front of you.
+    </p>
+    {m.doorbellState ? (
+      <>
+        <p class="label">Read from the contract for this page</p>
+        <ul>
+          {m.doorbellFacts.map((fact) => (
+            <li>{fact}</li>
+          ))}
+        </ul>
+        <p class="small">
+          <a href="/judges#limit-B-D1">The Doorbell's disclosed limits, D1 to D5, are on the judges page.</a>
+        </p>
+      </>
+    ) : m.doorbell.address ? (
+      <p class="small spot">
+        The Doorbell could not be read just now{m.doorbellError ? `: ${m.doorbellError}` : ""}. Nothing is
+        said here about its rings, its money or how its orders pay until it answers.
+      </p>
+    ) : (
+      <p class="small">
+        Whether its orders accept a bonded delivery claim is fixed when it is launched, by whether
+        IdentityMD's receipts are arriving that day, and will be printed here.
+      </p>
+    )}
+    <FlowBlock flow={m.ringFlow} repeat />
+  </section>
+</Layout>

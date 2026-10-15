@@ -1,0 +1,337 @@
+---
+import Commands from "~/components/Commands.astro";
+import Hash from "~/components/Hash.astro";
+import Stamp from "~/components/Stamp.astro";
+import Theirs from "~/components/Theirs.astro";
+import Layout from "~/layouts/Layout.astro";
+import { excerpt, formatInt, formatUtc } from "~/lib/format";
+import { pageData } from "~/lib/page";
+import { VERDICT_INK } from "~/lib/stamp";
+import { readsSentence, type VerifyJobModel } from "~/models/verify";
+
+const loaded = await pageData<VerifyJobModel>(Astro);
+if (loaded instanceof Response) return loaded;
+const { model: m, meta } = loaded;
+const r = m.result;
+const facts = r.facts;
+const equal = r.verdict === "proven";
+const reads = readsSentence(m.reads);
+---
+
+<Layout
+  title={meta.title}
+  description={meta.description}
+  generatedAt={m.generatedAt}
+  sources={[
+    {
+      name: "Receipt",
+      detail: `WorkRegistry.latest(jobId) at ${m.workRegistry}`,
+      fetchedAt: m.reads.receiptReadAt,
+      stale: false,
+      error: m.limited ? null : r.receipt === null ? (r.problems[0] ?? "the read failed") : null,
+      note: m.limited ? "Not read: this check was not started" : undefined,
+    },
+    {
+      name: "Record",
+      detail: m.recordUrl ?? "no record hash to fetch",
+      fetchedAt: m.reads.recordFetchedAt,
+      stale: false,
+      error: null,
+      note:
+        m.reads.recordOrigin === "stored"
+          ? "This site's stored copy was hashed, because IdentityMD's record server could not be reached"
+          : r.record
+            ? undefined
+            : "No record was hashed",
+    },
+  ]}
+>
+  <header class="pagehead">
+    <p class="crumbs">
+      <a href="/verify">Verify</a> · job <span class="data break">{m.jobId}</span>
+    </p>
+    <h1 class="headline headline--small">{m.headline}</h1>
+    <p class="deck">{r.summary}</p>
+  </header>
+
+  {/* The slip: the two values in the same columns, the result, and a box for each checker's stamp.
+       The server's box is stamped in the page as sent. The browser's box is filled by the script
+       when the visitor's own check finishes, and stays out of the page without JavaScript. */}
+  <section class="slip" aria-label="The check">
+    <dl class="slip__pair">
+      <div>
+        <dt>
+          On chain: <code>WorkRegistry.latest(jobId)</code>
+        </dt>
+        <dd>
+          <Hash value={r.receipt} against={r.record?.keccak ?? null} none="could not be read" />
+        </dd>
+      </div>
+      <div>
+        <dt>
+          From the record: <code>keccak256</code> of its{" "}
+          {r.record ? `${formatInt(r.record.bytes)} bytes` : "bytes"}
+        </dt>
+        <dd>
+          <Hash value={r.record?.keccak ?? null} against={r.receipt} none="no record was hashed" />
+        </dd>
+      </div>
+    </dl>
+    <p class="slip__result">
+      {equal
+        ? `Equal, byte for byte. Record: ${formatInt(r.record?.bytes ?? 0)} bytes.`
+        : r.verdict === "no_receipt"
+          ? "The registry returned zero, so there is nothing to compare."
+          : r.verdict === "mismatch"
+            ? "Not equal."
+            : "Not compared."}
+    </p>
+    <div class="slip__boxes">
+      <div class="inspect">
+        <p class="inspect__by">Checked by this server</p>
+        <p class="inspect__stamp">
+          <Stamp stamp={{ text: r.stamp, tone: VERDICT_INK[r.verdict] }} big />
+        </p>
+        <p class="small">
+          {reads ? `${reads} ` : ""}Page made {formatUtc(m.checkedAt)}.
+        </p>
+        <p class="small">
+          <a href={m.explorerUrl} rel="noopener">
+            The job on IdentityMD's explorer
+          </a>
+          {m.receiptTxUrl && (
+            <>
+              {" "}
+              ·{" "}
+              <a href={m.receiptTxUrl} rel="noopener">
+                the receipt transaction
+              </a>
+            </>
+          )}
+          {m.recordUrl && (
+            <>
+              {" "}
+              ·{" "}
+              <a href={m.recordUrl} rel="noopener">
+                the record itself
+              </a>
+            </>
+          )}
+        </p>
+        {m.busy && <p class="small spot">{m.busy}</p>}
+      </div>
+      <div
+        class="inspect needs-js"
+        data-browser-check
+        data-job={m.jobId}
+        data-rpc={m.rpcUrl}
+        data-registry={m.workRegistry}
+        data-server-verdict={r.verdict}
+      >
+        <p class="inspect__by">Checked by your browser</p>
+        <p class="inspect__stamp" data-browser-stamp>
+          <span class="inspect__wait" role="status">
+            Not checked yet.
+          </span>
+        </p>
+        <p class="small" data-browser-summary>
+          Your browser reads the WorkRegistry itself, from a public RPC, and hashes the record itself.
+        </p>
+        <button class="btn btn--ghost" type="button" data-browser-run disabled>
+          Run it again
+        </button>
+      </div>
+      <noscript>
+        <div class="inspect">
+          <p class="inspect__by">Checked by your browser</p>
+          <p class="inspect__stamp">
+            <span class="inspect__wait">Not checked: JavaScript is off.</span>
+          </p>
+          <p class="small">
+            With JavaScript on, your browser repeats the check on its own and stamps this box. Without it, the
+            result beside this is the server's, and the commands below let you repeat it in a terminal.
+          </p>
+        </div>
+      </noscript>
+    </div>
+  </section>
+
+  <section class="section section--first">
+    <div class="section__head">
+      <h2>The four steps</h2>
+      <p>
+        job id as bytes16: <span class="data break">{r.jobIdBytes16}</span>
+      </p>
+    </div>
+    <ol class="steps" data-steps>
+      {r.steps.map((step) => (
+        <li class="step" data-step={step.key}>
+          <div>
+            <p class="step__title">{step.title}</p>
+            <p class="step__detail">{step.detail}</p>
+          </div>
+          <div class="step__marks">
+            <span
+              class:list={[
+                "mark",
+                step.ok === true ? "mark--pass" : step.ok === false ? "mark--fail" : "mark--skip",
+              ]}
+            >
+              Server: {step.ok === true ? "pass" : step.ok === false ? "fail" : "not reached"}
+            </span>
+            <span class="mark mark--skip needs-js" data-browser-mark>
+              Browser: waiting
+            </span>
+          </div>
+          {step.value && <p class="step__value">{step.value}</p>}
+        </li>
+      ))}
+    </ol>
+    <p class="small needs-js" data-browser-note></p>
+    {r.listed && (
+      <p class="small">
+        IdentityMD's API lists record <span class="data break">{r.listed.hash}</span> for this job with status{" "}
+        <strong>{r.listed.status}</strong>
+        {r.listed.failure ? ` (${r.listed.failure})` : ""}. That is the swarm's own statement; only the
+        registry's receipt is proof.
+      </p>
+    )}
+    {r.problems.length > 0 && (
+      <ul class="problems">
+        {r.problems.map((p) => (
+          <li>{p}</li>
+        ))}
+      </ul>
+    )}
+  </section>
+
+  {facts && (
+    <section class="section">
+      <div class="section__head">
+        <h2>What the record says</h2>
+        <p>read from the bytes that were hashed</p>
+      </div>
+      <div class="cols cols--ruled">
+        <div class="tablewrap">
+          <table class="kv">
+            <tbody>
+              <tr>
+                <th scope="row">Schema</th>
+                <td class="code">{facts.schema}</td>
+              </tr>
+              <tr>
+                <th scope="row">Job</th>
+                <td class="code">{facts.jobId}</td>
+              </tr>
+              <tr>
+                <th scope="row">Kind</th>
+                <td class="code">{facts.kind}</td>
+              </tr>
+              <tr>
+                <th scope="row">Final state</th>
+                <td class="code">{facts.state}</td>
+              </tr>
+              <tr>
+                <th scope="row">Agents that worked</th>
+                <td class="code">{facts.agentIds.length > 0 ? facts.agentIds.join(", ") : "none listed"}</td>
+              </tr>
+              {facts.previousHash && (
+                <tr>
+                  <th scope="row">Replaces receipt</th>
+                  <td class="code">{facts.previousHash}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div>
+          {facts.objective && (
+            <Theirs
+              by={`The objective, as the customer wrote it (first 420 of ${formatInt(facts.objective.length)} characters)`}
+              text={excerpt(facts.objective, 420)}
+            />
+          )}
+          <p class="small">
+            An order on our desk pins this text. A record settles an order only if its objective begins with
+            the order's ticket and continues with the order's job text, byte for byte, and only if its final
+            state is "completed".
+            {m.delivered === false &&
+              ` This record's state is "${facts.state}", so the desk would not pay on it.`}
+          </p>
+        </div>
+      </div>
+    </section>
+  )}
+
+  {m.seats.length > 0 && (
+    <section class="section">
+      <div class="section__head">
+        <h2>The seats that did the work</h2>
+        <p>agent id → IdentityMD's Adapter → seat → owner</p>
+      </div>
+      <p>
+        Each agent named in the record is bound to a seat. This is the path a tip follows: when an order
+        settles on our desk, 5% of its price goes to these seats' owners.
+      </p>
+      <div class="tablewrap">
+        <table class="stack">
+          <thead>
+            <tr>
+              <th>Agent (ERC-8004)</th>
+              <th>Seat</th>
+              <th>Owner now</th>
+            </tr>
+          </thead>
+          <tbody>
+            {m.seats.map((seat) => (
+              <tr>
+                <td class="code" data-label="Agent (ERC-8004)">
+                  {seat.agentId}
+                </td>
+                <td data-label="Seat">
+                  {seat.isSeat ? (
+                    <a href={`/seats/${seat.tokenId}`}>Seat #{seat.tokenId}</a>
+                  ) : seat.bound ? (
+                    "bound to another token"
+                  ) : (
+                    "not bound"
+                  )}
+                </td>
+                <td class="code" data-label="Owner now">
+                  {seat.owner ? (
+                    <a href={`https://etherscan.io/address/${seat.owner}`} rel="noopener">
+                      {seat.owner}
+                    </a>
+                  ) : (
+                    ""
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )}
+
+  <section class="section">
+    <div class="section__head">
+      <h2>The same check by hand</h2>
+      <p>Foundry's cast and curl · no key, no account</p>
+    </div>
+    <Commands commands={m.commands} />
+    <form class="lookup" method="get" action="/verify">
+      <label class="label" for="job">
+        Check another job
+      </label>
+      <input id="job" name="job" type="text" autocomplete="off" spellcheck="false" placeholder="A job id" />
+      <button class="btn btn--ghost" type="submit">
+        Check the receipt
+      </button>
+    </form>
+  </section>
+</Layout>
+
+<script>
+  import "~/scripts/browserVerify";
+</script>

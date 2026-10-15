@@ -1,0 +1,7 @@
+# Real protocol data and golden vectors are kept byte for byte.
+fixtures/
+vectors/
+dist/
+# Written by the generators (abi:gen, feeds:gen) and compared with their output byte for byte.
+src/abi/generated/
+src/generated/

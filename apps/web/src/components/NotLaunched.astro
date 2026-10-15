@@ -1,0 +1,38 @@
+---
+/**
+ * The slip a page carries while its contract is not launched: a grey stamp and one plain
+ * paragraph. The same on every such page, so a reader learns it once.
+ */
+import type { ContractStatus } from "~/models/common";
+import Stamp from "./Stamp.astro";
+
+interface Props {
+  contract: ContractStatus;
+  /** What cannot be done yet, in a few words: "No order can be posted". */
+  consequence: string;
+}
+
+const { contract, consequence } = Astro.props;
+---
+
+{contract.address ? (
+  <p class="small">
+    {contract.name} is at{" "}
+    <a class="break data" href={contract.url}>
+      {contract.address}
+    </a>
+    .
+  </p>
+) : (
+  <aside class="hold" aria-label="Not launched yet">
+    <Stamp stamp={{ text: "NOT LAUNCHED YET", tone: "void" }} mid />
+    <p>
+      <strong>
+        {contract.name} (launch {contract.launch}) is not launched yet.
+      </strong>{" "}
+      {consequence} This page is complete all the same: it shows what the contract does and the exact
+      transactions, and it switches on when the address is filled in.{" "}
+      <a href="/judges#not-live">What is live and what is not.</a>
+    </p>
+  </aside>
+)}
