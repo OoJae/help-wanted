@@ -27,19 +27,26 @@ hires.
   `0x6e4362a5cEc59Eb3F611af6b2d81915CF5b45f1F`. That address is the desk's third constructor
   argument, and the fork tests run the desk against the contract that lives there, with real IMD.
   The tests that need no network use a stand-in for it.
-- **One real swarm job has carried an order header, and the swarm kept it.** A runner must put 85
-  bytes at the start of the job's objective. For the one job we bought that way (a research
-  report, 13 October 2026) the stored objective keeps those bytes unchanged, the record's `kind` is
-  the job's template, and `WorkProof` reads both from the record as served
-  (`test/proof/WorkProof.headerJob.t.sol`). Not shown yet: that the proof passes on chain for that
-  job, because its receipt is still queued at IdentityMD; and the same for a picture job, which is
-  what the Doorbell orders. `docs/LAUNCH.md`, section 5, has the details.
-- **No order has been settled by a real job.** Every record an order settles on in a test is a
-  real IdentityMD work record with its job id and objective swapped for the order's. On a mainnet
-  fork the real WorkRegistry is made to hold such a record by acting as the registry's writer.
-- **IdentityMD's receipts are not arriving** (13 October 2026: no `WorkRecorded` event in the last
-  9,000 blocks; none since about 8 October). While that lasts, only orders that allow the
-  bonded-claim path can be paid, and the first day in `docs/LAUNCH.md` is planned for that.
+- **The desk's first order was settled by a real job, on proof.** On 13 October 2026 the
+  Doorbell opened order 1 (one picture, 1 IMD) on its 25th ring, and a runner bought the picture
+  job from the swarm with the order's header at the start of its objective. A runner must put 85
+  bytes at the start of the job's objective, and the swarm kept them. On 14 October, a
+  minute after IdentityMD wrote the job's receipt, the runner settled the order with the job's
+  work record (transaction
+  `0xa3f5b783fe194c35f348e411a10f0a199589ea89b668a16d1597794931217628`, block 26190223): the desk
+  had `WorkProof` check the record against the live WorkRegistry, then paid the runner 0.9 IMD and
+  its bond, `Payroll` its 0.05 IMD fee and a 0.05 IMD tip for agent 51519, and called the Doorbell
+  back. The order is `Delivered` and marked proven. The ringer, the runner and the Doorbell's IMD
+  were all the team's own.
+- **The earlier header job is proven too.** The research-report job bought with a header on 13
+  October has its receipt since 14 October, and
+  `FOUNDRY_PROFILE=fork forge test --match-test test_fork_headerJob -vv` proves it against the
+  real registry.
+- **IdentityMD's receipts stalled from about 8 to 14 October 2026.** On 13 October the registry
+  had written no `WorkRecorded` event in the last 9,000 blocks; it wrote again on 14 October.
+  While receipts are late, only orders that allow the bonded-claim path can be paid, which is why
+  the Doorbell was launched with that path on (`docs/LAUNCH.md`, section 5; `docs/THREATS.md`,
+  D2).
 - **Audited by IdentityMD's launch pipeline, and by nobody else.** Before deploying, its audit
   agents and an independent reviewer read this code and reported one medium and several info
   findings. None changed a contract; each is answered in `ADAPTATION.md`, and the medium one (a

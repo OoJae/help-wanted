@@ -616,20 +616,17 @@ loop.
 
 ## 10. What is not verified
 
-- **A proof on chain for a job that carried an order header.** One such job exists and its record
-  reads as it should (B1); its receipt was queued at IdentityMD, not written, when this was
-  written.
-- **An order settled by a real job.** No desk is deployed, so no real job has carried the header of
-  a real order.
-- **A picture job with a header,** and so the Doorbell's kind on the proven path
-  (`docs/LAUNCH.md`, section 5).
-- **A receipt written by the real writer for a job of ours.** On the fork the test is the writer.
+- **Shown since this list was written** (15 October 2026): a proof on chain for a job that
+  carried an order header (the research-report job of B1, whose receipt was written on 14 October),
+  and an order settled by a real job on the proven path: order 1, a picture job opened by the
+  Doorbell, settled on 14 October with a receipt written by IdentityMD's real writer, which
+  settles the Doorbell's kind on the proven path as well (`README.md` has the transactions). What
+  follows is still not shown.
 - **The live Payroll under a real failure.** It has none a caller can cause; the failures in the
   fork suite are imposed from outside (B2).
-- **The launch pipeline itself.** The factory call is rehearsed on a fork as the launch deployer
-  (`test/fork/LaunchRehearsal.fork.t.sol`), with stand-in values for the record the factory stores.
-  The pipeline's own audit and what it may change in the code before deploying (section 11) are
-  not ours to run.
+- **The launch pipeline itself** was not ours to run. It ran on 13 October 2026 and changed no
+  contract code (`ADAPTATION.md`); before that, the factory call was rehearsed on a fork as the
+  launch deployer (`test/fork/LaunchRehearsal.fork.t.sol`).
 - **Whether a not-completed receipt can be followed by a completed one** (L5), and whether
   IdentityMD still writes second receipts.
 - **Whether a transaction with more than 128 KB of calldata can reach a block,** and the on-chain
@@ -637,10 +634,13 @@ loop.
 - **The kind strings of skills that have no receipt yet.**
 - **That the registry holds no DELEGATECALL and what its admin can do,** beyond the reading named in
   section 2.
-- **No third-party audit.** Two internal reviews per contract when the contracts were written,
-  their findings fixed or listed above, a second read of the code changed since, the review of
-  section 11, and the checks in this repository.
-- **Gas figures** are from tests and from a mainnet fork, not from mainnet transactions.
+- **No audit by anyone outside IdentityMD and the team.** The launch pipeline's audit agents and an
+  independent reviewer read the code before it was deployed (`ADAPTATION.md`). Before that: two
+  internal reviews per contract when the contracts were written, their findings fixed or listed
+  above, a second read of the code changed since, the review of section 11, and the checks in this
+  repository.
+- **Gas figures** are from tests and from a mainnet fork, apart from those of order 1's own
+  transactions on mainnet: the ring that hired used 328,183 gas and the settlement 636,569.
 
 ## 11. What IdentityMD's pipeline changed in our first launch, and what was checked here
 
