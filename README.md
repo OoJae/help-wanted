@@ -14,8 +14,8 @@ feeds funded.
   `0x58963B57E179f7fE4E95090C21E8e9D75353BCE4` and `Payroll` at
   `0x6e4362a5cEc59Eb3F611af6b2d81915CF5b45f1F`. `src/` is the source that was deployed: built here
   with the manifest's arguments, each contract has the runtime code that is at its address.
-  `docs/LAUNCH.md` is the launch request and the runbook, kept as they were written before the
-  launch.
+  `docs/LAUNCH.md` is the launch request and the runbook, kept as written before the launch, apart
+  from its status paragraph.
 - **The first Robot Jobs Report was printed the same day.** The three house feeds were created at
   12:35 UTC and each was asked once. The oracle's signed answers for two of them were handed in
   with `submit`, and print no. 1 (block 26183781, transaction
@@ -27,8 +27,11 @@ feeds funded.
   report recorded the week's top employers from it. Every other transaction that touched these
   contracts was sent by the team's own wallets: nobody outside the team has used them yet.
 - **`Payroll` has received its first fee.** On 14 October 2026 HELP WANTED's hire desk (launch B)
-  settled its first order and paid `Payroll` a 0.05 IMD fee and a 0.05 IMD tip for the agent that
-  did the work. The code split the fee as written; no seat owner has claimed yet.
+  settled its first order and paid `Payroll` a 0.05 IMD fee and a 0.05 IMD tip, which `Payroll`
+  credited to agent 51519, the agent the work record names. The code split the fee as written; no
+  seat has claimed its share of it yet. On 15 October the team's wallet W1 called
+  `claimTip(51519)`, and `Payroll` paid the tip to the owner of seat 1049, the seat that agent is
+  bound to (transaction `0x9edc8ba2ae4cfbabe95d6ca11e7a93f349f09729b7a699d575eac6f8466e1fe8`).
 - **The three house feeds have each been answered by the live oracle once.** On 12 and 13 October
   2026 one real request was bought per feed, with the bytes `Questions` sends, and all three were
   attested. The records are in `test/fixtures/questions/proofs/` and `docs/LAUNCH.md`, section 5,
@@ -42,7 +45,11 @@ feeds funded.
   code left as the build brief fixed it: two low findings (one statement about the stakers'
   stream that claimed more than the code gives). Left: one info finding, and the other medium
   finding, which is acknowledged and not closed: a visitor that stakes in sIMD just before a drip
-  takes a staker's share of it (`docs/THREATS.md`, P2). The fixes have not been audited again.
+  takes a staker's share of it (`docs/THREATS.md`, P2). The fixes were next read by IdentityMD's
+  launch pipeline, before it deployed the code: first as supplied, fixes included
+  (`audit_imported_code`), and then as adapted, by four specialist agents and a judge;
+  `docs/AUDITS.md` lists the eight findings on its record and what became of each. Nobody outside
+  IdentityMD's network has audited this code.
 - **The launch adaptation reproduced the supplied audit.** `submit` now preserves the opener's
   tip. Silent rounds wait twelve hours plus their requested answer validity, five minutes of
   clock tolerance, and one second before anyone can close them (36 h 5 min 1 s for house feeds).
@@ -100,11 +107,11 @@ A full build takes a few minutes because of `via_ir`.
 
 ## The contracts
 
-| Contract | File | Runtime bytes | Initcode bytes | Holds money |
-|---|---|---|---|---|
-| `Questions` | `src/questions/Questions.sol` | 22,963 | 24,372 | The feeds' meters and keepers' tips |
-| `JobsReport` | `src/payroll/JobsReport.sol` | 9,320 | 9,618 | No |
-| `Payroll` | `src/payroll/Payroll.sol` | 11,715 | 12,429 | Fees until they are paid out |
+| Contract     | File                          | Runtime bytes | Initcode bytes | Holds money                         |
+| ------------ | ----------------------------- | ------------- | -------------- | ----------------------------------- |
+| `Questions`  | `src/questions/Questions.sol` | 22,963        | 24,372         | The feeds' meters and keepers' tips |
+| `JobsReport` | `src/payroll/JobsReport.sol`  | 9,320         | 9,618          | No                                  |
+| `Payroll`    | `src/payroll/Payroll.sol`     | 11,715        | 12,429         | Fees until they are paid out        |
 
 The table records the pre-adaptation build. Final measured sizes are in `ADAPTATION.md`.
 The limits are 24,576 bytes of runtime and 49,152 of initcode; our own gates remain 23,000 and
@@ -156,18 +163,18 @@ function that is not in its table, a payable function, a `receive` or a fallback
 
 ### Questions
 
-| Function | Who may call | What it does | Reverts when |
-|---|---|---|---|
-| `createFeed(params, qPrefix, tail)` | Anyone | Registers a feed and returns its id. Creating a feed that exists returns its id and changes nothing. | `BadFeed(fault)`: a parameter is out of range, the tip is above the price cap, the text is not the feed's canonical document, or the body would be longer than 16,384 bytes. |
-| `fund(feedId, amount)` | Anyone, having approved `amount` | Pulls IMD onto the meter and mints shares to the caller. | `UnknownFeed`; `ZeroAmount` (nothing asked or nothing arrived); `ZeroShares`; the token transfer fails. |
-| `fundFor(feedId, amount, beneficiary)` | Anyone, having approved `amount` | The same, with the shares minted to `beneficiary`. | As `fund`; `ZeroAddress` for a zero beneficiary. |
-| `defund(feedId, shares)` | A holder of shares | Burns shares and pays the caller their part of the unspent meter. More shares than held means all of them. Never blocked by the feed's state. | `NothingToDefund`: the caller holds no shares of this meter. |
-| `request(feedId)` | Anyone | Buys the feed's next answer from the Intake with the meter's IMD. Sets the tip aside for the caller. | `RequestBlocked(why)`: unknown feed, a second request in one transaction, a round pending, too soon, no blocks yet, gate closed, action not sold, price above the feed's cap, or meter too low. `PriceNotTaken`, `RequestIdReused`, `MetersNotCovered` if the Intake misbehaves. |
-| `onOracleResult(requestId, attestation, signature)` | **The Intake only** | Stores the oracle's answer for the pending round and credits the tip to the keeper that opened it. | `NotTheIntake`; `UnknownRequest`; the attestation is expired, not yet valid, not signed by the oracle signer for this contract, already used by this feed, or does not match the round's chain, question hash, window, answer type, panel, quorum, agreement or closing block hash; `MalformedAnswer`. |
-| `submit(feedId, attestation, signature)` | Anyone | Hands in an answer the callback missed or has not brought. The tip stays with the opener. Closed for a feed a panel judges, the employers house feed among them. | `UnknownFeed`; `SubmitNeedsPinnedQuestion`; `SubmitNotForPanelEvidence`; `NoPendingRound`; `SubmitTooEarly(opensAt)` until the Intake has completed the round's request or thirty minutes have passed since it; then every check of the callback. |
-| `abandon(feedId)` | Anyone | Closes a pending round that will not be answered and returns its tip to the meter. Returns `false` when the call only started the thirty-minute wait. | `UnknownFeed`; `NoPendingRound`; `TooEarlyToAbandon(notBefore)` until the full silence deadline (request + 12 h + `validFor` + 5 min + 1 s), or thirty minutes after the first call that found the Intake's request completed. |
-| `collectTips()` | Anyone | Pays the caller the tips it has earned. Pays nothing, without reverting, when none are earned. | Only if the token transfer fails. |
-| `reveal(feedId, round, answer)` | Anyone | Publishes, in an event, the list behind a list-typed round. Stores nothing. | `NothingToReveal`; `WrongAnswerBytes`. |
+| Function                                            | Who may call                     | What it does                                                                                                                                                     | Reverts when                                                                                                                                                                                                                                                                                           |
+| --------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `createFeed(params, qPrefix, tail)`                 | Anyone                           | Registers a feed and returns its id. Creating a feed that exists returns its id and changes nothing.                                                             | `BadFeed(fault)`: a parameter is out of range, the tip is above the price cap, the text is not the feed's canonical document, or the body would be longer than 16,384 bytes.                                                                                                                           |
+| `fund(feedId, amount)`                              | Anyone, having approved `amount` | Pulls IMD onto the meter and mints shares to the caller.                                                                                                         | `UnknownFeed`; `ZeroAmount` (nothing asked or nothing arrived); `ZeroShares`; the token transfer fails.                                                                                                                                                                                                |
+| `fundFor(feedId, amount, beneficiary)`              | Anyone, having approved `amount` | The same, with the shares minted to `beneficiary`.                                                                                                               | As `fund`; `ZeroAddress` for a zero beneficiary.                                                                                                                                                                                                                                                       |
+| `defund(feedId, shares)`                            | A holder of shares               | Burns shares and pays the caller their part of the unspent meter. More shares than held means all of them. Never blocked by the feed's state.                    | `NothingToDefund`: the caller holds no shares of this meter, or asked for none (`shares` is 0).                                                                                                                                                                                                        |
+| `request(feedId)`                                   | Anyone                           | Buys the feed's next answer from the Intake with the meter's IMD. Sets the tip aside for the caller.                                                             | `RequestBlocked(why)`: unknown feed, a second request in one transaction, a round pending, too soon, no blocks yet, gate closed, action not sold, price above the feed's cap, or meter too low. `PriceNotTaken`, `RequestIdReused`, `MetersNotCovered` if the Intake misbehaves.                       |
+| `onOracleResult(requestId, attestation, signature)` | **The Intake only**              | Stores the oracle's answer for the pending round and credits the tip to the keeper that opened it.                                                               | `NotTheIntake`; `UnknownRequest`; the attestation is expired, not yet valid, not signed by the oracle signer for this contract, already used by this feed, or does not match the round's chain, question hash, window, answer type, panel, quorum, agreement or closing block hash; `MalformedAnswer`. |
+| `submit(feedId, attestation, signature)`            | Anyone                           | Hands in an answer the callback missed or has not brought. The tip stays with the opener. Closed for a feed a panel judges, the employers house feed among them. | `UnknownFeed`; `SubmitNeedsPinnedQuestion`; `SubmitNotForPanelEvidence`; `NoPendingRound`; `SubmitTooEarly(opensAt)` until the Intake has completed the round's request or thirty minutes have passed since it; then every check of the callback.                                                      |
+| `abandon(feedId)`                                   | Anyone                           | Closes a pending round that will not be answered and returns its tip to the meter. Returns `false` when the call only started the thirty-minute wait.            | `UnknownFeed`; `NoPendingRound`; `TooEarlyToAbandon(notBefore)` until the full silence deadline (request + 12 h + `validFor` + 5 min + 1 s), or thirty minutes after the first call that found the Intake's request completed.                                                                         |
+| `collectTips()`                                     | Anyone                           | Pays the caller the tips it has earned. Pays nothing, without reverting, when none are earned.                                                                   | Only if the token transfer fails.                                                                                                                                                                                                                                                                      |
+| `reveal(feedId, round, answer)`                     | Anyone                           | Publishes, in an event, the list behind a list-typed round. Stores nothing.                                                                                      | `NothingToReveal`; `WrongAnswerBytes`.                                                                                                                                                                                                                                                                 |
 
 Views: `latest`, `roundOf`, `roundRequest`, `roundCount`, `costOf`, `meterOf`, `sharesOf`,
 `redeemable`, `tipsOf`, `feedParams`, `feedText`, `feedState`, `feedCount`, `feedAt`,
@@ -179,10 +186,10 @@ Views: `latest`, `roundOf`, `roundRequest`, `roundCount`, `costOf`, `meterOf`, `
 
 ### JobsReport
 
-| Function | Who may call | What it does | Reverts when |
-|---|---|---|---|
-| `print()` | Anyone | Copies newly answered rounds of the payrolls and hires feeds into the report, at most eight rounds a call, and attaches counts to prints. A call with nothing new changes nothing. It never reads the employers feed. | Only if `Questions` reverts. |
-| `crown(round, answer)` | Anyone holding the attested list | Publishes the top three of one answered round of the employers feed, after checking the bytes against the hash `Questions` stored. | `AlreadyCrowned`; `RoundNotAnswered`; `AnswerMismatch`; `BadAnswer`. |
+| Function               | Who may call                     | What it does                                                                                                                                                                                                          | Reverts when                                                         |
+| ---------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `print()`              | Anyone                           | Copies newly answered rounds of the payrolls and hires feeds into the report, at most eight rounds a call, and attaches counts to prints. A call with nothing new changes nothing. It never reads the employers feed. | Only if `Questions` reverts.                                         |
+| `crown(round, answer)` | Anyone holding the attested list | Publishes the top three of one answered round of the employers feed, after checking the bytes against the hash `Questions` stored.                                                                                    | `AlreadyCrowned`; `RoundNotAnswered`; `AnswerMismatch`; `BadAnswer`. |
 
 Views: `printCount`, `printAt`, `latestPrint`, `printsPage`, `latestPrints`, `countsRecorded`,
 `countAt`, `countsPage`, `latestCounts`, `crownOf`, `latestCrown`, `crownCount`, `crownsPage`,
@@ -191,17 +198,17 @@ Views: `printCount`, `printAt`, `latestPrint`, `printsPage`, `latestPrints`, `co
 
 ### Payroll
 
-| Function | Who may call | What it does | Reverts when |
-|---|---|---|---|
-| `pay(amount, memo)` | Anyone, having approved `amount` | Pulls IMD and books it: 50% stakers, 30% seats, 20% feeds. A zero amount does nothing. A booking never releases feed budget. | Only if the token transfer fails. |
-| `book()` | Anyone | Books IMD that arrived by plain transfer, split the same way. Returns the amount, zero when nothing new arrived. | Only if the token's balance cannot be read. |
-| `tip(agentIds, amount)` | Anyone, having approved `amount` | Pulls IMD and credits it equally to the first 16 ids; the remainder, or everything for an empty list, joins the seat pool. | Only if the token transfer fails. |
-| `drip()` | Anyone | Sends the vested part of the stakers' stream to sIMD by plain transfer, at most one hour of stream per call. Whoever holds sIMD at that moment shares it. Returns zero when nothing has vested. | `DripTooSoon(notBefore)` inside ten minutes of the last drip; `StakingVaultNotReady` when sIMD does not answer as a vault over IMD with shares outstanding. `stream().dueNow` is zero in both cases. |
-| `claimSeat(tokenId)` | Anyone for wallets; the holder for contract-owned seats (except Payroll) | Pays a seat's share of the seat pool to whoever owns the seat now. | `UnknownSeat`; `SeatHasNoOwner`; `ContractOwnerMustClaim`. |
-| `claimSeats(tokenIds)` | Anyone | The same for a list of at most 200 ids. Skips what it cannot pay, including other contract owners. | `TooManySeats`. |
-| `claimTip(agentId)` | Same caller rule as `claimSeat` | Pays an agent's tips to the owner of the seat the agent is bound to. | `AgentNotBound`; `AgentBoundElsewhere`; `SeatHasNoOwner`; `ContractOwnerMustClaim`; `GasTooLow`. |
-| `sweepTip(agentId)` | Anyone | Moves the part of an agent's tips that has waited 180 to 360 days, and still cannot be claimed, to the seat pool. | `TipNotSweepableYet(agentId, notBefore)`; `TipStillClaimable`; `GasTooLow`. |
-| `fundFeeds()` | Anyone | Tops Payroll's own position on each of the three house feeds' meters up to its runway from the feed budget, then releases to the stakers' stream the budget whose wait of 14 to 28 days is over. The only function that releases feed budget. | `FeedOverdrawn`, only if more IMD left than was approved. A failure inside `Questions` does not revert it. |
+| Function                | Who may call                                                             | What it does                                                                                                                                                                                                                                  | Reverts when                                                                                                                                                                                         |
+| ----------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pay(amount, memo)`     | Anyone, having approved `amount`                                         | Pulls IMD and books it: 50% stakers, 30% seats, 20% feeds. A zero amount does nothing. A booking never releases feed budget.                                                                                                                  | Only if the token transfer fails.                                                                                                                                                                    |
+| `book()`                | Anyone                                                                   | Books IMD that arrived by plain transfer, split the same way. Returns the amount, zero when nothing new arrived.                                                                                                                              | Only if the token's balance cannot be read.                                                                                                                                                          |
+| `tip(agentIds, amount)` | Anyone, having approved `amount`                                         | Pulls IMD and credits it equally to the first 16 ids; the remainder, or everything for an empty list, joins the seat pool.                                                                                                                    | Only if the token transfer fails.                                                                                                                                                                    |
+| `drip()`                | Anyone                                                                   | Sends the vested part of the stakers' stream to sIMD by plain transfer, at most one hour of stream per call. Whoever holds sIMD at that moment shares it. Returns zero when nothing has vested.                                               | `DripTooSoon(notBefore)` inside ten minutes of the last drip; `StakingVaultNotReady` when sIMD does not answer as a vault over IMD with shares outstanding. `stream().dueNow` is zero in both cases. |
+| `claimSeat(tokenId)`    | Anyone for wallets; the holder for contract-owned seats (except Payroll) | Pays a seat's share of the seat pool to whoever owns the seat now.                                                                                                                                                                            | `UnknownSeat`; `SeatHasNoOwner`; `ContractOwnerMustClaim`.                                                                                                                                           |
+| `claimSeats(tokenIds)`  | Anyone                                                                   | The same for a list of at most 200 ids. Skips what it cannot pay, including other contract owners.                                                                                                                                            | `TooManySeats`.                                                                                                                                                                                      |
+| `claimTip(agentId)`     | Same caller rule as `claimSeat`                                          | Pays an agent's tips to the owner of the seat the agent is bound to.                                                                                                                                                                          | `AgentNotBound`; `AgentBoundElsewhere`; `SeatHasNoOwner`; `ContractOwnerMustClaim`; `GasTooLow`.                                                                                                     |
+| `sweepTip(agentId)`     | Anyone                                                                   | Moves the part of an agent's tips that has waited 180 to 360 days, and still cannot be claimed, to the seat pool.                                                                                                                             | `TipNotSweepableYet(agentId, notBefore)`; `TipStillClaimable`; `GasTooLow`.                                                                                                                          |
+| `fundFeeds()`           | Anyone                                                                   | Tops Payroll's own position on each of the three house feeds' meters up to its runway from the feed budget, then releases to the stakers' stream the budget whose wait of 14 to 28 days is over. The only function that releases feed budget. | `FeedOverdrawn`, only if more IMD left than was approved. A failure inside `Questions` does not revert it.                                                                                           |
 
 Views: `ledger`, `owed`, `unbooked`, `stream`, `feedBudget`, `feedShortfalls`, `seatClaimable`,
 `tipOwed`, `tipOf`, `clock`, `dripCap`, `streamUnvested`, `seatAccrued`, `seatCarry`, `seatPaid`,
@@ -213,13 +220,13 @@ Callback gas, through the stand-in Intake's call, from cold storage, with a keep
 (`test/questions/QuestionsCallbackGas.t.sol`; the test fails above 140,000, and the Intake gives
 200,000):
 
-| Answer | Gas |
-|---|---|
-| `uint256` | 115,764 |
-| `uint256`, zero | 95,864 |
-| `bool`, no | 95,890 |
-| `address` | 115,801 |
-| `address[]` of three | 115,904 |
+| Answer                    | Gas     |
+| ------------------------- | ------- |
+| `uint256`                 | 115,764 |
+| `uint256`, zero           | 95,864  |
+| `bool`, no                | 95,890  |
+| `address`                 | 115,801 |
+| `address[]` of three      | 115,904 |
 | `bytes32[]` of thirty-two | 116,622 |
 
 The three real answers to the house feeds, put through the same callback, used 115,803 (payrolls),
@@ -231,27 +238,27 @@ million.
 
 Other calls, each printed by the named test with `-vv`:
 
-| Call | Gas | Test |
-|---|---|---|
-| `Payroll.pay` | 103,380 (the first ever: 263,606) | `test_gas_pay`, `test_gas_theFirstPayEver` |
-| `Payroll.pay` that also ages the feed budget past two fortnight boundaries | 128,509 | `test_gas_payThatAlsoAgesTheWaitingFeedBudget` |
-| `Payroll.book` | 98,189 (the first ever: 237,338) | `test_gas_book`, `test_gas_theFirstBookEver` |
-| `Payroll.tip`, 4 agents already owed | 77,631 | `test_gas_tipToFourKnownAgents` |
-| `Payroll.tip`, 16 agents never seen | 427,165 (as the first tip ever: 506,058) | `test_gas_tipToSixteenNewAgents`, `test_gas_theFirstTipEverToSixteenAgents` |
-| `Payroll.tip`, 16 agents whose earlier tips must be aged | 553,983 | `test_gas_tipToSixteenAgentsWhoseEarlierTipsMustBeAged` |
-| `Payroll.drip` | 68,833 | `test_gas_drip` |
-| `Payroll.claimSeat` | 103,182 | `test_gas_claimSeat` |
-| `Payroll.claimSeats`, 20 seats of 20 owners | 1,173,802 | `test_gas_claimTwentySeats` |
-| `Payroll.claimSeats`, 200 seats of 200 owners | 11,289,963 | `test_gas_claimAFullListOfSeats` |
-| `Payroll.claimTip` | 116,643 | `test_gas_claimTip` |
-| `Payroll.fundFeeds`, one meter topped up | 190,268 | `test_gas_fundFeeds` |
-| `Payroll.fundFeeds`, one meter topped up and the waiting budget released | 261,090 | `test_gas_fundFeedsThatAlsoReleasesTheWaitingFeedBudget` |
-| `JobsReport.print`, one period with its count | 232,314 | `test_gas_print` |
-| `JobsReport.crown`, a list of ten | 177,671 | `test_gas_crown` |
-| `Questions.createFeed`, the three house feeds, mainnet fork | about 820,000 to 1,120,000 | `test_fork_rehearsal_firstRequest_payrolls` |
-| `Questions.request`, live Intake (version 2), mainnet fork | about 418,000 to 451,000 | `test_fork_rehearsal_firstRequest_payrolls`, `…_hires`, `…_employers` |
-| `Payroll.claimSeats`, 20 real seats, mainnet fork | 49,342 a seat | `test_fork_gasOfSeatClaimsAgainstTheRealContracts` |
-| The live Adapter's `bindingOf`, mainnet fork | 13,236 | `test_fork_tipFollowsTheRealAdapterBinding` |
+| Call                                                                       | Gas                                      | Test                                                                        |
+| -------------------------------------------------------------------------- | ---------------------------------------- | --------------------------------------------------------------------------- |
+| `Payroll.pay`                                                              | 103,380 (the first ever: 263,606)        | `test_gas_pay`, `test_gas_theFirstPayEver`                                  |
+| `Payroll.pay` that also ages the feed budget past two fortnight boundaries | 128,509                                  | `test_gas_payThatAlsoAgesTheWaitingFeedBudget`                              |
+| `Payroll.book`                                                             | 98,189 (the first ever: 237,338)         | `test_gas_book`, `test_gas_theFirstBookEver`                                |
+| `Payroll.tip`, 4 agents already owed                                       | 77,631                                   | `test_gas_tipToFourKnownAgents`                                             |
+| `Payroll.tip`, 16 agents never seen                                        | 427,165 (as the first tip ever: 506,058) | `test_gas_tipToSixteenNewAgents`, `test_gas_theFirstTipEverToSixteenAgents` |
+| `Payroll.tip`, 16 agents whose earlier tips must be aged                   | 553,983                                  | `test_gas_tipToSixteenAgentsWhoseEarlierTipsMustBeAged`                     |
+| `Payroll.drip`                                                             | 68,833                                   | `test_gas_drip`                                                             |
+| `Payroll.claimSeat`                                                        | 103,182                                  | `test_gas_claimSeat`                                                        |
+| `Payroll.claimSeats`, 20 seats of 20 owners                                | 1,173,802                                | `test_gas_claimTwentySeats`                                                 |
+| `Payroll.claimSeats`, 200 seats of 200 owners                              | 11,289,963                               | `test_gas_claimAFullListOfSeats`                                            |
+| `Payroll.claimTip`                                                         | 116,643                                  | `test_gas_claimTip`                                                         |
+| `Payroll.fundFeeds`, one meter topped up                                   | 190,268                                  | `test_gas_fundFeeds`                                                        |
+| `Payroll.fundFeeds`, one meter topped up and the waiting budget released   | 261,090                                  | `test_gas_fundFeedsThatAlsoReleasesTheWaitingFeedBudget`                    |
+| `JobsReport.print`, one period with its count                              | 232,314                                  | `test_gas_print`                                                            |
+| `JobsReport.crown`, a list of ten                                          | 177,671                                  | `test_gas_crown`                                                            |
+| `Questions.createFeed`, the three house feeds, mainnet fork                | about 820,000 to 1,120,000               | `test_fork_rehearsal_firstRequest_payrolls`                                 |
+| `Questions.request`, live Intake (version 2), mainnet fork                 | about 418,000 to 451,000                 | `test_fork_rehearsal_firstRequest_payrolls`, `…_hires`, `…_employers`       |
+| `Payroll.claimSeats`, 20 real seats, mainnet fork                          | 49,342 a seat                            | `test_fork_gasOfSeatClaimsAgainstTheRealContracts`                          |
+| The live Adapter's `bindingOf`, mainnet fork                               | 13,236                                   | `test_fork_tipFollowsTheRealAdapterBinding`                                 |
 
 These pre-adaptation figures are as Foundry 1.8.3 printed them with its default settings on the day of the run (13
 October 2026, after a full rebuild); the Payroll and JobsReport rows use stand-ins for IMD, sIMD,
@@ -264,7 +271,7 @@ the seat token and the Adapter, and the fork rows use the real contracts.
   first-day runbook with the exact calldata of the three `createFeed` calls, and what a keeper does
   each day.
 - `docs/AUDITS.md`: the two audit jobs, each of their nine findings, and what was done about it or
-  why it was left.
+  why it was left; and the eight findings of IdentityMD's launch pipeline.
 - `docs/THREATS.md`: trust roots, every known limit, the static-analysis results, what is not
   verified.
 - `docs/DEVIATIONS.md`: where we depart from IdentityMD's guidance, and why.
