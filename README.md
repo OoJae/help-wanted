@@ -3,7 +3,7 @@
 Three contracts for Ethereum mainnet with no owner and no token. They sit on top of the two earlier
 launches of HELP WANTED, a job board on which the employer can be a contract.
 
-- **`Rules`** keeps standing sentences: *when* a condition is true, *then* hire or pay, from the
+- **`Rules`** keeps standing sentences: _when_ a condition is true, _then_ hire or pay, from the
   rule's own escrow. The condition is a view call on any contract, or the newest answer of a
   Standing Question. Anyone may fire a rule whose condition holds and is paid the tip its creator
   set.
@@ -20,11 +20,18 @@ launches of HELP WANTED, a job board on which the employer can be a contract.
   contracts in one transaction, `0x1806c02e5e38d4c8496476b3f3cf39f250a9d0c97ff5834c75a0475a12bd62fb`
   (block 26198165): `Rules` at `0xcbF0dddF07C00a78E2E7561a6F47C275B8c05D7E`, `Endowments` at
   `0xbE916A53b9Bbe634AF7E10E604E06b6069edEE76` and `Zap` at
-  `0x51bF8c74bd9BD74Ad08cABDC90DaC7835C18B21A`. `src/` is the source that was deployed. IdentityMD's pipeline changed no
-  contract code before deploying; `ADAPTATION.md` lists what its audit raised (two low findings and
-  one note) and what was added for them (tests and sentences in `docs/THREATS.md`).
-  `docs/LAUNCH.md` is the launch request and the runbook, kept as they were written before the
-  launch.
+  `0x51bF8c74bd9BD74Ad08cABDC90DaC7835C18B21A`. `src/` is the source that was deployed.
+  IdentityMD's pipeline changed no file under `src/` before deploying. `ADAPTATION.md` lists what
+  its audit of the imported code raised (two low findings and one note) and what was added for them
+  (tests and sentences in `docs/THREATS.md`). That is not all the pipeline's reviewers reported:
+  the launch's pull request says they raised 13 findings, and IdentityMD's record of the job holds
+  13, six low and seven info, none marked blocking. The ten raised after the code was adapted were
+  answered by no node of the pipeline, and the code was deployed as it was. They come down to four
+  matters not raised before and one that `ADAPTATION.md` had already answered. `docs/AUDITS.md`
+  lists all 13 and what became of each; the four new matters (its rows 4 to 7) are limits
+  `docs/THREATS.md` states since 15 October 2026 (R11, E7, E9 and Z4). `docs/LAUNCH.md` is the
+  launch request and the runbook, kept as written before the launch, apart from its status
+  paragraph.
 - **The two launches it builds on are live.** Three of the ten constructor arguments are contracts
   of HELP WANTED's earlier launches on Ethereum mainnet: `Questions`
   (`0xEECE4628ceb091C13393fc64056Be8b8501fD3F6`) of launch A, IdentityMD launch 1531, and
@@ -41,13 +48,16 @@ launches of HELP WANTED, a job board on which the employer can be a contract.
   contracts, and every stand-in, against them. It builds only where the three launch folders sit
   side by side.
 - **What the product needs from outside, as of 15 October 2026.** A HIRE rule's order is paid on an
-  on-chain receipt of IdentityMD's WorkRegistry. Receipts stopped arriving on about 8 October and
-  have been written again since 14 October; that day the desk's first order (the Doorbell's) was paid
-  on its receipt. A FEED rule needs answers on a Standing Question: launch A's payrolls, hires and
+  on-chain receipt of IdentityMD's WorkRegistry. The WorkRegistry wrote no receipt from about
+  8 October until 13 October 2026, 17:26 UTC (block 26,185,055). It then worked through its
+  backlog, and on 14 October the desk's first order (the Doorbell's) was paid on its job's receipt,
+  written that day. A FEED rule needs answers on a Standing Question: launch A's payrolls, hires and
   employers feeds each had one answered round, from 13 October. How often a feed is asked depends on
   somebody paying for its rounds.
-- **Not audited by a third party.** `docs/THREATS.md` lists every trust root and every known
-  limit, and in section 10 what we checked here after IdentityMD's pipeline changed our first launch;
+- **Audited by IdentityMD's launch pipeline, and by nobody outside IdentityMD's network.**
+  IdentityMD records no outside audit or bounty for this launch. `docs/AUDITS.md` lists what the
+  pipeline's reviewers reported. `docs/THREATS.md` lists every trust root and every known limit,
+  and in section 10 what we checked here after IdentityMD's pipeline changed our first launch;
   `docs/DEVIATIONS.md` lists where we depart from IdentityMD's guidance.
 
 ## Check three claims yourself
@@ -142,11 +152,11 @@ A full build takes a few minutes because of `via_ir`.
 
 ## The contracts
 
-| Contract | File | Runtime bytes | Initcode bytes | Holds money |
-|---|---|---|---|---|
-| `Rules` | `src/rules/Rules.sol` | 13,762 | 14,153 | The escrows of its rules, in IMD |
-| `Endowments` | `src/endowments/Endowments.sol` | 13,161 | 13,746 | Deposits waiting to be staked, in IMD, and the sIMD shares of everything staked |
-| `Zap` | `src/rules/Zap.sol` | 3,834 | 4,458 | Nothing between calls |
+| Contract     | File                            | Runtime bytes | Initcode bytes | Holds money                                                                     |
+| ------------ | ------------------------------- | ------------- | -------------- | ------------------------------------------------------------------------------- |
+| `Rules`      | `src/rules/Rules.sol`           | 13,762        | 14,153         | The escrows of its rules, in IMD                                                |
+| `Endowments` | `src/endowments/Endowments.sol` | 13,161        | 13,746         | Deposits waiting to be staked, in IMD, and the sIMD shares of everything staked |
+| `Zap`        | `src/rules/Zap.sol`             | 3,834         | 4,458          | Nothing between calls                                                           |
 
 The limits are 24,576 bytes of runtime code and 49,152 of initcode; our own gates are 23,000 and
 46,000, and a test fails above them.
@@ -196,15 +206,15 @@ is not in its table, a `receive`, a fallback, or a function that takes ETH other
 
 ### Rules
 
-| Function | Who may call | What it does | Reverts when |
-|---|---|---|---|
-| `createRule(params, spec, deposit)` | Anyone, having approved `deposit` | Creates a rule and escrows `deposit` IMD for it. The caller is its creator. | `ZeroAddress` (no condition target); `BadComparison`; `ZeroFires`; `BadCondition`; `BadConditionData` (more than 132 bytes); `ZeroMaxAge`; `FieldNotUsed`; `BadAction`; `BadPay`; `BadRecipient`; `ZeroTtl`; `SpecInvalid(at)`; `BelowDeskMinimum`; `AboveDeskMaximum`; `BadFlags`; `CostTooHigh`; for a HIRE rule, the desk cannot be read. |
-| `topUp(id, amount)` | Anyone, having approved | Adds to a rule's escrow. Money added by somebody else is a gift to the rule. | `UnknownRule`; `RuleIsCancelled`; `ZeroAmount`. |
-| `cancel(id)` | **The rule's creator** | Ends the rule and sends its unspent escrow to the creator. | `NotCreator`; `RuleIsCancelled`. |
-| `fire(id, spec)` | Anyone | Fires a rule whose condition holds: opens its order or makes its payment, and pays the caller the tip. | `UnknownRule`; `RuleIsCancelled`; `RuleExhausted`; `CoolingDown(readyAt)`; `GasShort`; `ConditionNotMet`; `EscrowShort(needed, held)`; `WrongSpec`; the desk refuses the order (the desk's error); `DeskPulledWrongAmount`; `OrderAlreadyLinked`. |
-| `reconcile(id, orderId)` | Anyone | Hands back to a rule what the desk has returned for one of its orders since the last call. For a cancelled rule the money goes to its creator. | `NotThisRulesOrder`; `ReturnNotReceived`. |
-| `recall(id, orderId)` | **The rule's creator** | Withdraws from the desk an order nobody has taken, and reconciles it. | `NotCreator`; `NotThisRulesOrder`; the desk's error when the order can no longer be withdrawn; `ReturnNotReceived`. |
-| `onWorkDelivered(orderId, jobId, recordHash)` | **The hire desk only** | Records a delivery and reconciles that order. An order Rules does not know is ignored. | `NotDesk`; `NotThisRulesOrder`; `ReturnNotReceived`. |
+| Function                                      | Who may call                      | What it does                                                                                                                                   | Reverts when                                                                                                                                                                                                                                                                                                                                 |
+| --------------------------------------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createRule(params, spec, deposit)`           | Anyone, having approved `deposit` | Creates a rule and escrows `deposit` IMD for it. The caller is its creator.                                                                    | `ZeroAddress` (no condition target); `BadComparison`; `ZeroFires`; `BadCondition`; `BadConditionData` (more than 132 bytes); `ZeroMaxAge`; `FieldNotUsed`; `BadAction`; `BadPay`; `BadRecipient`; `ZeroTtl`; `SpecInvalid(at)`; `BelowDeskMinimum`; `AboveDeskMaximum`; `BadFlags`; `CostTooHigh`; for a HIRE rule, the desk cannot be read. |
+| `topUp(id, amount)`                           | Anyone, having approved           | Adds to a rule's escrow. Money added by somebody else is a gift to the rule.                                                                   | `UnknownRule`; `RuleIsCancelled`; `ZeroAmount`.                                                                                                                                                                                                                                                                                              |
+| `cancel(id)`                                  | **The rule's creator**            | Ends the rule and sends its unspent escrow to the creator.                                                                                     | `NotCreator`; `RuleIsCancelled`.                                                                                                                                                                                                                                                                                                             |
+| `fire(id, spec)`                              | Anyone                            | Fires a rule whose condition holds: opens its order or makes its payment, and pays the caller the tip.                                         | `UnknownRule`; `RuleIsCancelled`; `RuleExhausted`; `CoolingDown(readyAt)`; `GasShort`; `ConditionNotMet`; `EscrowShort(needed, held)`; `WrongSpec`; the desk refuses the order (the desk's error); `DeskPulledWrongAmount`; `OrderAlreadyLinked`.                                                                                            |
+| `reconcile(id, orderId)`                      | Anyone                            | Hands back to a rule what the desk has returned for one of its orders since the last call. For a cancelled rule the money goes to its creator. | `NotThisRulesOrder`; `ReturnNotReceived`.                                                                                                                                                                                                                                                                                                    |
+| `recall(id, orderId)`                         | **The rule's creator**            | Withdraws from the desk an order nobody has taken, and reconciles it.                                                                          | `NotCreator`; `NotThisRulesOrder`; the desk's error when the order can no longer be withdrawn; `ReturnNotReceived`.                                                                                                                                                                                                                          |
+| `onWorkDelivered(orderId, jobId, recordHash)` | **The hire desk only**            | Records a delivery and reconciles that order. An order Rules does not know is ignored.                                                         | `NotDesk`; `NotThisRulesOrder`; `ReturnNotReceived`.                                                                                                                                                                                                                                                                                         |
 
 Views: `getRule`, `statusOf`, `check`, `canFire`, `costOf`, `orderOf`, `ruleCount`, `totalEscrowed`,
 and the constants and constructor arguments by name. `check` and `canFire` never revert because of
@@ -212,17 +222,17 @@ what a condition's target does.
 
 ### Endowments
 
-| Function | Who may call | What it does | Reverts when |
-|---|---|---|---|
-| `createForMeter(feedId)` | Anyone, having approved the seed (0.000001 IMD) | Creates an endowment whose yield tops up one Standing Question's meter. | `BadTarget` (a zero id); `FeedNotLive(feedId)`: Questions states no cost for the feed; Questions cannot be read; `TransferMismatch`. |
-| `createForPot(potId, fallbackBeneficiary)` | Anyone, having approved the seed | Creates an endowment whose yield chips into one crowd pot or series, in the beneficiary's name. | `BadTarget`; `UnknownPot(potId)`; the pots cannot be read; `TransferMismatch`. |
-| `createForRecipient(recipient)` | Anyone, having approved the seed | Creates an endowment whose yield is sent to one address. | `BadTarget`; `TransferMismatch`. |
-| `deposit(id, amount)` | Anyone, having approved | Adds IMD to an endowment as the caller's principal. | `ZeroAmount`; `UnknownEndowment`; `EndowmentShort`; `TransferMismatch`. |
-| `donate(id, amount)` | Anyone, having approved | Gives IMD to an endowment without becoming a depositor. It cannot be taken back. | `ZeroAmount`; `UnknownEndowment`; `TransferMismatch`. |
-| `stake()` | Anyone, at most once every 50 blocks | Moves all waiting IMD into sIMD. | `TooSoon(nextBlock)`; `NothingToStake`; `WrongVault`; `PriceFell(price, mark)`; `VaultMismatch`. |
-| `withdraw(id, amount)` | **A depositor**, for its own principal | Takes back exactly `amount` IMD. | `ZeroAmount`; `UnknownEndowment`; `OverPrincipal(have)`; `HoldActive`; `BelowMinimum(out, minOut)`; sIMD's own error in a block where somebody else caused a hold; `VaultMismatch`. |
-| `exit(id, amount, minOut, inKind)` | **A depositor**, for its own principal | The long form of `withdraw`: accepts less when the endowment is short, and can take sIMD shares instead of IMD. | As `withdraw`. |
-| `harvest(id)` | Anyone | Sends an endowment's yield to its target. | `UnknownEndowment`; `LowGas` (a pot endowment sent too little gas); `NothingToHarvest`; `HoldActive`; `PriceFell(price, mark)`; `VaultMismatch`; `TargetMismatch`; for a meter, Questions' own error; sIMD's own error in a hold somebody else caused. |
+| Function                                   | Who may call                                    | What it does                                                                                                    | Reverts when                                                                                                                                                                                                                                           |
+| ------------------------------------------ | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `createForMeter(feedId)`                   | Anyone, having approved the seed (0.000001 IMD) | Creates an endowment whose yield tops up one Standing Question's meter.                                         | `BadTarget` (a zero id); `FeedNotLive(feedId)`: Questions states no cost for the feed; Questions cannot be read; `TransferMismatch`.                                                                                                                   |
+| `createForPot(potId, fallbackBeneficiary)` | Anyone, having approved the seed                | Creates an endowment whose yield chips into one crowd pot or series, in the beneficiary's name.                 | `BadTarget`; `UnknownPot(potId)`; the pots cannot be read; `TransferMismatch`.                                                                                                                                                                         |
+| `createForRecipient(recipient)`            | Anyone, having approved the seed                | Creates an endowment whose yield is sent to one address.                                                        | `BadTarget`; `TransferMismatch`.                                                                                                                                                                                                                       |
+| `deposit(id, amount)`                      | Anyone, having approved                         | Adds IMD to an endowment as the caller's principal.                                                             | `ZeroAmount`; `UnknownEndowment`; `EndowmentShort`; `TransferMismatch`.                                                                                                                                                                                |
+| `donate(id, amount)`                       | Anyone, having approved                         | Gives IMD to an endowment without becoming a depositor. It cannot be taken back.                                | `ZeroAmount`; `UnknownEndowment`; `TransferMismatch`.                                                                                                                                                                                                  |
+| `stake()`                                  | Anyone, at most once every 50 blocks            | Moves all waiting IMD into sIMD.                                                                                | `TooSoon(nextBlock)`; `NothingToStake`; `WrongVault`; `PriceFell(price, mark)`; `VaultMismatch`.                                                                                                                                                       |
+| `withdraw(id, amount)`                     | **A depositor**, for its own principal          | Takes back exactly `amount` IMD.                                                                                | `ZeroAmount`; `UnknownEndowment`; `OverPrincipal(have)`; `HoldActive`; `BelowMinimum(out, minOut)`; sIMD's own error in a block where somebody else caused a hold; `VaultMismatch`.                                                                    |
+| `exit(id, amount, minOut, inKind)`         | **A depositor**, for its own principal          | The long form of `withdraw`: accepts less when the endowment is short, and can take sIMD shares instead of IMD. | As `withdraw`.                                                                                                                                                                                                                                         |
+| `harvest(id)`                              | Anyone                                          | Sends an endowment's yield to its target.                                                                       | `UnknownEndowment`; `LowGas` (a pot endowment sent too little gas); `NothingToHarvest`; `HoldActive`; `PriceFell(price, mark)`; `VaultMismatch`; `TargetMismatch`; for a meter, Questions' own error; sIMD's own error in a hold somebody else caused. |
 
 Views: `endowment`, `principalOf`, `backingOf`, `isWhole`, `harvestable`, `quote`, `nextStakeBlock`,
 `vaultHold`, `priceBelowMark`, `epochs`, `endowmentCount`, `pendingTotal`, `epoch`, `lastStakeBlock`,
@@ -230,12 +240,12 @@ Views: `endowment`, `principalOf`, `backingOf`, `isWhole`, `harvestable`, `quote
 
 ### Zap
 
-| Function | Who may call | What it does | Reverts when |
-|---|---|---|---|
-| `chipIn(potId, minImdOut, deadline)` (takes ETH) | Anyone | Swaps the ETH sent for IMD and chips it into a pot in the caller's name. What the pot does not need returns to the caller as IMD. | `DeadlinePassed(deadline)`; `NoEth`; `TooLittleOut(imdOut, minImdOut)`; `NothingChipped`; `UnexpectedDelta`; `EthRefundFailed`; the pool's or the pots' own error. |
-| `fundMeter(feedId, minImdOut, deadline)` (takes ETH) | Anyone | Swaps the ETH sent for IMD and adds it to a feed's meter; the meter shares are the caller's. | `DeadlinePassed(deadline)`; `NoEth`; `TooLittleOut(imdOut, minImdOut)`; `NothingFunded`; Questions' own error, for an unknown feed for example; `UnexpectedDelta`; `EthRefundFailed`. |
-| `buy(minImdOut, deadline)` (takes ETH) | Anyone | Swaps the ETH sent for IMD and sends the IMD to the caller. | `DeadlinePassed(deadline)`; `NoEth`; `TooLittleOut(imdOut, minImdOut)`; `UnexpectedDelta`; `EthRefundFailed`. |
-| `unlockCallback(data)` | **The PoolManager only** | The swap itself, inside the three functions above. | `NotPoolManager`; `UnexpectedDelta`. |
+| Function                                             | Who may call             | What it does                                                                                                                      | Reverts when                                                                                                                                                                          |
+| ---------------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `chipIn(potId, minImdOut, deadline)` (takes ETH)     | Anyone                   | Swaps the ETH sent for IMD and chips it into a pot in the caller's name. What the pot does not need returns to the caller as IMD. | `DeadlinePassed(deadline)`; `NoEth`; `TooLittleOut(imdOut, minImdOut)`; `NothingChipped`; `UnexpectedDelta`; `EthRefundFailed`; the pool's or the pots' own error.                    |
+| `fundMeter(feedId, minImdOut, deadline)` (takes ETH) | Anyone                   | Swaps the ETH sent for IMD and adds it to a feed's meter; the meter shares are the caller's.                                      | `DeadlinePassed(deadline)`; `NoEth`; `TooLittleOut(imdOut, minImdOut)`; `NothingFunded`; Questions' own error, for an unknown feed for example; `UnexpectedDelta`; `EthRefundFailed`. |
+| `buy(minImdOut, deadline)` (takes ETH)               | Anyone                   | Swaps the ETH sent for IMD and sends the IMD to the caller.                                                                       | `DeadlinePassed(deadline)`; `NoEth`; `TooLittleOut(imdOut, minImdOut)`; `UnexpectedDelta`; `EthRefundFailed`.                                                                         |
+| `unlockCallback(data)`                               | **The PoolManager only** | The swap itself, inside the three functions above.                                                                                | `NotPoolManager`; `UnexpectedDelta`.                                                                                                                                                  |
 
 Views: `poolKey`, `POOL_ID`, `POOL_FEE`, `POOL_TICK_SPACING`, and the constructor arguments by name.
 Zap has no `receive`: ETH reaches it only with one of the three calls.
@@ -252,16 +262,16 @@ also be switched to fail in ways the real contracts cannot.
 
 `integration/` is the check on them, and the run against the real thing:
 
-| What runs against the real sources | Tests |
-|---|---|
-| Zap and the real `Questions.fundFor`: the shares are the caller's, Zap keeps none; the real refusals come through | `ZapWithRealSiblings.t.sol` |
-| Zap and the real `CrowdPots.chipInFor`: the chip and its refund are the caller's; a full pot, an unknown pot and a pot out of time; a series | the same file |
-| A meter endowment on the real meter: the runway of thirty requests at the real `costOf`, a real round bought, a real round failed, the Intake repriced and not selling | `EndowmentsWithRealSiblings.t.sol` |
-| A pot endowment on the real pots: a pot, a series round after round, a pot out of time, the gas the real chip uses | the same file |
-| A HIRE rule on the real desk: the desk's limits, the spec rule byte for byte, an order settled on a real IdentityMD work record through the real `WorkProof` with the change returned inside the desk's callback, recall, expiry, a released and a forfeited bond, the claimed path | `RulesWithRealDesk.t.sol` |
-| A FEED rule on the real Questions: one fire per answered round, a failed round, an old answer | `RulesWithRealQuestions.t.sol` |
-| Each stand-in beside the real contract, driven by the same calls: acceptances, refusals with the same bytes, amounts, books | `StandInsAgree.t.sol` |
-| The shell commands `docs/LAUNCH.md` addresses to the three sibling contracts: each names a function of the real contract, and the desk answers what the document says to expect | `DocumentedCommands.t.sol` |
+| What runs against the real sources                                                                                                                                                                                                                                                  | Tests                              |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| Zap and the real `Questions.fundFor`: the shares are the caller's, Zap keeps none; the real refusals come through                                                                                                                                                                   | `ZapWithRealSiblings.t.sol`        |
+| Zap and the real `CrowdPots.chipInFor`: the chip and its refund are the caller's; a full pot, an unknown pot and a pot out of time; a series                                                                                                                                        | the same file                      |
+| A meter endowment on the real meter: the runway of thirty requests at the real `costOf`, a real round bought, a real round failed, the Intake repriced and not selling                                                                                                              | `EndowmentsWithRealSiblings.t.sol` |
+| A pot endowment on the real pots: a pot, a series round after round, a pot out of time, the gas the real chip uses                                                                                                                                                                  | the same file                      |
+| A HIRE rule on the real desk: the desk's limits, the spec rule byte for byte, an order settled on a real IdentityMD work record through the real `WorkProof` with the change returned inside the desk's callback, recall, expiry, a released and a forfeited bond, the claimed path | `RulesWithRealDesk.t.sol`          |
+| A FEED rule on the real Questions: one fire per answered round, a failed round, an old answer                                                                                                                                                                                       | `RulesWithRealQuestions.t.sol`     |
+| Each stand-in beside the real contract, driven by the same calls: acceptances, refusals with the same bytes, amounts, books                                                                                                                                                         | `StandInsAgree.t.sol`              |
+| The shell commands `docs/LAUNCH.md` addresses to the three sibling contracts: each names a function of the real contract, and the desk answers what the document says to expect                                                                                                     | `DocumentedCommands.t.sol`         |
 
 Still stand-ins there: IMD, the sIMD vault and the PoolManager (the fork suite uses the real ones),
 IdentityMD's WorkRegistry and Intake (test doubles of launches B and A; the fork suite writes a
@@ -288,6 +298,8 @@ October 2026).
   verified, and what IdentityMD's pipeline did to our earlier launches, checked here.
 - `docs/DEVIATIONS.md`: where we depart from IdentityMD's guidance, and where the contracts differ
   from our own first design.
+- `docs/AUDITS.md`: every finding IdentityMD's launch pipeline reported before the launch, and what
+  became of each.
 
 ## Layout
 
@@ -306,7 +318,7 @@ test/scaffold/        the selectors this launch sends to other contracts
 test/fixtures/        the state of the real sIMD vault and of the real pool on the day they were
                       read, and one real IdentityMD work record, as hexadecimal text
 integration/          a second Foundry project: the same contracts against the sibling sources
-docs/                 LAUNCH.md, THREATS.md, DEVIATIONS.md
+docs/                 LAUNCH.md, THREATS.md, DEVIATIONS.md, AUDITS.md
 ```
 
 ## Licence

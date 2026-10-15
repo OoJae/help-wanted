@@ -10,7 +10,8 @@ two earlier launches; every other test is in `test/`.
 Contracts: `Rules`, `Endowments`, `Zap`.
 Status: launched on Ethereum mainnet on 15 October 2026 (IdentityMD launch 1845, block 26198165; the
 addresses are in `README.md`). Audited by IdentityMD's launch pipeline before it was deployed
-(`ADAPTATION.md`) and by no other third party. The two launches it builds on are live on Ethereum
+(`ADAPTATION.md`; `docs/AUDITS.md` lists every finding it reported) and by no other third party.
+The two launches it builds on are live on Ethereum
 mainnet since 13 October 2026: launch A (IdentityMD launch 1531) and launch B
 (IdentityMD launch 1573). Section 10 says what IdentityMD's launch pipeline changed in those two and
 what was checked here as a result.
@@ -24,27 +25,27 @@ the manifest gives no contract an owner (`test_manifest_theDocumentNamesTheThree
 
 Six functions are restricted, none of them to a party of the contract itself:
 
-| Function | Who | Test |
-|---|---|---|
-| `Rules.cancel`, `Rules.recall` | the creator of that rule | `test_cancel_onlyTheCreator`, `test_recall_onlyTheCreator` |
-| `Rules.onWorkDelivered` | the hire desk named at construction | `test_onWorkDelivered_onlyTheDesk`, `integration/`: `test_hire_theCallbackIsTheDesksAlone` |
+| Function                                 | Who                                                               | Test                                                                                                                                                                          |
+| ---------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Rules.cancel`, `Rules.recall`           | the creator of that rule                                          | `test_cancel_onlyTheCreator`, `test_recall_onlyTheCreator`                                                                                                                    |
+| `Rules.onWorkDelivered`                  | the hire desk named at construction                               | `test_onWorkDelivered_onlyTheDesk`, `integration/`: `test_hire_theCallbackIsTheDesksAlone`                                                                                    |
 | `Endowments.withdraw`, `Endowments.exit` | a depositor, for no more than its own principal in that endowment | `test_withdraw_revertsAboveTheCallersOwnPrincipal`, `test_withdraw_principalInOneEndowmentCannotBeTakenFromAnother`, `test_exit_inKind_cannotTakeMoreThanTheCallersPrincipal` |
-| `Zap.unlockCallback` | Uniswap's PoolManager | `test_unlockCallback_onlyThePoolManager`, `test_fork_zap_unlockCallback_isClosedToEveryoneButTheManager` |
+| `Zap.unlockCallback`                     | Uniswap's PoolManager                                             | `test_unlockCallback_onlyThePoolManager`, `test_fork_zap_unlockCallback_isClosedToEveryoneButTheManager`                                                                      |
 
 Everything else is open to any caller. A caller never chooses where money goes; it chooses only
 when a fixed rule runs.
 
 Money leaves the contracts in these ways and no others:
 
-| Contract | Way out | Who receives |
-|---|---|---|
-| Rules | `fire` | The rule's fixed recipient (PAY), or the hire desk as the escrow of the rule's own order (HIRE). The caller: the rule's tip. |
-| Rules | `cancel` | The rule's creator: the rule's unspent escrow. |
-| Rules | `reconcile`, `recall`, `onWorkDelivered`, for a rule that was cancelled | The rule's creator: what the desk returned for that rule's order. For a rule that is not cancelled these three move nothing out; they add to the rule's escrow. |
-| Endowments | `stake` | The sIMD vault: everything waiting to be staked. |
-| Endowments | `withdraw`, `exit` | The depositor: its own principal, as IMD or as sIMD shares. |
-| Endowments | `harvest` | The endowment's fixed target: a meter of Questions, a chip in CrowdPots in the fallback beneficiary's name, the fallback beneficiary, or the recipient. Never the caller. |
-| Zap | inside one call | The PoolManager: the ETH swapped. CrowdPots or Questions: the IMD bought, in the caller's name. The caller: everything else. |
+| Contract   | Way out                                                                 | Who receives                                                                                                                                                              |
+| ---------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Rules      | `fire`                                                                  | The rule's fixed recipient (PAY), or the hire desk as the escrow of the rule's own order (HIRE). The caller: the rule's tip.                                              |
+| Rules      | `cancel`                                                                | The rule's creator: the rule's unspent escrow.                                                                                                                            |
+| Rules      | `reconcile`, `recall`, `onWorkDelivered`, for a rule that was cancelled | The rule's creator: what the desk returned for that rule's order. For a rule that is not cancelled these three move nothing out; they add to the rule's escrow.           |
+| Endowments | `stake`                                                                 | The sIMD vault: everything waiting to be staked.                                                                                                                          |
+| Endowments | `withdraw`, `exit`                                                      | The depositor: its own principal, as IMD or as sIMD shares.                                                                                                               |
+| Endowments | `harvest`                                                               | The endowment's fixed target: a meter of Questions, a chip in CrowdPots in the fallback beneficiary's name, the fallback beneficiary, or the recipient. Never the caller. |
+| Zap        | inside one call                                                         | The PoolManager: the ETH swapped. CrowdPots or Questions: the IMD bought, in the caller's name. The caller: everything else.                                              |
 
 Rules' balance always covers the sum of its rules' escrows, and no rule can spend another's
 (`invariant_holdingsCoverEveryEscrow`, `invariant_eachRulesEscrowIsConserved`,
@@ -65,22 +66,37 @@ caller but the PoolManager.
 
 ## 2. Trust roots
 
-| # | Party | Trusted for | If it fails or turns against us | What it cannot do |
-|---|---|---|---|---|
-| T1 | The IMD token, `0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7` | Moving exactly the amount it is asked to: no fee on transfer, no hooks. | Rules does not measure what arrived when a rule is funded; a token that kept part of each transfer would leave the escrows above the balance. Endowments does measure (`test_deposit_revertsIfTheTokenKeepsPartOfTheTransfer`, `test_create_revertsIfTheTokenKeepsPartOfTheTransfer`). Whatever powers IMD's issuer has over the token apply to IMD held here. | Call back into a contract in the middle of a transfer and get past its lock, even if it had hooks. |
-| T2 | The sIMD vault, `0x9efa934d9fad4ae28c998a40195646b965a97247`: a Solady ERC-4626 over IMD whose owner is the zero address | Holding everything Endowments has staked, and doing what its previews say. | A loss inside the vault is shared by the depositors of each endowment in proportion (E2). A vault that does not do what it previewed is not acted on: the call reverts `VaultMismatch` (`test_stake_revertsIfTheVaultMintsFewerSharesThanItPreviewed`, `test_withdraw_revertsIfTheVaultPaysShort`, `test_withdraw_revertsIfTheVaultBurnsMoreThanItSaid`, `test_harvest_revertsIfTheVaultPaysShort`). It pays nothing out to a holder in a block in which that holder was minted shares (E3). | Be made to pay one endowment's principal to another: each endowment's shares and each depositor's principal are booked here, not in the vault. |
-| T3 | Permit2, `0x000000000022d473030f116ddee9f6b43ac78ba3`, to which sIMD gives a standing allowance over every holder's shares | Moving tokens only with the holder's approval inside Permit2 or the holder's signature. | Endowments can give neither: it never calls Permit2 and has no signature check. | Move the shares Endowments holds (`test_fork_permit2CannotMoveThisContractsShares`). |
-| T4 | `Questions` (launch A), `0xEECE4628ceb091C13393fc64056Be8b8501fD3F6` | For a meter endowment: stating a feed's cost and its meter honestly, and crediting what it is sent. For Zap: crediting the meter shares to the address Zap names. | A meter harvest is final (E5). A Questions that misreports its meter changes only how much yield leaves, never principal. If it cannot be read, a meter harvest reverts and the yield stays staked (`test_runway_ifQuestionsCannotBeReadTheYieldStaysStaked`). | Take more than a harvest sends it (the allowance is exactly that amount), or take less and leave the rest stranded (`test_harvest_meter_revertsIfTheMeterPullsLessThanItWasSent`). Re-enter (`test_harvest_meter_aCallBackIntoEndowmentsIsRefused`). Keep Zap's caller from its IMD without crediting shares (`test_fundMeter_revertsWhenNoSharesAreCredited`). |
-| T5 | The source of a FEED rule: whatever contract the rule's creator named, normally `Questions` | Answering `latest(feedId)` truthfully: the value, the round and the time of the answer. | Rules believes it. A source of the creator's choosing can answer anything; behind the real Questions stand IdentityMD's oracle signer and whoever hands in a signed answer (R3). | Make a rule do anything but the action its creator fixed, more often than once per round it reports and once per cooldown. Stop or slow other rules: the read is a static call with 100,000 gas whose failure means "not now" (`test_fire_feed_aSourceThatRevertsOnlyStopsTheRule`, `test_fire_feed_aSourceThatBurnsItsGasOnlyStopsTheRule`, `test_fire_feed_aShortAnswerOnlyStopsTheRule`). |
-| T6 | `WorkOrders`, the hire desk (launch B), `0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2` | Reporting `accountOf(orderId)` honestly: `returned` counts every IMD transfer the desk makes to the employer for that order, each exactly once. Pulling exactly the order's `maxPay`. Never reusing an order id. | Rules checks what it can: the amount pulled (`test_fire_hire_refusesADeskThatTakesLessThanTheOrderCosts`), the id (`test_fire_hire_refusesAnOrderIdItAlreadyKnows`), that the desk names Rules as the employer (`test_reconcile_refusesADeskThatNamesAnotherEmployer`), and that no rule is credited with IMD that is not there (`test_reconcile_refusesADeskThatReportsMoreThanItSent`). It cannot tell one order's return from another's: a desk that over-reported one order would have that order's rule credited from another rule's return that nobody had reconciled yet (`test_reconcile_theBalanceCheckProtectsBookedEscrows_notUnreconciledReturns`). The desk is the same team's immutable code, launched as launch B and unchanged by IdentityMD's pipeline, and launch B holds the property as an invariant; on a fork the live desk's figures for a settled order of a rule are exactly what it sent (`test_fork_live_theFirstRule_firesOnTheLiveHiresFeedAndIsPaidOnARealReceipt`). | Reach escrows that are already booked to a rule. Re-enter Rules while a rule fires or an order is recalled. |
-| T7 | Everything behind the desk: IdentityMD's WorkRegistry and its writer, runners, challengers, an order's arbiter | Deciding whether an order of a HIRE rule is paid. | An order's escrow is on the desk and follows the desk's rules, which launch B's `docs/THREATS.md` sets out. The registry's writer wrote no receipt from about 8 to 14 October 2026 (R14). In short: a receipt written for work that was not done pays the runner; with the claimed-path flag an untrue delivery claim that nobody challenges within 24 hours is paid (R6). What is not paid out comes back to the rule. | Take more than the order's `maxPay`, which the rule's creator fixed. |
-| T8 | `CrowdPots` (launch B), `0x8C2FfCdcb103659aa05c772b8F2059868B496EB5` | For a pot endowment: saying what a pot still needs and taking a chip in the beneficiary's name. For Zap: the same, in the caller's name. | It is called defensively by Endowments: the question with 50,000 gas, the chip with 500,000, neither can stop a harvest, and what the pot took is read from the balance (`test_harvest_pot_aRevertingPotSendsEverythingToTheFallback`, `test_harvest_pot_aPotThatBurnsItsGasCannotStopTheHarvest`, `test_harvest_pot_aPotThatReturnsHugeDataCannotStopTheHarvest`). What a pot does with a chip afterwards is launch B's matter. | Take more than it was offered (`test_harvest_pot_revertsIfThePotTakesMoreThanItWasOffered`). Re-enter (`test_harvest_pot_aCallBackIntoEndowmentsIsRefused`). |
-| T9 | Uniswap v4's PoolManager, `0x000000000004444c5dc75cb358380d2e3de08a90`, and the ETH/IMD pool | Calling back only the contract that asked it to unlock, and refusing to finish unless every amount owed is settled. The pool's price is not trusted: the caller states the least it accepts. | A manager that misreported a swap is caught where Zap can see it: a result of the wrong sign, more ETH used than was offered, ETH paid and not counted (`test_swap_revertsOnAResultOfTheWrongSign`, `test_swap_revertsWhenTheManagerUsesMoreEthThanItWasOffered`, `test_swap_revertsWhenTheManagerDoesNotCountTheEthItWasPaid`). If the pool or the manager stops working, Zap's three entry points revert and nothing else is affected. | Leave Zap holding a caller's money: whatever a call does not deliver goes back to the caller, or the call reverts. |
-| T10 | A VIEW rule's target: any contract the rule's creator named | Nothing. | It is untrusted. It is read with a static call and 100,000 gas; a revert, a burn of all its gas, too few bytes or no code only mean the rule does not fire (`test_fire_view_aTargetThatRevertsOnlyStopsTheRule`, `test_fire_view_aTargetThatBurnsItsGasOnlyStopsTheRule`, `test_fire_view_aTargetThatAnswersWithTooFewBytesOnlyStopsTheRule`, `test_fire_view_aTargetThatTriesToWriteOnlyStopsTheRule`, `test_fire_view_aTargetWithoutCodeOnlyStopsTheRule`). | Be given less gas by whoever fires the rule, so as to answer differently (`test_fire_view_theCallerCannotStarveTheConditionOfGas`). Cost Rules more than its allowance, whatever it returns (`test_fire_view_aVeryLongAnswerIsReadByItsFirstWordOnly`). |
-| T11 | A rule's creator, and an endowment's creator | The creator of a rule chooses everything about it and can cancel it at any time. The creator of an endowment chooses its target and, for a pot, its fallback beneficiary, once and for good. | A keeper has no claim on a tip until it has fired the rule. Depositors must read an endowment's target and beneficiary before depositing (E6). | An endowment's creator has no power over it after creating it: it cannot move principal, change the target or stop a harvest. |
-| T12 | Keepers | Liveness only. Nothing here runs by itself. | With nobody calling: deposits wait unstaked and stay withdrawable, yield stays staked, rules do not fire, returns from the desk wait to be reconciled. Nothing is lost. | |
-| T13 | The launch pipeline and the ProjectFactory | Creating the three contracts with the manifest's arguments, in order. | A wrong argument is permanent. `docs/LAUNCH.md` says how to check each address before the launch and how to read every argument back after it. | Hold any privilege afterwards: no constructor stores `msg.sender` (`test_launch_constructorsTouchNothingOutsideTheirOwnContract`). |
-| T14 | OpenZeppelin Contracts 5.5.0 (vendored in `lib/`) and solc 0.8.26 | Correctness of the library code and the compiler. | | |
+| #   | Party                                                                                                                                                                                                     | Trusted for                                                                                                                                                                                                      | If it fails or turns against us                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | What it cannot do                                                                                                                                                                                                                                                                                                                                                                            |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T1  | The IMD token, `0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7`, and its owner, `0x047F606fD5b2BaA5f5C6c4aB8958E45CB6B054B7`: the same account as the WorkRegistry's admin (launch B's `docs/THREATS.md`, T1) | Moving exactly the amount it is asked to: no fee on transfer, no hooks.                                                                                                                                          | Rules does not measure what arrived when a rule is funded; a token that kept part of each transfer would leave the escrows above the balance. Endowments does measure (`test_deposit_revertsIfTheTokenKeepsPartOfTheTransfer`, `test_create_revertsIfTheTokenKeepsPartOfTheTransfer`). IMD on Ethereum is a LayerZero OFT (`BridgedFP`), not a proxy: its supply here is created only when LayerZero's endpoint delivers a transfer from the contract the token names as its peer on another chain. The owner names those peers (`setPeer`) and who sets how their messages are verified (`setDelegate`; the delegate is the owner itself), so it can have IMD created on Ethereum through a contract of its choosing. New IMD changes no escrow Rules holds and no principal or share Endowments holds, only what each is worth. The owner can also rename the token and hand over or give up ownership.                                                                                          | Move, burn or freeze IMD that an address holds, pause transfers or charge a fee on them: the token has no function for any of these. Call back into a contract in the middle of a transfer and get past its lock, even if it had hooks.                                                                                                                                                      |
+| T2  | The sIMD vault, `0x9efa934d9fad4ae28c998a40195646b965a97247`: a Solady ERC-4626 over IMD whose owner is the zero address                                                                                  | Holding everything Endowments has staked, and doing what its previews say.                                                                                                                                       | A loss inside the vault is shared by the depositors of each endowment in proportion (E2). A vault that does not do what it previewed is not acted on: the call reverts `VaultMismatch` (`test_stake_revertsIfTheVaultMintsFewerSharesThanItPreviewed`, `test_withdraw_revertsIfTheVaultPaysShort`, `test_withdraw_revertsIfTheVaultBurnsMoreThanItSaid`, `test_harvest_revertsIfTheVaultPaysShort`). It pays nothing out to a holder in a block in which that holder was minted shares (E3).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Be made to pay one endowment's principal to another: each endowment's shares and each depositor's principal are booked here, not in the vault.                                                                                                                                                                                                                                               |
+| T3  | Permit2, `0x000000000022d473030f116ddee9f6b43ac78ba3`, to which sIMD gives a standing allowance over every holder's shares                                                                                | Moving tokens only with the holder's approval inside Permit2 or the holder's signature.                                                                                                                          | Endowments can give neither: it never calls Permit2 and has no signature check.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Move the shares Endowments holds (`test_fork_permit2CannotMoveThisContractsShares`).                                                                                                                                                                                                                                                                                                         |
+| T4  | `Questions` (launch A), `0xEECE4628ceb091C13393fc64056Be8b8501fD3F6`                                                                                                                                      | For a meter endowment: stating a feed's cost and its meter honestly, and crediting what it is sent. For Zap: crediting the meter shares to the address Zap names.                                                | A meter harvest is final (E5). A Questions that misreports its meter changes only how much yield leaves, never principal. If it cannot be read, a meter harvest reverts and the yield stays staked (`test_runway_ifQuestionsCannotBeReadTheYieldStaysStaked`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Take more than a harvest sends it (the allowance is exactly that amount), or take less and leave the rest stranded (`test_harvest_meter_revertsIfTheMeterPullsLessThanItWasSent`). Re-enter (`test_harvest_meter_aCallBackIntoEndowmentsIsRefused`). Keep Zap's caller from its IMD without crediting shares (`test_fundMeter_revertsWhenNoSharesAreCredited`).                              |
+| T5  | The source of a FEED rule: whatever contract the rule's creator named, normally `Questions`                                                                                                               | Answering `latest(feedId)` truthfully: the value, the round and the time of the answer.                                                                                                                          | Rules believes it. A source of the creator's choosing can answer anything; behind the real Questions stand IdentityMD's oracle signer and whoever hands in a signed answer (R3).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Make a rule do anything but the action its creator fixed, more often than once per round it reports and once per cooldown. Stop or slow other rules: the read is a static call with 100,000 gas whose failure means "not now" (`test_fire_feed_aSourceThatRevertsOnlyStopsTheRule`, `test_fire_feed_aSourceThatBurnsItsGasOnlyStopsTheRule`, `test_fire_feed_aShortAnswerOnlyStopsTheRule`). |
+| T6  | `WorkOrders`, the hire desk (launch B), `0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2`                                                                                                                      | Reporting `accountOf(orderId)` honestly: `returned` counts every IMD transfer the desk makes to the employer for that order, each exactly once. Pulling exactly the order's `maxPay`. Never reusing an order id. | Rules checks what it can: the amount pulled (`test_fire_hire_refusesADeskThatTakesLessThanTheOrderCosts`), the id (`test_fire_hire_refusesAnOrderIdItAlreadyKnows`), that the desk names Rules as the employer (`test_reconcile_refusesADeskThatNamesAnotherEmployer`), and that no rule is credited with IMD that is not there (`test_reconcile_refusesADeskThatReportsMoreThanItSent`). It cannot tell one order's return from another's: a desk that over-reported one order would have that order's rule credited from another rule's return that nobody had reconciled yet (`test_reconcile_theBalanceCheckProtectsBookedEscrows_notUnreconciledReturns`). The desk is the same team's immutable code, launched as launch B and unchanged by IdentityMD's pipeline, and launch B holds the property as an invariant; on a fork the live desk's figures for a settled order of a rule are exactly what it sent (`test_fork_live_theFirstRule_firesOnTheLiveHiresFeedAndIsPaidOnARealReceipt`). | Reach escrows that are already booked to a rule. Re-enter Rules while a rule fires or an order is recalled.                                                                                                                                                                                                                                                                                  |
+| T7  | Everything behind the desk: IdentityMD's WorkRegistry and its writer, runners, challengers, an order's arbiter                                                                                            | Deciding whether an order of a HIRE rule is paid.                                                                                                                                                                | An order's escrow is on the desk and follows the desk's rules, which launch B's `docs/THREATS.md` sets out. The registry's writer wrote no receipt from about 8 October until 13 October 2026, 17:26 UTC (R14). In short: a receipt written for work that was not done pays the runner; with the claimed-path flag an untrue delivery claim that nobody challenges within 24 hours is paid (R6). What is not paid out comes back to the rule.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Take more than the order's `maxPay`, which the rule's creator fixed.                                                                                                                                                                                                                                                                                                                         |
+| T8  | `CrowdPots` (launch B), `0x8C2FfCdcb103659aa05c772b8F2059868B496EB5`                                                                                                                                      | For a pot endowment: saying what a pot still needs and taking a chip in the beneficiary's name. For Zap: the same, in the caller's name.                                                                         | It is called defensively by Endowments: the question with 50,000 gas, the chip with 500,000, neither can stop a harvest, and what the pot took is read from the balance (`test_harvest_pot_aRevertingPotSendsEverythingToTheFallback`, `test_harvest_pot_aPotThatBurnsItsGasCannotStopTheHarvest`, `test_harvest_pot_aPotThatReturnsHugeDataCannotStopTheHarvest`). What a pot does with a chip afterwards is launch B's matter.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Take more than it was offered (`test_harvest_pot_revertsIfThePotTakesMoreThanItWasOffered`). Re-enter (`test_harvest_pot_aCallBackIntoEndowmentsIsRefused`).                                                                                                                                                                                                                                 |
+| T9  | Uniswap v4's PoolManager, `0x000000000004444c5dc75cb358380d2e3de08a90`, and the ETH/IMD pool                                                                                                              | Calling back only the contract that asked it to unlock, and refusing to finish unless every amount owed is settled. The pool's price is not trusted: the caller states the least it accepts.                     | A manager that misreported a swap is caught where Zap can see it: a result of the wrong sign, more ETH used than was offered, ETH paid and not counted (`test_swap_revertsOnAResultOfTheWrongSign`, `test_swap_revertsWhenTheManagerUsesMoreEthThanItWasOffered`, `test_swap_revertsWhenTheManagerDoesNotCountTheEthItWasPaid`). If the pool or the manager stops working, Zap's three entry points revert and nothing else is affected.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Leave Zap holding a caller's money: whatever a call does not deliver goes back to the caller, or the call reverts.                                                                                                                                                                                                                                                                           |
+| T10 | A VIEW rule's target: any contract the rule's creator named                                                                                                                                               | Nothing.                                                                                                                                                                                                         | It is untrusted. It is read with a static call and 100,000 gas; a revert, a burn of all its gas, too few bytes or no code only mean the rule does not fire (`test_fire_view_aTargetThatRevertsOnlyStopsTheRule`, `test_fire_view_aTargetThatBurnsItsGasOnlyStopsTheRule`, `test_fire_view_aTargetThatAnswersWithTooFewBytesOnlyStopsTheRule`, `test_fire_view_aTargetThatTriesToWriteOnlyStopsTheRule`, `test_fire_view_aTargetWithoutCodeOnlyStopsTheRule`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Be given less gas by whoever fires the rule, so as to answer differently (`test_fire_view_theCallerCannotStarveTheConditionOfGas`). Cost Rules more than its allowance, whatever it returns (`test_fire_view_aVeryLongAnswerIsReadByItsFirstWordOnly`).                                                                                                                                      |
+| T11 | A rule's creator, and an endowment's creator                                                                                                                                                              | The creator of a rule chooses everything about it and can cancel it at any time. The creator of an endowment chooses its target and, for a pot, its fallback beneficiary, once and for good.                     | A keeper has no claim on a tip until it has fired the rule. Depositors must read an endowment's target and beneficiary before depositing (E6).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | An endowment's creator has no power over it after creating it: it cannot move principal, change the target or stop a harvest.                                                                                                                                                                                                                                                                |
+| T12 | Keepers                                                                                                                                                                                                   | Liveness only. Nothing here runs by itself.                                                                                                                                                                      | With nobody calling: deposits wait unstaked and stay withdrawable, yield stays staked, rules do not fire, returns from the desk wait to be reconciled. Nothing is lost.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |                                                                                                                                                                                                                                                                                                                                                                                              |
+| T13 | The launch pipeline and the ProjectFactory                                                                                                                                                                | Creating the three contracts with the manifest's arguments, in order.                                                                                                                                            | A wrong argument is permanent. `docs/LAUNCH.md` says how to check each address before the launch and how to read every argument back after it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Hold any privilege afterwards: no constructor stores `msg.sender` (`test_launch_constructorsTouchNothingOutsideTheirOwnContract`).                                                                                                                                                                                                                                                           |
+| T14 | OpenZeppelin Contracts 5.5.0 (vendored in `lib/`) and solc 0.8.26                                                                                                                                         | Correctness of the library code and the compiler.                                                                                                                                                                |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |                                                                                                                                                                                                                                                                                                                                                                                              |
+
+What T1 says of the token's owner was added on 15 October 2026, after the launch, to match launch
+B's `docs/THREATS.md`, T4. It was read that day and is not checked by a test. The owner
+(`owner()`), and the delegate the endpoint holds for the token (`delegates(token)` on LayerZero's
+endpoint `0x1a44076050125825900e736c501f859c50fE728c`), were read with `cast call`; both are
+`0x047F606fD5b2BaA5f5C6c4aB8958E45CB6B054B7`, which is also what the WorkRegistry's `admin()`
+returned that day, and the account has no code. The token's source is verified on Sourcify as an
+exact match (contract `BridgedFP`, solc 0.8.26, deployed by that same account in block 23,501,863),
+and the EIP-1967 implementation slot of the address is empty. The functions named in T1 are every
+function of that source that only the owner may call: `setPeer`, `setDelegate`,
+`setEnforcedOptions`, `setMsgInspector`, `setPreCrime`, `updateName`, `updateSymbol`,
+`updateNameAndSymbol`, `transferOwnership` and `renounceOwnership`. `setEnforcedOptions`,
+`setMsgInspector` and `setPreCrime` change how transfers to other chains are sent or checked; none
+of the ten moves IMD that an address holds. The one burn in the source takes IMD from whoever calls
+`send`, to move it to another chain.
 
 ## 3. Limits of Rules
 
@@ -168,7 +184,12 @@ created with less than one fire's cost and then waits (`test_createRule_acceptsA
 fire that would cost more than 2^96 wei is refused at creation
 (`test_createRule_refusesACostNoEscrowCanHold`). Rule ids are handed out in order: read a new rule's
 id from its `RuleCreated` event. The job text of a HIRE rule is public from the moment the rule is
-created.
+created. `createRule` refuses condition fields a rule does not use, but not action fields: a HIRE
+rule created with a PAY half, or a PAY rule with a HIRE half, stores only its own half, while
+`RuleCreated` publishes the caller's whole parameters, the unused half included. No money moves on
+that half. Read a rule's terms with `getRule`, not from the event. IdentityMD's reviewers raised this
+before the launch (`docs/AUDITS.md`, row 7); it was added here on 15 October 2026, after the launch,
+and no test here shows it.
 
 **R12. The tip is the first firer's.** Whoever's `fire` is mined first is paid the tip; a keeper whose
 transaction somebody copies and has mined ahead loses its gas, and its own transaction reverts having
@@ -184,8 +205,9 @@ A creator who wants a rule never to fire again should cancel it before its condi
 **R14. A HIRE rule's order without the claimed path waits on IdentityMD's receipts.** The desk pays
 only when the WorkRegistry holds the job's receipt, and a receipt that arrives after the order's
 delivery deadline cannot pay if somebody has had the order timed out first (launch B's
-`docs/THREATS.md`, W1). The registry wrote no receipt from about 8 October 2026 to 14 October; it has
-written again since, and that day the desk's first order was paid on its receipt. What the rule
+`docs/THREATS.md`, W1). The registry wrote no receipt from about 8 October 2026 until 13 October,
+17:26 UTC. It then worked through its backlog, and on 14 October the desk's first order was paid on
+its job's receipt, written that day. What the rule
 loses when a receipt is late is the tip of the fire and the order's time: the escrow comes back
 through `reconcile`, with the runner's bond, which the desk forfeits to the employer.
 
@@ -202,27 +224,27 @@ beyond what its principal needs, plus a margin (`testFuzz_principalComesBackToTh
 
 **E2. What it does not cover.**
 
-- *A loss inside sIMD.* sIMD's price cannot fall by its own rules, and this contract does not rely
+- _A loss inside sIMD._ sIMD's price cannot fall by its own rules, and this contract does not rely
   on that. If it did fall, an endowment whose shares no longer cover its principal is short: it
   takes no deposits, `harvest` takes nothing from it, `withdraw` reverts, and `exit` pays each
   leaver the same fraction of what the endowment holds as they give up of its principal, so the
   first to leave cannot take more than their part (`test_loss_isSharedProRata_theFirstToLeaveCannotTakeEverything`,
   `invariant_loss_sharedFairlyAndHarvestStops`). The rest of that principal is written off for the
   leaver; nothing is owed later if the endowment recovers.
-- *Deposits that were still waiting to be staked when the loss happened.* They are pooled with the
+- _Deposits that were still waiting to be staked when the loss happened._ They are pooled with the
   rest of their endowment and share its loss (`test_loss_bufferedImdIsSharedInTheSameProportion`).
   Keeping them apart would need a ledger per depositor and an end to paying withdrawals from the
   buffer first.
-- *The block of a hold* (E3), in which principal leaves as sIMD shares or waits one block.
-- *The state right after a loss has been made good.* An endowment can then cover its principal
+- _The block of a hold_ (E3), in which principal leaves as sIMD shares or waits one block.
+- _The state right after a loss has been made good._ An endowment can then cover its principal
   with fewer than `SPARE` share-wei left over. It takes no deposits, and a withdrawal that would
   leave the others one share-wei short is refused, until yield or a small donation rebuilds the
   spare (`test_spare_none_isCoveredButNotWhole_andTakesNoDeposit`,
   `test_spare_none_noWithdrawalLeavesTheOthersAShareWeiShort`).
-- *Earnings.* A depositor earns nothing. All yield belongs to the endowment's target, and yield
+- _Earnings._ A depositor earns nothing. All yield belongs to the endowment's target, and yield
   that has been harvested is gone for good.
-- *The seed* (0.000001 IMD, paid by the creator), and anything given with `donate`.
-- *IMD's own value*, and anything that happens to the IMD token itself.
+- _The seed_ (0.000001 IMD, paid by the creator), and anything given with `donate`.
+- _IMD's own value_, and anything that happens to the IMD token itself.
 
 **E3. In a block where sIMD holds the contract, only buffered IMD can be withdrawn as IMD.** That
 is the block of this contract's own `stake` (at most one block in fifty), and any block in which
@@ -313,7 +335,12 @@ can be handed its whole 500,000 gas, so that a caller cannot starve the pot and 
 the fallback (`test_harvest_pot_noGasAmountPushesTheHarvestToTheFallback`,
 `test_harvest_pot_atTheLeastGasAllowed_aPotThatBurnsEverythingStillLeavesTheFallbackPaid`). The
 least gas that passes was 784,667 with the real IMD and sIMD
-(`test_fork_potHarvest_withTheRealToken_andItsGas`); 850,000 is the limit to send.
+(`test_fork_potHarvest_withTheRealToken_andItsGas`); 850,000 is the limit to send. Unlike a meter,
+a pot is sent what it still needs however little that is: a pot one wei short of full is sent one
+wei, and the harvest costs its caller this gas to move it (`test_harvest_pot_aPotThatNeedsOneWeiIsSentOneWei`).
+`MIN_HARVEST` (0.001 IMD) bounds the yield a harvest is run for, not the part a pot takes. Nothing is
+lost. IdentityMD's reviewers raised this before the launch (`docs/AUDITS.md`, row 4); it was added
+here on 15 October 2026, after the launch.
 
 **E8. A recipient can be any address but six.** The zero address, Endowments itself, IMD, sIMD,
 Questions and CrowdPots are refused, because IMD sent there by plain transfer would be lost or, for
@@ -331,7 +358,12 @@ pattern 1.
 cost for; a pot endowment needs a pot or series that already exists
 (`test_createForMeter_revertsForAnIdThatIsNotAFeed`, `test_createForPot_revertsForAPotThatDoesNotExistYet`).
 Endowment ids are handed out in order: read a new id from its `Created` event and deposit to that
-id, not to a predicted one.
+id, not to a predicted one. A pot that exists but already needs nothing (it is full, launched or out
+of time) is accepted, where a feed that cannot be asked is refused. Such an endowment pays every
+harvest to its fallback beneficiary (E6), while its `Created` event names a pot as its target. A
+depositor should read what the pot still needs (`CrowdPots.remaining`) before depositing.
+IdentityMD's reviewers raised this before the launch (`docs/AUDITS.md`, row 6); it was added here on
+15 October 2026, after the launch, and no test here shows it.
 
 **E10. Dust, and tokens sent directly.** IMD is accounted for to the wei. sIMD shares are not: the
 split of a staked batch between endowments rounds down and leaves under one share-wei per endowment
@@ -378,7 +410,14 @@ returned 98.9% of the spot price. If liquidity leaves, callers' minimums stop be
 by sending the caller Zap's whole balance of both (`test_strayImdAndEthLeaveWithTheNextCall`). A
 caller that cannot receive ETH is served as long as it is owed none of its own back
 (`test_strayEth_doesNotStopACallerThatIsOwedNoRefund`), and reverts if it is
-(`test_strayEth_aCallerOwedARefundItCannotTakeStillReverts`).
+(`test_strayEth_aCallerOwedARefundItCannotTakeStillReverts`). That includes IMD sent to Zap on
+purpose by the other two contracts. Neither refuses Zap's address: an endowment may name Zap as its
+recipient or its fallback beneficiary, and a PAY rule may name it as its recipient. Each harvest or
+payment then goes to whoever calls Zap next, and the caller of `harvest` or `fire` can be that
+caller in the same transaction. Only yield, or the PAY amount, is exposed this way, never a
+depositor's principal. Nobody should name Zap as a payee. IdentityMD's reviewers raised this before
+the launch (`docs/AUDITS.md`, row 5); it was added here on 15 October 2026, after the launch, and no
+test here shows it.
 
 **Z5. Zap does not open orders.** The hire desk makes whoever calls it the employer, who receives
 the refund, the change and the callback, and that must be the person who paid. `buy` hands over the
@@ -396,13 +435,13 @@ Their sources are two other repositories. The stand-ins are `test/rules/mocks/Mo
 `MockFeed.sol`, `MockPots.sol`, `MockQuestions.sol` and `test/endowments/mocks/MockQuestions.sol`,
 `MockCrowdPots.sol`. What each leaves out of the real contract:
 
-| Stand-in | Follows the real contract for | Leaves out |
-|---|---|---|
-| `MockDesk` | `createOrder`'s checks in their order with the real errors and error data, `cancel`, `refund`, `accountOf`, `stateOf`, the constants | Runners, claims, receipts, disputes: a delivery and a bond award are test helpers. Its lock: it has none. |
-| `MockFeed` | The shape of `latest`: five words | Everything else; a test stores what it answers. |
-| `MockPots` (Zap's) | `chipIn`, `chipInFor`, `remaining`, `potCount`, a series that opens a pot per round, `BadBeneficiary` | Funding deadlines, hiring, refunds. |
-| `MockCrowdPots` (Endowments') | The same surface | The same; and a round of a series has no pot id of its own. |
-| `MockQuestions` (both) | `fund`, `fundFor`, `defund`, `costOf`, `meterOf`, `sharesOf`, the retiring of shares when a meter is spent to zero, the real errors | Asking, answers, the oracle, tips, the rescaling of share counts in a very old meter, and the lock. |
+| Stand-in                      | Follows the real contract for                                                                                                        | Leaves out                                                                                                |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `MockDesk`                    | `createOrder`'s checks in their order with the real errors and error data, `cancel`, `refund`, `accountOf`, `stateOf`, the constants | Runners, claims, receipts, disputes: a delivery and a bond award are test helpers. Its lock: it has none. |
+| `MockFeed`                    | The shape of `latest`: five words                                                                                                    | Everything else; a test stores what it answers.                                                           |
+| `MockPots` (Zap's)            | `chipIn`, `chipInFor`, `remaining`, `potCount`, a series that opens a pot per round, `BadBeneficiary`                                | Funding deadlines, hiring, refunds.                                                                       |
+| `MockCrowdPots` (Endowments') | The same surface                                                                                                                     | The same; and a round of a series has no pot id of its own.                                               |
+| `MockQuestions` (both)        | `fund`, `fundFor`, `defund`, `costOf`, `meterOf`, `sharesOf`, the retiring of shares when a meter is spent to zero, the real errors  | Asking, answers, the oracle, tips, the rescaling of share counts in a very old meter, and the lock.       |
 
 `integration/` holds each one beside the real contract and drives both with the same calls
 (`StandInsAgree.t.sol`: the same acceptances, the same refusals with the same bytes, the same
@@ -483,9 +522,10 @@ These are not limits of the three contracts, but a reader deciding whether to us
 them. Each is set out in the earlier launches' own documents. As of 15 October 2026:
 
 - **Receipts.** An order of a HIRE rule without the claimed path is paid only when IdentityMD's
-  WorkRegistry holds the job's receipt. The registry's writer wrote nothing from about 8 October to 14
-  October 2026; it has written again since (44 receipts in the 1,800 blocks before block 26,197,394),
-  and on 14 October the desk's first order was paid on its receipt. It can stall again (R14).
+  WorkRegistry holds the job's receipt. The registry's writer wrote nothing from about 8 October
+  until 13 October 2026, 17:26 UTC (block 26,185,055). It has written again since (44 receipts in
+  the 1,800 blocks up to block 26,197,394), and on 14 October the desk's first order was paid on its
+  job's receipt, written that day. It can stall again (R14).
 - **The order header.** IdentityMD keeps a job's objective byte for byte with the desk's 85 header
   bytes in front: shown on a research report bought on 13 October, and on chain by the desk's first
   order, a picture job, which the desk paid on the proven path on 14 October.
@@ -500,7 +540,8 @@ them. Each is set out in the earlier launches' own documents. As of 15 October 2
 - **What IdentityMD's pipeline changed.** In launch A: a round's keeper tip always goes to the
   keeper that opened the round; a silent round can be closed only after the answer's validity has
   also run out (36 hours, 5 minutes and 1 second for the house feeds); a seat held by a contract must
-  claim its own payouts. In launch B: nothing in the code. Section 10 takes each through this launch.
+  claim its own payouts. In launch B: no compiled code; it corrected three comments in
+  `CrowdPots.sol`. Section 10 takes each through this launch.
 
 ## 8. Static analysis
 
@@ -540,13 +581,13 @@ In seven places `src/` carries a comment that tells Slither not to report a find
 `slither-disable-start` and `-end`, five `slither-disable-next-line`). Each is listed here so that
 a reader does not have to search for them.
 
-| Where | Detector | Reason |
-|---|---|---|
-| `Zap._returnEverything` | `arbitrary-send-eth` (high) | The ETH goes to `msg.sender`, and it is the ETH that caller sent and the pool did not use, plus whatever was forced into the contract from outside. Zap holds nobody's ETH between calls, and the three callers of this function hold the lock. |
-| `Rules.recall` | `reentrancy-no-eth` (medium) | The rule is credited after the desk's `cancel`, with the amount the desk then reports. The function holds the lock; a view read during the desk's call shows the return as not yet credited, which is what it is. |
-| `Rules._reconcile` | `unused-return` (medium) | `accountOf` returns five values; only the employer and `returned` are needed. |
-| `Endowments._meterRoom` | `unused-return` (medium) | `meterOf` returns the meter's balance and its share count; only the balance is needed. |
-| `Endowments.stake`, `_leaveVault`, `_forward` | `reentrancy-balance` | Each reads a balance, calls sIMD or Questions, and compares the balance again: that is how the contract checks that they did what they reported. All three run under the lock. |
+| Where                                         | Detector                     | Reason                                                                                                                                                                                                                                          |
+| --------------------------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Zap._returnEverything`                       | `arbitrary-send-eth` (high)  | The ETH goes to `msg.sender`, and it is the ETH that caller sent and the pool did not use, plus whatever was forced into the contract from outside. Zap holds nobody's ETH between calls, and the three callers of this function hold the lock. |
+| `Rules.recall`                                | `reentrancy-no-eth` (medium) | The rule is credited after the desk's `cancel`, with the amount the desk then reports. The function holds the lock; a view read during the desk's call shows the return as not yet credited, which is what it is.                               |
+| `Rules._reconcile`                            | `unused-return` (medium)     | `accountOf` returns five values; only the employer and `returned` are needed.                                                                                                                                                                   |
+| `Endowments._meterRoom`                       | `unused-return` (medium)     | `meterOf` returns the meter's balance and its share count; only the balance is needed.                                                                                                                                                          |
+| `Endowments.stake`, `_leaveVault`, `_forward` | `reentrancy-balance`         | Each reads a balance, calls sIMD or Questions, and compares the balance again: that is how the contract checks that they did what they reported. All three run under the lock.                                                                  |
 
 Without these comments Slither 0.11.4 reports 38 results: the 34 above, one of high impact and
 three of medium, as marked in the table (run on a copy of the sources with the comments removed,
@@ -557,9 +598,25 @@ reason in the table should treat the matching finding as open.
 
 ## 9. What is not verified
 
-- **These contracts on chain.** Nothing of this launch has been deployed. The launch is rehearsed on
-  a fork through the real ProjectFactory, with placeholder record fields; the pipeline's own checks
-  before that call are not ours to run.
+- **Shown since this list was written** (15 October 2026), on mainnet. IdentityMD launch 1845
+  created the three contracts in one transaction, in block 26,198,165 at 13:18 UTC, and each holds
+  the constructor arguments of the manifest (read back with `cast call` that day). The code at each
+  address is the code built from this folder: `bash scripts/repro.sh` at the root of the HELP
+  WANTED repository compares the two, and printed a match for all three. Before deploying, the
+  pipeline's audit of the imported code, four specialist reviewers and a judge read the code and
+  raised 13 findings, none marked blocking. The pipeline changed nothing under `src/`
+  (`ADAPTATION.md`), and `docs/AUDITS.md` lists every finding with what became of it. Four of them
+  are limits this document stated in part or not at all; R11, E7, E9 and Z4 state them since, and
+  for three of them (R11, E9, Z4) no test here shows what the reviewers showed. By block 26,198,957
+  the team's wallet W1 had created one endowment, for the meter of launch A's payrolls feed,
+  deposited 1 IMD into it and called `stake` twice; no rule had been created and nothing had gone
+  through `Zap`. The entries below were written before the launch and are kept as they were, but
+  for the first, which now says what was shown. This note answers the first of them, and adds to
+  the one on an audit.
+- **These contracts on chain.** Written before the launch, when nothing of it had been deployed.
+  Shown since: IdentityMD launch 1845 created the three contracts on 15 October 2026, in block
+  26,198,165 (the note above). The launch was rehearsed on a fork through the real ProjectFactory,
+  with placeholder record fields; the pipeline's own checks before that call are not ours to run.
 - **A real swarm job for a rule's order, and a receipt written by IdentityMD.** On the fork the
   order of the first rule is settled on the live desk against the real WorkRegistry, but the receipt
   is written by acting as the registry's writer, for a real record whose job id and objective were
@@ -593,10 +650,12 @@ valid answer still on its way; and a seat held by a contract must claim its own 
 anyone could have Payroll pay a contract that could not use the money. Two audits of that launch
 raised nine findings more, one of them a medium left open there: a visitor to sIMD takes its share of
 every drip it attends. For our second launch (`WorkProof`, `WorkOrders`, `CrowdPots`, the Doorbell;
-launch 1573) the pipeline changed no code; its auditors raised one medium finding, answered in words
-(a runner can hold a receipt-only pot's order past its hire window and give it back with nothing
-forfeited, when the job's receipt shows a failed or another kind of job), and four notes. Both
-repositories' own records give the details.
+launch 1573) the pipeline changed no compiled code. Its reviewers raised eleven findings, which come
+down to seven matters (that launch's `docs/AUDITS.md`). One was of medium severity: a runner can
+hold a receipt-only pot's order past its hire window and give it back with nothing forfeited, when
+the job's receipt shows a failed or another kind of job. It was answered with two new tests and by
+correcting that launch's documents and three comments in `CrowdPots.sol`. The other six were of
+severity info. Both repositories' own records give the details.
 
 On 15 October 2026 each pattern behind those changes and findings was taken through `Rules`,
 `Endowments` and `Zap`, function by function: every transfer and who decides its recipient, every
@@ -606,52 +665,52 @@ test that shows it; four tests were added for this section.
 
 ### Pattern 1. A payout an observer can force into a contract that cannot use it
 
-*In launch A:* a seat's payout followed the seat, a token that can be moved; a stranger's claim paid
+_In launch A:_ a seat's payout followed the seat, a token that can be moved; a stranger's claim paid
 an escrow contract that held the seat, and the seat's real owner lost the money. The pipeline made a
 contract claim for itself.
 
-*Here:* no payee follows anything that can be moved. `Rules` pays a PAY rule's recipient and the
+_Here:_ no payee follows anything that can be moved. `Rules` pays a PAY rule's recipient and the
 desk's order escrow, both fixed by the rule's creator, the tip to the caller, and a rule's unspent
 escrow and returns to its creator. `Endowments` pays a depositor its own principal on its own call,
 and an endowment's yield to the target its creator fixed: a meter, a chip in the fallback
 beneficiary's name, the beneficiary, or a recipient. `Zap` pays only its caller. A stranger's call
 decides when a payment is made, never where it goes.
 
-*What holds:* `harvest` is open to anyone and pays a recipient, or a pot endowment's fallback
+_What holds:_ `harvest` is open to anyone and pays a recipient, or a pot endowment's fallback
 beneficiary, that is a contract, whether or not it can move IMD on
 (`test_harvest_paysARecipientContractThatCannotMoveIMD_becauseItsCreatorChoseIt`). That address was
 fixed by the endowment's creator before anyone deposited, and only yield reaches it, never principal.
 Endowments refuses the six addresses it knows would strand IMD (E8); it cannot know every one.
 
-*Decided:* no change. The pipeline's rule for seats (a contract must claim for itself) would protect
+_Decided:_ no change. The pipeline's rule for seats (a contract must claim for itself) would protect
 nobody here, since no other party is owed that money, and it would leave the yield of every
 endowment whose target is a contract unable to leave unless that contract made the call: a meter
 cannot, and neither can most beneficiaries a pot endowment is created for. `docs/DEVIATIONS.md`, D7.
 
 ### Pattern 2. A function anyone may call that moves money to a third party, or pays its caller
 
-*In launch A:* the keeper tip for a round went to whoever handed in the public signed answer first,
+_In launch A:_ the keeper tip for a round went to whoever handed in the public signed answer first,
 so an observer could copy the transaction and take the tip from the keeper that had paid for the
 round. The pipeline gave the tip to the round's opener.
 
-*Here:* the functions open to anyone that move money are `Rules.fire`, `reconcile` and
+_Here:_ the functions open to anyone that move money are `Rules.fire`, `reconcile` and
 `onWorkDelivered` (the desk only), `Endowments.stake` and `harvest`, and Zap's three entry points.
 Only `fire` pays its caller, and only the tip its creator set. Everything else goes to a party fixed
 before the call.
 
-*What holds:* the tip is the first firer's (R12,
+_What holds:_ the tip is the first firer's (R12,
 `test_fire_aCopiedFireTakesTheTip_andTheFireItCopiedRevertsHavingMovedNothing`). Unlike the round in
 launch A there is no earlier party that paid for the work and could be paid instead: firing a rule is
 the whole of the work, and whoever does it first has done it. The copier takes the tip and nothing
 else. A creator's `cancel` races keepers in the same way once the condition holds (R13,
 `test_cancel_racesAFireOnceTheConditionHolds_andWhicheverLandsFirstDecides`).
 
-*Decided:* no change. Tying the tip to an address chosen in advance would make the rule depend on
+_Decided:_ no change. Tying the tip to an address chosen in advance would make the rule depend on
 that keeper staying alive, which is what an open tip exists to avoid.
 
 ### Pattern 3. A tip or a refund that somebody else can redirect
 
-*Checked:* every tip and every refund the three contracts pay or are paid. A rule's tip goes to the
+_Checked:_ every tip and every refund the three contracts pay or are paid. A rule's tip goes to the
 caller of `fire` and nowhere else. What the desk returns for a rule's order goes to `Rules`, which
 credits it to that rule from the desk's own figure (`accountOf(id).returned`), or to the creator of a
 rule that was cancelled; nobody can name another destination (T6, R7, R8). Zap returns what a swap
@@ -661,43 +720,43 @@ the fallback beneficiary's, so a pot's refund of them goes there; launch B pays 
 which is how a beneficiary contract with no function for claiming is paid at all, and the pipeline
 left that rule of launch B as it was.
 
-*What holds:* nothing new. IMD or ETH that reaches Zap from outside goes to Zap's next caller (Z4); it
+_What holds:_ nothing new. IMD or ETH that reaches Zap from outside goes to Zap's next caller (Z4); it
 belongs to nobody, and Zap holds nobody's money between calls.
 
-*Decided:* no change.
+_Decided:_ no change.
 
 ### Pattern 4. A wait measured against an outside service that can be late
 
-*In launch A:* a round could be closed at twelve hours while the answer it had asked for was still
+_In launch A:_ a round could be closed at twelve hours while the answer it had asked for was still
 valid and on its way. The pipeline made the round wait for the answer's validity too.
 
-*Here:* no function of the three lets a stranger end something that is still good. Rules' own clocks
+_Here:_ no function of the three lets a stranger end something that is still good. Rules' own clocks
 are a rule's cooldown and, for a FEED rule, the age of an answer: an answer older than the creator's
 `maxAge` is not acted on, which is the safe side (the rule waits), never a discard. Endowments' clock
 is its own (50 blocks between batches, the one-block hold of sIMD); a harvest that cannot run waits
 and loses nothing. Zap's deadline is the caller's.
 
-*What holds:* a HIRE rule's order inherits the desk's clocks, and the desk cannot tell a job never
+_What holds:_ a HIRE rule's order inherits the desk's clocks, and the desk cannot tell a job never
 done from a job whose receipt is late. IdentityMD's receipts stopped for about six days in October
 2026; an order of a rule whose delivery deadline passed in such a stall ends in a refund to the rule,
 and the runner who did the work loses its bond and its swarm fee (R14, launch B's W1). The rule's
 creator chooses the delivery time, up to 90 days, and the first rule of `docs/LAUNCH.md` gives seven.
 
-*Decided:* no change in this code; nothing here can wait for a receipt better than the desk does.
+_Decided:_ no change in this code; nothing here can wait for a receipt better than the desk does.
 
 ### Pattern 5. A pro-rata share a just-in-time depositor can take
 
-*In launch A:* stakers who enter sIMD just before Payroll's drip and leave after it take a full share
+_In launch A:_ stakers who enter sIMD just before Payroll's drip and leave after it take a full share
 of the drip (left open there by the team).
 
-*Here:* no depositor of an endowment earns anything: all yield goes to the endowment's target, and a
+_Here:_ no depositor of an endowment earns anything: all yield goes to the endowment's target, and a
 depositor takes back exactly its principal, so a depositor who arrives just before a harvest gains
 nothing. The split of a staked batch between endowments is at one price for all. sIMD is refused as a
 recipient precisely so that a lump harvest is never shared with whoever staked a block earlier (E8,
 `test_createForRecipient_refusesTheVault_soNoHarvestCanBeCollectedByAOneBlockStaker`). Rules credits
 returns from the desk's books per order, never from a shared balance (R7).
 
-*What holds:* two things that are launch A's, met through its meters. A meter endowment holds meter
+_What holds:_ two things that are launch A's, met through its meters. A meter endowment holds meter
 shares, so a funder that arrives just before a failed round is closed takes part of the returned tip
 (launch A's Q5, E5). And a meter endowment's room is read from the meter's whole balance, which anyone
 can raise and lower: the figure in launch A's low findings 1.2 and 2.2. Here a stranger who funds the
@@ -705,42 +764,42 @@ meter around somebody else's harvest makes that harvest send less or nothing; th
 the next harvest sends it, and the stranger gains nothing
 (`test_runway_aFundAndDefundAroundAHarvestOnlyDelaysTheYield`).
 
-*Decided:* no change. Launch A sized Payroll's top-ups from its own position because there a moved
+_Decided:_ no change. Launch A sized Payroll's top-ups from its own position because there a moved
 figure sent money away for good. Here it only delays a harvest, and the runway exists to bound what
 the meter holds, whoever's money it is: sized from the endowment's own shares, several endowments, or
 an endowment and Payroll, could together lift a meter past it.
 
 ### Pattern 6. A bond that an employer can hold
 
-*Raised for launch B:* a challenger's bond is held until an order's delivery deadline, up to 90 days,
+_Raised for launch B:_ a challenger's bond is held until an order's delivery deadline, up to 90 days,
 and an employer that is its own runner, or names its own arbiter, can hold or take it.
 
-*Here:* `Rules` is an employer on the desk. It never challenges, never arbitrates, and never runs an
+_Here:_ `Rules` is an employer on the desk. It never challenges, never arbitrates, and never runs an
 order; it sets the terms its creator fixed, among them the arbiter and the claimed-path flag, and it
 publishes them in `RuleCreated` before any order exists. A creator who names an arbiter of its own and
 allows claimed deliveries can hold a challenger's bond through Rules exactly as through the desk
 directly; a challenger can read the rule's terms first. What the desk forfeits to an employer (a
 runner's bond) is credited to the rule and is its creator's (R8). `Endowments` and `Zap` hold no bonds.
 
-*What holds:* the desk's behaviour, unchanged by Rules. The medium finding of launch B's review (a
+_What holds:_ the desk's behaviour, unchanged by Rules. The medium finding of launch B's review (a
 runner can take a receipt-only order, register a job whose receipt shows a failed or another kind of
 job, report it, and give the order back with its whole bond, as often as it likes) applies to a
 rule's order as it does to a pot's: the rule's order can be held until its expiry and then refunded
 to the rule, which loses the fire's tip and the order's time, not its escrow.
 
-*Decided:* no change in this code. The first rule of `docs/LAUNCH.md` names no arbiter, does not
+_Decided:_ no change in this code. The first rule of `docs/LAUNCH.md` names no arbiter, does not
 allow claimed deliveries, and gives a runner three days to take its order.
 
 ### The findings that do not follow a pattern above
 
-| Finding | Where | Here |
-|---|---|---|
-| A guard that cannot fire and would do harm if it did | launch A, 2.5 | `Rules`' `DeskPulledWrongAmount`, `OrderAlreadyLinked` and `ReturnNotReceived`, and Endowments' `VaultMismatch` and `TargetMismatch`, cannot fire with the real desk, vault, meter and pots. Each reverts the one call and writes nothing; none drops or misdirects money (T2, T4, T6). |
-| A view reports an amount the action then refuses | launch A, 1.4 and 2.4 | `harvestable` reports zero while the price is below the mark, and does not look at the hold (said in its notes); `canFire` and `check` are only as good as the gas they are given (R4); `quote` does not look at the hold. |
-| The documents claimed more than the code gives | launch A, 1.3 and 2.3; launch B's medium | Every sentence with "never", "always", "cannot" or "only" in these documents and in the comments of `src/` was read against the code on 15 October 2026. Corrected: E5's account of who is paid a round's tip and of how Payroll's runway and an endowment's share a meter, both out of date since launch A was launched; E8, which named no address it misses; the status of every document. |
-| The order of two open calls at a boundary decides where money goes | launch A, 1.1 | Whichever of `fire` and `cancel` is mined first decides (R13); both move money only to parties the creator fixed. A harvest and a withdrawal, or two harvests, in either order send the same amounts to the same places, to a share-wei. |
-| A dependency fixed at construction cannot be replaced | the pipeline's note on launch A | The same choice here, for every address: `docs/DEVIATIONS.md`, D1. |
-| `chipInFor` accepts a beneficiary where a refund would be stranded | launch B, note | Endowments refuses six such addresses for a pot endowment's fallback, and accepts the rest (E8). |
+| Finding                                                            | Where                                    | Here                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------------------------------------------------------ | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A guard that cannot fire and would do harm if it did               | launch A, 2.5                            | `Rules`' `DeskPulledWrongAmount`, `OrderAlreadyLinked` and `ReturnNotReceived`, and Endowments' `VaultMismatch` and `TargetMismatch`, cannot fire with the real desk, vault, meter and pots. Each reverts the one call and writes nothing; none drops or misdirects money (T2, T4, T6).                                                                                                       |
+| A view reports an amount the action then refuses                   | launch A, 1.4 and 2.4                    | `harvestable` reports zero while the price is below the mark, and does not look at the hold (said in its notes); `canFire` and `check` are only as good as the gas they are given (R4); `quote` does not look at the hold.                                                                                                                                                                    |
+| The documents claimed more than the code gives                     | launch A, 1.3 and 2.3; launch B's medium | Every sentence with "never", "always", "cannot" or "only" in these documents and in the comments of `src/` was read against the code on 15 October 2026. Corrected: E5's account of who is paid a round's tip and of how Payroll's runway and an endowment's share a meter, both out of date since launch A was launched; E8, which named no address it misses; the status of every document. |
+| The order of two open calls at a boundary decides where money goes | launch A, 1.1                            | Whichever of `fire` and `cancel` is mined first decides (R13); both move money only to parties the creator fixed. A harvest and a withdrawal, or two harvests, in either order send the same amounts to the same places, to a share-wei.                                                                                                                                                      |
+| A dependency fixed at construction cannot be replaced              | the pipeline's note on launch A          | The same choice here, for every address: `docs/DEVIATIONS.md`, D1.                                                                                                                                                                                                                                                                                                                            |
+| `chipInFor` accepts a beneficiary where a refund would be stranded | launch B, note                           | Endowments refuses six such addresses for a pot endowment's fallback, and accepts the rest (E8).                                                                                                                                                                                                                                                                                              |
 
 ### What the review added, and one request
 
