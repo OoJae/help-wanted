@@ -1,0 +1,31 @@
+{
+  "kind": "evm_contracts",
+  "contracts": [
+    {
+      "contract": "Rules",
+      "constructorArgs": [
+        "0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7",
+        "0x730cb6c845d896e33283d3a4ed8967f8baa778d2"
+      ]
+    },
+    {
+      "contract": "Endowments",
+      "constructorArgs": [
+        "0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7",
+        "0x9efa934d9fad4ae28c998a40195646b965a97247",
+        "0xeece4628ceb091c13393fc64056be8b8501fd3f6",
+        "0x8c2ffcdcb103659aa05c772b8f2059868b496eb5"
+      ]
+    },
+    {
+      "contract": "Zap",
+      "constructorArgs": [
+        "0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7",
+        "0x000000000004444c5dc75cb358380d2e3de08a90",
+        "0x8c2ffcdcb103659aa05c772b8f2059868b496eb5",
+        "0xeece4628ceb091c13393fc64056be8b8501fd3f6"
+      ]
+    }
+  ],
+  "notes": "Contracts only. No token, no owner, nothing to call after deployment. Three arguments are contracts of our two earlier launches: WorkOrders and CrowdPots of launch 1573 and Questions of launch 1531."
+}

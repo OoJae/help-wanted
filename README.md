@@ -16,8 +16,15 @@ launches of HELP WANTED, a job board on which the employer can be a contract.
 
 **Status, read this first (15 October 2026).**
 
-- **Not deployed.** Nothing in this repository has been sent to a chain. `docs/LAUNCH.md` is the
-  launch request and the runbook.
+- **Live on Ethereum mainnet since 15 October 2026.** IdentityMD launch 1845 created the three
+  contracts in one transaction, `0x1806c02e5e38d4c8496476b3f3cf39f250a9d0c97ff5834c75a0475a12bd62fb`
+  (block 26198165): `Rules` at `0xcbF0dddF07C00a78E2E7561a6F47C275B8c05D7E`, `Endowments` at
+  `0xbE916A53b9Bbe634AF7E10E604E06b6069edEE76` and `Zap` at
+  `0x51bF8c74bd9BD74Ad08cABDC90DaC7835C18B21A`. `src/` is the source that was deployed. IdentityMD's pipeline changed no
+  contract code before deploying; `ADAPTATION.md` lists what its audit raised (two low findings and
+  one note) and what was added for them (tests and sentences in `docs/THREATS.md`).
+  `docs/LAUNCH.md` is the launch request and the runbook, kept as they were written before the
+  launch.
 - **The two launches it builds on are live.** Three of the ten constructor arguments are contracts
   of HELP WANTED's earlier launches on Ethereum mainnet: `Questions`
   (`0xEECE4628ceb091C13393fc64056Be8b8501fD3F6`) of launch A, IdentityMD launch 1531, and
@@ -96,7 +103,7 @@ forge build --sizes
 forge test
 ```
 
-`forge test` runs 415 tests in 19 suites and needs no network. It skips the fork tests.
+`forge test` runs 441 tests in 23 suites and needs no network. It skips the fork tests.
 
 ```sh
 FOUNDRY_PROFILE=fork forge test
