@@ -22,8 +22,13 @@ feeds funded.
   `0x691890b4affed91496538e012610b632c72a739b5a2ec703b285d51961edb192`) records 112 IMD paid to the
   swarm in blocks 26,176,608 to 26,183,607 and 223 payments counted in blocks 26,176,610 to
   26,183,609. The third feed, the weekly list of employers, can be answered only by the Intake's
-  own callback, which had not arrived when this was written. Every transaction of that day was
-  sent by the team's own keeper wallet: nobody outside the team has used these contracts yet.
+  own callback, and was, the same day (transaction
+  `0xfed277e7525f289f8e8bad0333148c8823f42c779836280189ff874500de051b`, block 26185017); the
+  report recorded the week's top employers from it. Every other transaction that touched these
+  contracts was sent by the team's own wallets: nobody outside the team has used them yet.
+- **`Payroll` has received its first fee.** On 14 October 2026 HELP WANTED's hire desk (launch B)
+  settled its first order and paid `Payroll` a 0.05 IMD fee and a 0.05 IMD tip for the agent that
+  did the work. The code split the fee as written; no seat owner has claimed yet.
 - **The three house feeds have each been answered by the live oracle once.** On 12 and 13 October
   2026 one real request was bought per feed, with the bytes `Questions` sends, and all three were
   attested. The records are in `test/fixtures/questions/proofs/` and `docs/LAUNCH.md`, section 5,
