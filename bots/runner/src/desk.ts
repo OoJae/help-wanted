@@ -129,7 +129,12 @@ export interface DeskChain {
 
 /** The part of a viem public client the desk reads through. */
 export interface ReaderLike {
-  getBlockNumber(): Promise<bigint>;
+  /**
+   * `cacheTime: 0` asks the node now. viem otherwise answers from a block number it read up to a
+   * polling interval ago, and a reading made right after one of the runner's own transactions
+   * would then name a block from before it.
+   */
+  getBlockNumber(args?: { cacheTime?: number }): Promise<bigint>;
   getBalance(args: { address: Address }): Promise<bigint>;
   readContract(args: {
     address: Address;
@@ -237,7 +242,7 @@ export function viemDesk(
 
   return {
     runner,
-    blockNumber: () => reader.getBlockNumber(),
+    blockNumber: () => reader.getBlockNumber({ cacheTime: 0 }),
 
     async ordersOpened(fromBlock, toBlock) {
       const logs = await reader.getContractEvents({
@@ -283,7 +288,7 @@ export function viemDesk(
     async snapshot(id) {
       // Both reads name the block. A node that does not have it yet refuses, and the step is tried
       // again on the next pass, which is what a reading from a node that is behind deserves.
-      const block = await reader.getBlockNumber();
+      const block = await reader.getBlockNumber({ cacheTime: 0 });
       const at = (functionName: string) =>
         reader.readContract({
           address: addresses.workOrders,
@@ -318,7 +323,7 @@ export function viemDesk(
       }) as Promise<Hex>,
 
     async lastReceiptBlock(lookbackBlocks) {
-      const head = await reader.getBlockNumber();
+      const head = await reader.getBlockNumber({ cacheTime: 0 });
       const fromBlock = head > lookbackBlocks ? head - lookbackBlocks : 0n;
       const logs = await reader.getContractEvents({
         address: addresses.workRegistry,

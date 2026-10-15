@@ -14,7 +14,7 @@
 //
 // A test (`scripts/evidence/test/book.test.ts`) holds what this prints against the book as
 // TypeScript sees it, so the two cannot drift apart unnoticed.
-import { readFileSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -143,7 +143,21 @@ export function launchedContracts(book) {
   return rows;
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+/**
+ * True when Node was asked to run this file. Node gives `import.meta.url` with every symbolic link
+ * resolved, and `process.argv[1]` as it was typed, so the two are compared as real paths: a
+ * repository reached through a link (on macOS, /tmp is one) would otherwise print nothing.
+ */
+function isMain() {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+
+if (isMain()) {
   try {
     const book = readBook();
     if (process.argv[2] === "contracts") {

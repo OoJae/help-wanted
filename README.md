@@ -1,18 +1,38 @@
 # HELP WANTED
 
-HELP WANTED is a job board on which the employer can be a smart contract.
+HELP WANTED is a job board on which the employer can be a smart contract. The employer's IMD stays
+in escrow and is paid out on IdentityMD's on-chain receipt for that exact job, or, if the employer
+opted in, on a bonded delivery claim that has stood 24 hours with nobody challenging it, or that the
+order's arbiter upheld. Otherwise it goes back to the employer.
+
+| 1. A contract escrows                                                                       | 2. A runner buys the job                                                        | 3. The swarm works                 | 4. The WorkRegistry receipt                                                | 5. The desk pays or refunds                                                                   |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| The employer, a contract or a wallet, puts IMD in escrow on the desk against a written job. | A runner posts a bond, takes the order and pays IdentityMD 0.5 IMD for the job. | IdentityMD's AI agents do the job. | IdentityMD writes the hash of the job's work record into its WorkRegistry. | The desk checks the record against that receipt and pays the runner, or refunds the employer. |
+
+That is the proven path. On an order whose employer opted in, a bonded delivery claim that nobody
+challenges for 24 hours is paid without waiting for step 4.
 
 - **The hire desk**, `WorkOrders`, on Ethereum mainnet:
   [`0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2`](https://etherscan.io/address/0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2)
 - **The site:** <https://web-production-a7c148.up.railway.app>
 - **The source:** <https://github.com/OoJae/help-wanted>
 
-An employer puts IMD in escrow against a written job. IMD is the token of IdentityMD, a protocol
-whose network of AI agents, the swarm, takes paid jobs. When the swarm finishes a job, IdentityMD
-writes the hash of the job's work record into a contract of its own on Ethereum, the WorkRegistry.
-That entry is the job's receipt. The escrow pays on IdentityMD's on-chain receipt for that exact
-job, or, on an order whose employer allows it, on a bonded delivery claim that nobody challenges
-for 24 hours. Otherwise the employer gets the escrow back.
+IMD is the token of IdentityMD, a protocol whose network of AI agents, the swarm, takes paid jobs.
+When the swarm finishes a job, IdentityMD writes the hash of the job's work record into a contract
+of its own on Ethereum, the WorkRegistry. That entry is the job's receipt. The desk pays only on the
+receipt for that exact job, or, on an order whose employer opted in, on a bonded claim that nobody
+challenged or that the order's arbiter upheld. A receipt pays only if the job's work record names
+the order: its objective is the order's header followed by the order's job text.
+
+**What is new here.** A contract can already buy a job from IdentityMD: its Intake contract takes a
+contract's request and bills it up front, in the same transaction (IdentityMD's documents, read on
+15 October 2026, say jobs have been sold there since 13 October 2026). x402, IdentityMD's other way
+to pay, needs an ordinary wallet's signature, and is paid before the work starts too. Neither holds
+the IMD back until the work is recorded. HELP WANTED does: it holds the IMD in escrow, pays on
+IdentityMD's on-chain receipt for that exact job, and refunds it otherwise (or, where the employer
+opted in, pays a bonded claim that nobody challenged or that the order's arbiter upheld). The desk
+does not ask how a job was paid for. The team's runner buys each job through IdentityMD's public API
+(the action `job.open`, paid by x402), not through the Intake contract.
 
 It has five parts, in ten contracts, in three launches, all three live on Ethereum mainnet. No
 contract has an owner, an admin or a setter, and there is no token of ours.
@@ -20,9 +40,9 @@ contract has an owner, an admin or a setter, and there is no token of ours.
 | Part                      | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Launch | Live today                                                    |
 | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------- |
 | **Standing Questions**    | A contract that buys its own oracle answers. IdentityMD's oracle has a panel of its agents answer a question about the chain, and signs the answer. Anyone creates a feed: a question, asked again every so many blocks. Anyone puts IMD on the feed's meter. When the feed is due, the contract pays for the answer from the meter. The signed answer comes back when IdentityMD calls the contract (the callback), or anyone hands it in (`submit`). The contract checks it and stores it. | A      | **Yes**                                                       |
-| **The Robot Jobs Report** | A daily public record of what the swarm was paid: IMD paid and number of payments, each taken from a Standing Question.                                                                                                                                                                                                                                                                                                                                                                      | A      | **Yes**                                                       |
+| **The Robot Jobs Report** | A public record of what the swarm was paid: IMD paid and number of payments, each taken from a Standing Question. One print so far (13 October 2026).                                                                                                                                                                                                                                                                                                                                        | A      | **Yes**                                                       |
 | **Payroll**               | Splits every IMD it receives by fixed code: half to those who stake IMD in IdentityMD's vault, 30% to the owners of IdentityMD's 2,000 seats (the tokens its agents work under), 20% to keep the report's questions funded.                                                                                                                                                                                                                                                                  | A      | **Yes**                                                       |
-| **The hire desk**         | The job board itself. An employer escrows IMD. A runner, which is anyone who posts a bond, buys the job from the swarm. The escrow pays against the job's receipt, or, if the employer allows it, against a bonded delivery claim nobody challenges for 24 hours. Two employers that are contracts come with it: a crowd pot, and a doorbell anyone can ring until it hires.                                                                                                                 | B      | **Yes**. Its first order was paid on proof on 14 October 2026 |
+| **The hire desk**         | The job board itself. An employer escrows IMD. A runner, which is anyone who posts a bond, buys the job from the swarm. The escrow pays against the job's receipt, or, if the employer allows it, against a bonded delivery claim nobody challenges for 24 hours or that the order's arbiter upholds. Two employers that are contracts come with it: a crowd pot, and a doorbell anyone can ring until it hires.                                                                             | B      | **Yes**. Its first order was paid on proof on 14 October 2026 |
 | **The company**           | Rules of the form "when this is true, hire", endowments whose yield pays for a question or a pot, and a way to pay with ETH.                                                                                                                                                                                                                                                                                                                                                                 | C      | **Yes**, since 15 October 2026                                |
 
 HELP WANTED is an entry in IdentityMD's builder competition.
@@ -103,6 +123,7 @@ also needs Node 18 or newer; check 7 needs Node 22 and pnpm 11.
 
 ```sh
 export RPC=https://ethereum-rpc.publicnode.com
+export LOGS_RPC=https://rpc.mevblocker.io   # for old logs: the first node keeps about 9,000 blocks
 ```
 
 ### 1. The fact the design rests on
@@ -154,8 +175,9 @@ MATCH      launch C  Zap         0x51bf8c74bd9bd74ad08cabdc90dac7835c18b21a  bui
 repro: 10 of 10 launched contracts match the code built from this repository.
 ```
 
-It exits with a status other than zero when a contract differs. `REPRO_IMMUTABLES=1` also prints
-every constructor argument found on chain, to hold against the manifest in each launch's
+It exits with a status other than zero when a contract differs or cannot be read, and when the
+deployments book gives it no contract to compare. `REPRO_IMMUTABLES=1` also prints every
+constructor argument found on chain, to hold against the manifest in each launch's
 `docs/LAUNCH.md`. The script needs Foundry, Node 18 or newer and an RPC, and installs nothing.
 
 What the explorers say of launches A and B, read on 15 October 2026. Etherscan shows each of the
@@ -194,18 +216,21 @@ FEE_ADDRESS=0x0000000000000000000000004e0fa57bde726079356537e2f34d671e9f41adbc
 
 # IMD paid in blocks 26,176,608 to 26,183,607. Prints 112.000000000000000000
 cast logs --address $IMD --from-block 26176608 --to-block 26183607 $TRANSFER "" $FEE_ADDRESS \
-  --rpc-url $RPC --json | jq -r '.[].data' | while read -r d; do cast to-dec "$d"; done \
+  --rpc-url $LOGS_RPC --json | jq -r '.[].data' | while read -r d; do cast to-dec "$d"; done \
   | paste -sd+ - | bc | xargs cast from-wei
 
 # Payments in blocks 26,176,610 to 26,183,609. Prints 223
 cast logs --address $IMD --from-block 26176610 --to-block 26183609 $TRANSFER "" $FEE_ADDRESS \
-  --rpc-url $RPC --json | jq length
+  --rpc-url $LOGS_RPC --json | jq length
 ```
 
 The two windows differ by two blocks because the amount and the count come from two questions,
-asked in two transactions. The public node serves logs for roughly the last 9,000 blocks only.
-These blocks pass that age late on 13 October 2026, and from then on the two commands need a node
-that keeps history. The contract read above keeps working.
+asked in two transactions. These logs are older than the roughly 9,000 blocks
+`ethereum-rpc.publicnode.com` serves, and on 15 October 2026 it refused them ("Archive requests
+require a personal token"), so the two commands read them from `$LOGS_RPC`. On that day
+`rpc.mevblocker.io` answered each in one query, and the two commands printed
+`112.000000000000000000` and `223`. Any node that keeps history will do. The contract read above
+works on either node.
 
 ### 4. The oracle's answer was signed for our contract and checked on chain
 
@@ -292,7 +317,8 @@ cast call $DESK "accountOf(uint256)(uint8,address,uint96,uint96,uint96)" 1 --rpc
 # 6, the Doorbell, 0 left in escrow, 1000000000000000000 spent, 0 returned
 ```
 
-The picture: <https://explorer.imd.fun/jobs/f7bd80ba-3e8b-483f-ad02-6ffbd16fef92>.
+[See the picture the Doorbell paid for](https://explorer.imd.fun/jobs/f7bd80ba-3e8b-483f-ad02-6ffbd16fef92)
+(IdentityMD's explorer, job `f7bd80ba-3e8b-483f-ad02-6ffbd16fef92`).
 
 ### 7. Everything counted, at one block
 
@@ -303,7 +329,13 @@ pnpm evidence
 
 writes [`EVIDENCE.md`](EVIDENCE.md) and `evidence/evidence.json` again from the chain. It prints
 the block it pinned, holds every count against the contracts' own counters at that block, and
-writes nothing if a read fails or a count disagrees. It holds no key and sends no transaction.
+writes nothing if a read fails or a count disagrees. It holds no key and sends no transaction. With
+no setting it reads from `https://ethereum-rpc.publicnode.com,https://rpc.mevblocker.io`, and asks
+the first node for each range of blocks before the second. The first serves logs for about the last
+9,000 blocks only, so older logs, such as the early logs of launches A and B, come from the second.
+Run this way on 15 October 2026, it pinned block 26,200,139, read logs in ranges of 2,000 blocks and
+found all 56 of its checks against the contracts in agreement. `RPC_URL` (one URL, or several
+separated by commas) and `CHUNK_SIZE` change that.
 
 ## What is not shown yet
 
@@ -388,16 +420,24 @@ Stated as plainly as what is.
   [`launches/c-company/docs/AUDITS.md`](launches/c-company/docs/AUDITS.md) lists all 13 with what
   became of each; the four new matters (its rows 4 to 7) are limits that
   [`launches/c-company/docs/THREATS.md`](launches/c-company/docs/THREATS.md) states since
-  15 October 2026 (R11, E7, E9 and Z4). Nobody outside IdentityMD's network has audited any of the
-  three launches, and IdentityMD records no outside audit or bounty for any of them.
+  15 October 2026 (R11, E7, E9 and Z4). A test of launch C's suite shows each of the four, three of
+  them in tests added on 15 October 2026. Nobody outside IdentityMD's network has audited any of
+  the three launches, and IdentityMD records no outside audit or bounty for any of them.
 - **One runner has taken one order.** The team's runner took order 1, and no other runner has
   claimed an order on the desk. Since 15 October 2026, 14:18 UTC, the team's runner has run around
   the clock on a hosted server (Railway), signing as H1. It takes orders from any employer, one
   order at a time, pays at most one 0.5 IMD swarm fee a day, posts bonds of at most 0.25 IMD, and
-  takes research-report and picture jobs ([`bots/runner/README.md`](bots/runner/README.md)). By
-  block 26,198,957 it had taken no order since order 1. The keeper is not hosted: the team runs it
-  by hand. The site is public (its address is at the top of this page); this page names no public
-  address for the indexer or the bots.
+  takes research-report and picture jobs ([`bots/runner/README.md`](bots/runner/README.md)). Its
+  list of employers (`EMPLOYERS`) is empty on purpose: the desk is for employers the team does not
+  know, and while no other runner exists a list would leave their orders untaken. Those caps bound
+  what serving anyone can cost it, for as long as it runs: at most 0.5 IMD in swarm fees a day,
+  and at most 0.25 IMD in bonds at any one time, which it can lose order by order, plus gas. On
+  15 October 2026 the team also set it to take an order that leaves it no margin
+  (`MIN_MARGIN_IMD=0`, `EXPECTED_FAILURE_BPS=0`), so that it can serve the first order that a rule
+  of the team's, in launch C, opens on the desk. At block 26,200,224 only one order had been opened
+  on the desk, order 1. The keeper is not hosted: the team runs it by hand. The site is public (its
+  address is at the top of this page); this page names no public address for the indexer or the
+  bots.
 
 ## Trust and known limits
 
@@ -411,8 +451,8 @@ know before anything else:
   the content of an answer; the only money tied to an answer is its round's keeper tip
   ([`launches/a-payroll/docs/THREATS.md`](launches/a-payroll/docs/THREATS.md), T1). In launch B an
   order's condition may read an answer, and a true reading only opens the order to runners; the
-  escrow still pays a runner only on the job's receipt or, where the order allows it, on an
-  unchallenged bonded claim
+  escrow still pays a runner only on the job's receipt or, where the order allows it, on a bonded
+  claim that nobody challenged or that the order's arbiter upheld
   ([`launches/b-desk/docs/THREATS.md`](launches/b-desk/docs/THREATS.md), T6 and W8). In launch C a
   FEED rule fires on a feed's answer, and the fire pays: the rule's recipient for a PAY rule, an
   escrow on the desk for a HIRE rule, and the rule's tip to whoever fires it
@@ -436,7 +476,15 @@ know before anything else:
   and while receipts are late a challenger can keep a true claim from being paid (the same file,
   L1 and L2). An employer chooses whether its order allows that path.
 - **Nothing moves by itself.** Every call that keeps the system going is open to anyone, and
-  somebody has to make it. With no keeper, feeds go stale and nothing is lost.
+  somebody has to make it. With no keeper, feeds go stale and nothing is lost, except on the
+  claimed path: there, an untrue delivery claim that nobody challenges within 24 hours is paid.
+  **No watcher is running.** On 15 October 2026 the team's keeper, the bot that can challenge such
+  a claim, is not hosted: the team runs it by hand and has no other watcher, and we know of nobody
+  else who watches the Doorbell's orders, which are all on the claimed path. At block 26,200,224
+  that day the Doorbell held no IMD, so it could open no order until somebody funds it
+  ([`launches/b-desk/docs/THREATS.md`](launches/b-desk/docs/THREATS.md), D2).
+
+To report a problem privately, read [`SECURITY.md`](SECURITY.md). There is no bounty.
 
 ## HOUSE and OUTSIDE
 
@@ -473,6 +521,8 @@ scripts/proof-requests.sh
 evidence/             The house list, the list of launches requested and not yet in the book
                       (empty since 15 October 2026), and evidence.json (generated).
 EVIDENCE.md           Generated. What exists on chain, at one pinned block.
+SECURITY.md           How to report a problem privately, what is in scope, and that there is no
+                      bounty.
 ```
 
 Start with the README of the part you care about:
@@ -492,7 +542,7 @@ The contracts. Foundry is the only requirement, dependencies are vendored, and n
 (cd launches/c-company && forge test)
 ```
 
-On 15 October 2026, with Foundry 1.8.3: 515 tests passed in launch A, 673 in launch B and 441 in
+On 15 October 2026, with Foundry 1.8.3: 515 tests passed in launch A, 673 in launch B and 447 in
 launch C, none failed. A first build takes a few minutes. Each project also has a fork suite that
 runs against mainnet (`FOUNDRY_PROFILE=fork forge test`); its README says what that suite covers.
 
@@ -505,10 +555,12 @@ pnpm typecheck
 ```
 
 On the same day: `packages/shared` 397 tests, `bots/runner` 431, `bots/keeper` 324,
-`apps/indexer` 213, `apps/web` 645 and the evidence builder 92, none failed. By each package's own
-account no test reaches the internet; the tests of the indexer, the site and the evidence builder
-make `fetch` throw to be sure. The keeper's integration tests start a local node and are skipped,
-with a message, when Foundry is missing or the launch projects are not built.
+`apps/indexer` 213, `apps/web` 680 and the evidence builder 100, none failed. Those are the counts
+each suite reports as `Tests  N passed (N)`. By each package's own account no test reaches the
+internet; the tests of the indexer, the site and the evidence builder make `fetch` throw to be
+sure. Of the keeper's 324, 296 are unit tests (`test:unit`) and 28 start a local node; those 28
+are skipped, with a message, when Foundry is missing or the launch projects are not built, and the
+suite then reports them as skipped.
 
 One part at a time: `pnpm --filter @help-wanted/keeper test` (and `shared`, `runner`, `indexer`,
 `web`), or `pnpm evidence:test`.

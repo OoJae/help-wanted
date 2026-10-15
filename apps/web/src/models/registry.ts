@@ -132,7 +132,7 @@ export const STATIC_PATHS: readonly StaticPath[] = [
     path: "/questions",
     label: "Questions",
     blurb:
-      "The three house feeds in plain words, with their exact text, meters, cadence and rounds, and the oracle requests bought on chain through the Intake.",
+      "The three house feeds in plain words, with their exact text, meters, cadence and rounds, and the requests of any kind bought on chain through the Intake.",
     live: true,
     needs: null,
   },
@@ -192,7 +192,7 @@ export const STATIC_PATHS: readonly StaticPath[] = [
   {
     path: "/runners",
     label: "Runners",
-    blurb: "Take an order, buy the swarm job, get paid on proof.",
+    blurb: "Take an order, buy the swarm job, get paid on proof or on a bonded claim that stands.",
     live: false,
     needs: "workOrders",
   },

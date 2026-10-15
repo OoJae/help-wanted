@@ -1,8 +1,17 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
+import { isMainScript } from "../build.js";
 import { CONTRACTS } from "../contracts.js";
 import { imd, int, table, utc } from "../format.js";
 import { houseList, parseHouseFile, Tally } from "../house.js";
@@ -10,10 +19,19 @@ import { DEPLOYMENT_BOOK } from "../shared.js";
 import { emptyTape, slimTape } from "../tape.js";
 import { HOUSE_FILE, ROOT, W1 } from "./helpers.js";
 
-const node = (script: string, args: string[] = []) =>
-  spawnSync(process.execPath, [join(ROOT, "scripts", "lib", script), ...args], {
+const node = (script: string, args: string[] = [], root: string = ROOT) =>
+  spawnSync(process.execPath, [join(root, "scripts", "lib", script), ...args], {
     encoding: "utf8",
   });
+
+/**
+ * A folder that is a symbolic link to the repository, as a clone reached through /tmp on macOS
+ * is. Every script must behave through it exactly as through the real path.
+ */
+const linkDir = mkdtempSync(join(tmpdir(), "hw-link-"));
+const LINKED_ROOT = join(linkDir, "repository");
+symlinkSync(ROOT, LINKED_ROOT, "dir");
+afterAll(() => rmSync(linkDir, { recursive: true, force: true }));
 
 describe("scripts/lib/book.mjs, the deployments book without an install", () => {
   it("prints the book exactly as the shared package holds it", () => {
@@ -58,6 +76,51 @@ describe("scripts/lib/book.mjs, the deployments book without an install", () => 
     expect(node("book.mjs", ["chain-id"]).stdout.trim()).toBe(
       String(DEPLOYMENT_BOOK.chainId),
     );
+  });
+
+  it("prints the same when started through a symbolic link to the repository", () => {
+    for (const args of [[], ["contracts"], ["chain-id"]]) {
+      const direct = node("book.mjs", args);
+      const linked = node("book.mjs", args, LINKED_ROOT);
+      expect(direct.stdout.trim()).not.toBe("");
+      expect([args, linked.status, linked.stdout]).toEqual([
+        args,
+        0,
+        direct.stdout,
+      ]);
+    }
+  });
+});
+
+describe("scripts/evidence/build.ts, started through a symbolic link", () => {
+  it("knows it was started, whatever link the path went through", () => {
+    const self = join(ROOT, "scripts", "evidence", "build.ts");
+    expect(isMainScript(self, self)).toBe(true);
+    expect(
+      isMainScript(join(LINKED_ROOT, "scripts", "evidence", "build.ts"), self),
+    ).toBe(true);
+    expect(
+      isMainScript(join(ROOT, "scripts", "evidence", "run.ts"), self),
+    ).toBe(false);
+    expect(isMainScript(undefined, self)).toBe(false);
+    expect(isMainScript(join(linkDir, "nothing.ts"), self)).toBe(false);
+  });
+
+  it("runs, and refuses a setting it cannot use, instead of exiting 0 having done nothing", () => {
+    // RPC_URL that is not a URL stops the run before any read: nothing reaches the network.
+    const run = spawnSync(
+      join(ROOT, "packages", "shared", "node_modules", ".bin", "tsx"),
+      [join(LINKED_ROOT, "scripts", "evidence", "build.ts")],
+      {
+        encoding: "utf8",
+        env: { ...process.env, RPC_URL: "not a url", EVIDENCE_OUT: linkDir },
+      },
+    );
+    expect(run.status).toBe(1);
+    expect(run.stderr).toContain(
+      "evidence: RPC_URL holds something that is not a URL",
+    );
+    expect(run.stderr).toContain("evidence: nothing was written.");
   });
 });
 
@@ -202,7 +265,7 @@ describe("scripts/repro.sh", () => {
    */
   function run(
     onChain: string,
-    options: { chain?: string; failCode?: boolean } = {},
+    options: { chain?: string; failCode?: boolean; script?: string } = {},
   ) {
     const bin = mkdtempSync(join(tmpdir(), "hw-repro-bin-"));
     const work = mkdtempSync(join(tmpdir(), "hw-repro-work-"));
@@ -240,7 +303,7 @@ esac
 `,
       { mode: 0o755 },
     );
-    const result = spawnSync("bash", [repro], {
+    const result = spawnSync("bash", [options.script ?? repro], {
       encoding: "utf8",
       env: {
         ...process.env,
@@ -254,6 +317,7 @@ esac
     return {
       status: result.status,
       lines: result.stdout.trim().split("\n"),
+      stderr: result.stderr,
       launched,
     };
   }
@@ -297,6 +361,100 @@ esac
     expect(
       run("0x60806040deadbeefaabbccddeeff0011", { chain: "11155111" }).status,
     ).toBe(2);
+  });
+
+  it("compares every launched contract when started through a symbolic link to the repository", () => {
+    const { status, lines, launched } = run(
+      "0x60806040deadbeefaabbccddeeff0011",
+      { script: join(LINKED_ROOT, "scripts", "repro.sh") },
+    );
+    expect(launched.length).toBeGreaterThanOrEqual(3);
+    expect(status).toBe(0);
+    expect(lines.filter((line) => line.startsWith("MATCH "))).toHaveLength(
+      launched.length,
+    );
+    expect(lines.at(-1)).toBe(
+      `repro: ${launched.length} of ${launched.length} launched contracts match the code built from this repository.`,
+    );
+  });
+
+  it("exits 2, not 0, when the deployments book gives no launched contract", () => {
+    // A copy of the script and its two helpers beside a book whose every address is null.
+    const copy = mkdtempSync(join(tmpdir(), "hw-repro-empty-"));
+    mkdirSync(join(copy, "scripts", "lib"), { recursive: true });
+    mkdirSync(join(copy, "packages", "shared", "src"), { recursive: true });
+    for (const path of [
+      ["scripts", "repro.sh"],
+      ["scripts", "lib", "book.mjs"],
+      ["scripts", "lib", "compare-code.mjs"],
+    ])
+      copyFileSync(join(ROOT, ...path), join(copy, ...path));
+    const book = readFileSync(
+      join(ROOT, "packages", "shared", "src", "deployments.ts"),
+      "utf8",
+    ).replace(/"0x[0-9a-fA-F]{40}"/g, "null");
+    writeFileSync(
+      join(copy, "packages", "shared", "src", "deployments.ts"),
+      book,
+    );
+    expect(node("book.mjs", ["contracts"], copy).stdout).toBe("");
+    const empty = run("0x60806040deadbeefaabbccddeeff0011", {
+      script: join(copy, "scripts", "repro.sh"),
+    });
+    rmSync(copy, { recursive: true, force: true });
+    expect(empty.status).toBe(2);
+    expect(empty.stderr).toContain(
+      "repro: the deployments book gave no launched contract, so nothing was compared.",
+    );
+    expect(empty.lines.some((line) => line.startsWith("MATCH "))).toBe(false);
+  });
+
+  it("exits 2, not 0, when the deployments book gives no chain id", () => {
+    // A copy of the script and its two helpers beside a book with no `chainId`.
+    const copy = mkdtempSync(join(tmpdir(), "hw-repro-nochain-"));
+    mkdirSync(join(copy, "scripts", "lib"), { recursive: true });
+    mkdirSync(join(copy, "packages", "shared", "src"), { recursive: true });
+    for (const path of [
+      ["scripts", "repro.sh"],
+      ["scripts", "lib", "book.mjs"],
+      ["scripts", "lib", "compare-code.mjs"],
+    ])
+      copyFileSync(join(ROOT, ...path), join(copy, ...path));
+    const source = readFileSync(
+      join(ROOT, "packages", "shared", "src", "deployments.ts"),
+      "utf8",
+    );
+    const book = source.replace(/^\s*chainId: 1,\n/m, "");
+    expect(book).not.toBe(source);
+    writeFileSync(
+      join(copy, "packages", "shared", "src", "deployments.ts"),
+      book,
+    );
+    const script = join(copy, "scripts", "repro.sh");
+    const neverBuilt = (lines: string[]) =>
+      lines.some((line) => /^(MATCH|repro: chain|repro: building)/.test(line));
+
+    // book.mjs refuses such a book, so the script stops at its first question to it.
+    const helper = node("book.mjs", ["chain-id"], copy);
+    const refused = run("0x60806040deadbeefaabbccddeeff0011", { script });
+
+    // A helper that lists contracts but answers `chain-id` with nothing and exit 0 is refused too.
+    writeFileSync(
+      join(copy, "scripts", "lib", "book.mjs"),
+      `if (process.argv[2] === "contracts") console.log("a launches/a-payroll Questions 0x${"1".repeat(40)} 1");\n`,
+    );
+    const silent = run("0x60806040deadbeefaabbccddeeff0011", { script });
+    rmSync(copy, { recursive: true, force: true });
+
+    expect([helper.status, helper.stdout]).toEqual([1, ""]);
+    expect(refused.status).toBe(2);
+    expect(refused.stderr).toContain("the book has no chainId");
+    expect(neverBuilt(refused.lines)).toBe(false);
+    expect(silent.status).toBe(2);
+    expect(silent.stderr).toContain(
+      "repro: the deployments book gave no chain id, so nothing was compared.",
+    );
+    expect(neverBuilt(silent.lines)).toBe(false);
   });
 });
 

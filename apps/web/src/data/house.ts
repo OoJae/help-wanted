@@ -41,7 +41,7 @@ import {
   type RoundStatusName,
 } from "@help-wanted/shared";
 import type { ContractKey, Deployments } from "~/config/deployments";
-import { pinnedRounds } from "~/config/history";
+import { pinnedRings, pinnedRounds } from "~/config/history";
 import { messageOf } from "~/lib/cache";
 import {
   ENDOWMENT_KINDS,
@@ -217,6 +217,13 @@ export interface DoorbellRingers {
   toBlock: number;
   /** Rings by sender (lowercase address), most first. */
   byRinger: { ringer: string; rings: number }[];
+  /**
+   * How many of `read` come from the rings this site keeps (config/history.ts), read from the chain
+   * by hand because the public RPC no longer serves their logs. Zero when none do.
+   */
+  pinned: number;
+  /** The day those kept rings were read. Null when none are kept. */
+  pinnedOn: string | null;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -923,15 +930,37 @@ export class ChainHouseSource implements HouseSource {
    * Null when the log could not be read: "no ringer read" is never "nobody rang".
    */
   async #ringers(address: string): Promise<DoorbellRingers | null> {
+    // The rings this site keeps are counted from the history; the logs are read only after them.
+    const kept = pinnedRings(address);
+    const fromKept = (): DoorbellRingers | null =>
+      kept
+        ? {
+            read: kept.rings,
+            fromBlock: kept.fromBlock,
+            toBlock: kept.toBlock,
+            byRinger: kept.byRinger.map((r) => ({ ...r })),
+            pinned: kept.rings,
+            pinnedOn: kept.read,
+          }
+        : null;
     try {
       const topics = encodeEventTopics({ abi: doorbellAbi, eventName: "Rang" });
+      const launched = this.#launchBlock("doorbell");
       const read = await this.#chain.recentLogs(
         "doorbell:rang",
-        { address, topics: topics as (string | null)[], fromBlock: this.#launchBlock("doorbell") },
+        {
+          address,
+          topics: topics as (string | null)[],
+          fromBlock: kept ? Math.max(kept.toBlock + 1, launched ?? 0) : launched,
+        },
         60_000,
       );
       const count = new Map<string, number>();
+      for (const r of kept?.byRinger ?? []) count.set(r.ringer, r.rings);
+      let live = 0;
       for (const log of read.value.logs) {
+        // A ring the history already counts is never counted twice.
+        if (kept && Number(BigInt(log.blockNumber)) <= kept.toBlock) continue;
         const { args } = decodeEventLog({
           abi: doorbellAbi,
           eventName: "Rang",
@@ -940,17 +969,21 @@ export class ChainHouseSource implements HouseSource {
         });
         const ringer = args.ringer.toLowerCase();
         count.set(ringer, (count.get(ringer) ?? 0) + 1);
+        live += 1;
       }
       return {
-        read: read.value.logs.length,
-        fromBlock: read.value.fromBlock,
-        toBlock: read.value.toBlock,
+        read: (kept?.rings ?? 0) + live,
+        fromBlock: kept ? kept.fromBlock : read.value.fromBlock,
+        toBlock: Math.max(read.value.toBlock, kept?.toBlock ?? 0),
         byRinger: [...count.entries()]
           .map(([ringer, rings]) => ({ ringer, rings }))
           .sort((a, b) => b.rings - a.rings || a.ringer.localeCompare(b.ringer)),
+        pinned: kept?.rings ?? 0,
+        pinnedOn: kept?.read ?? null,
       };
     } catch {
-      return null;
+      // The kept rings stand on their own when the log cannot be read.
+      return fromKept();
     }
   }
 

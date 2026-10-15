@@ -14,10 +14,11 @@ const { model: m, meta } = loaded;
 
 <Layout title={meta.title} description={meta.description} sources={m.sources} generatedAt={m.generatedAt}>
   <header class="pagehead">
-    <h1 class="headline headline--wide">Take an order. Carry it to the swarm. Get paid on proof.</h1>
+    <h1 class="headline headline--wide">
+      Take an order. Carry it to the swarm. Get paid on proof, or on a claim that stands.
+    </h1>
     <p class="deck">
-      A contract cannot buy a swarm job itself: payment needs an ordinary wallet's signatures. A runner is the
-      wallet that does it, under bond, for a margin. {m.whoRuns}
+      {m.why} {m.whoRuns}
     </p>
   </header>
 

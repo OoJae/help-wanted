@@ -25,3 +25,6 @@ dist/
 
 # Private planning notes; never part of the public repository
 buildplan.md
+
+# Test reporter output
+.vitest/

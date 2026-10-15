@@ -20,6 +20,7 @@ import {
   sameAddress,
   seatAdapterAbi,
   workRegistryAbi,
+  zapAbi,
   type DeploymentBook,
   type LaunchKey,
 } from "@help-wanted/shared";
@@ -254,7 +255,16 @@ export interface FakeChainOptions {
    */
   views?: Record<string, { abi: Abi; result: unknown }>;
   failCalls?: boolean;
+  /**
+   * IMD-wei that one ETH buys through Zap, for the simulated `buy` a page quotes with. By default
+   * the rate read on mainnet on 15 October 2026 (0.01 ETH bought 3.5475 IMD); null makes every
+   * quote revert, as on an RPC that cannot simulate it.
+   */
+  zapImdPerEth?: bigint | null;
 }
+
+/** 0.01 ETH bought 3,547,506,876,144,594,614 IMD-wei through Zap on 15 October 2026. */
+export const ZAP_IMD_PER_ETH = 354_750_687_614_459_461_400n;
 
 export interface FakeChain {
   reader: EthReader;
@@ -307,11 +317,13 @@ export function fakeChain(options: FakeChainOptions = {}): FakeChain {
       }
       if (is(MAINNET.SEAT_ADAPTER)) {
         const { args } = decodeFunctionData({ abi: seatAdapterAbi, data });
-        if (args[0] !== 52211n) return null; // UnknownAgent
+        // 52211 is the reference job's agent; 51519 is order 1's, bound to seat 1049 (15 Oct 2026).
+        const seat = args[0] === 52211n ? 1998n : args[0] === 51519n ? 1049n : null;
+        if (seat === null) return null; // UnknownAgent
         return encodeFunctionResult({
           abi: seatAdapterAbi,
           functionName: "bindingOf",
-          result: { standard: 0, tokenContract: MAINNET.SEATS, tokenId: 1998n },
+          result: { standard: 0, tokenContract: MAINNET.SEATS, tokenId: seat },
         });
       }
       if (is(MAINNET.SEATS)) {
@@ -365,6 +377,23 @@ export function fakeChain(options: FakeChainOptions = {}): FakeChain {
   }
 
   const reader: EthReader = {
+    async callWith(request) {
+      calls.push(`eth_call ${request.to.toLowerCase()} with value`);
+      if (options.failCalls) throw new Error("the RPC is down");
+      const perEth = options.zapImdPerEth === undefined ? ZAP_IMD_PER_ETH : options.zapImdPerEth;
+      let buy = false;
+      try {
+        buy = decodeFunctionData({ abi: zapAbi, data: request.data }).functionName === "buy";
+      } catch {
+        buy = false;
+      }
+      if (!buy || perEth === null) throw new RpcError("eth_call: execution reverted", 3);
+      return encodeFunctionResult({
+        abi: zapAbi,
+        functionName: "buy",
+        result: ((request.value ?? 0n) * perEth) / 10n ** 18n,
+      });
+    },
     async call(to, data) {
       calls.push(`eth_call ${to.toLowerCase()}`);
       if (options.failCalls) throw new Error("the RPC is down");

@@ -36,7 +36,9 @@ import {
   pinnedEndowment,
   pinnedOrder,
   pinnedPrint,
+  pinnedRings,
   pinnedRounds,
+  SECOND_KIND_JOB,
   UNUSED_FEATURES,
   VERIFIED_SOURCE,
   type PinnedTx,
@@ -76,7 +78,7 @@ import {
 } from "./common";
 import { RUNNER_STATEMENT } from "./desk";
 import { paymentsCommand, releaseTally } from "./jobsReport";
-import { endowmentCreator, ringsByOrigin } from "./money";
+import { endowmentCreator, NO_WATCHER, ringsByOrigin } from "./money";
 import { proofView } from "./questions";
 import {
   claimDefault,
@@ -146,6 +148,16 @@ export interface LaunchView {
   txUrl: string | null;
   /** IdentityMD's launch number, as the deployments book records it. */
   launchNumber: number | null;
+}
+
+/** One thing our contracts and IdentityMD's did together on mainnet, with its transaction. */
+export interface ProvenOnChain {
+  title: string;
+  words: string;
+  at: string;
+  tx: string;
+  txUrl: string;
+  commands: { comment: string; command: string }[];
 }
 
 /** A job that asked IdentityMD's launch pipeline for one of our launches, as its API described it for this page. */
@@ -297,7 +309,15 @@ export interface JudgesModel {
     intro: string;
     groups: { title: string; rows: LiveTx[] }[];
     prove: { commands: { comment: string; command: string }[]; answer: string; note: string } | null;
+    /** The same call for a job of the other kind the team's runner takes: a research report. */
+    proveSecond: { commands: { comment: string; command: string }[]; answer: string; note: string } | null;
   } | null;
+  /**
+   * Our contracts and IdentityMD's working together on mainnet, each with its transaction, kept in
+   * config/history.ts: Questions paying the Intake, the Intake's own callback delivering an answer,
+   * and a tip paid through the seat Adapter to a seat's owner. Empty where the book is not mainnet's.
+   */
+  provenOnChain: ProvenOnChain[];
   /** Five lines: what it is, what happened, how to check it, what is live, what is not. */
   thirtySeconds: string[];
   /** Every launched contract's Etherscan page and verification status. */
@@ -446,6 +466,15 @@ export function launchSummaryFor(deployments: Deployments): string {
   return `${count} of ${total} contracts are launched${live.length > 0 ? `: ${list(live)}` : ""}. Not launched yet: ${list(rest)}.`;
 }
 
+/**
+ * The agent order 1's work record names, whose tip was claimed for the owner of seat 1049 on 15
+ * October 2026: the example every bindingOf command on this page and in /llms.txt uses.
+ */
+export const TIP_AGENT = "51519";
+
+/** The seat agent 51519 is bound to, whose owner that tip paid: the seat the Seats row looks up. */
+export const TIP_SEAT = "1049";
+
 /** What this is, in at most 150 words. The last sentence follows the deployments book. */
 export function summaryFor(deployments: Deployments): string {
   return `${SUMMARY_BODY} ${launchSentence(deployments)}`;
@@ -504,7 +533,7 @@ const SAID_OF_THE_LAUNCHED_DESK = [
 export const SUITES = {
   A: { project: "launches/a-payroll", tests: 515, suites: 50, forkTests: 23 },
   B: { project: "launches/b-desk", tests: 673, suites: 32, forkTests: 38 },
-  C: { project: "launches/c-company", tests: 441, suites: 23, forkTests: 34 },
+  C: { project: "launches/c-company", tests: 447, suites: 26, forkTests: 34 },
 } as const;
 
 /** What IdentityMD's launch pipeline did with launch C before it launched it, as that pipeline wrote it. */
@@ -639,7 +668,8 @@ export const judgesPage: PageDef<JudgesModel> = {
       settle(chain.intake()),
       settle(chain.payments()),
       settle(chain.staking()),
-      settle(chain.bindings(["52211"])),
+      // The agent order 1's work record names: the tip chain this page shows runs through it.
+      settle(chain.bindings([TIP_AGENT])),
       settle(chain.imdBalance(MAINNET.SIMD)),
       loadReceiptFlow(sources),
       chain.receiptWriter(),
@@ -947,7 +977,7 @@ export const judgesPage: PageDef<JudgesModel> = {
       },
       {
         claim:
-          "The mainnet Intake counts every oracle request ever bought on chain and logs each one, so on-chain demand for oracle answers is a public number too.",
+          "The mainnet Intake counts every request bought through it, of any kind (oracle questions, jobs, launches, workflows), and logs each one with its action, so on-chain demand for swarm work is a public number too.",
         readNow: intakeRead
           ? `Intake version 2: nonce() is ${intakeRead.current.nonce ?? "unread"}. Version 1 (legacy): nonce() is ${intakeRead.legacy.nonce ?? "unread"}. ${formatInt(intakeRead.requests.length)} requests are listed here, ${formatInt(intakeRead.requests.filter((r) => r.callbackTarget).length)} with a contract callback.`
           : null,
@@ -958,10 +988,10 @@ export const judgesPage: PageDef<JudgesModel> = {
         claim:
           "The agents named in a work record can be traced to seats and their owners on chain, which is how per-job tips reach the owners of the seats behind the agents a record names.",
         readNow: binding?.bound
-          ? `Agent 52211 (the one in the reference job's record) is bound to seat #${binding.tokenId}${binding.owner ? `, owned by ${binding.owner}` : ""}.`
+          ? `Agent ${TIP_AGENT} (the one order 1's work record names) is bound to seat #${binding.tokenId}${binding.owner ? `, owned by ${binding.owner}` : ""}.`
           : null,
         evidence: [{ label: "the seat Adapter", url: etherscanAddress(MAINNET.SEAT_ADAPTER) }],
-        command: `cast call ${MAINNET.SEAT_ADAPTER} "bindingOf(uint256)((uint8,address,uint256))" 52211 --rpc-url ${PUBLIC_RPC}`,
+        command: `cast call ${MAINNET.SEAT_ADAPTER} "bindingOf(uint256)((uint8,address,uint256))" ${TIP_AGENT} --rpc-url ${PUBLIC_RPC}`,
       },
       {
         claim:
@@ -1042,6 +1072,7 @@ export const judgesPage: PageDef<JudgesModel> = {
         ? feeds.data.feeds.reduce((sum, f) => sum + f.rounds, 0)
         : null;
     const firstOrder = pinnedOrder(deployments.contracts.workOrders.address, 1);
+    const firstTip = firstOrder?.tipClaims[0] ?? null;
     const launchesRecorded = LAUNCH_KEYS.filter((key) => deployments.launches[key].txHash !== null);
     const answeredFeeds = feedBook ? feedBook.feeds.filter((f) => f.latest.updatedAt > 0).length : null;
     const questionsLaunched = deployments.contracts.questions.address !== null;
@@ -1083,6 +1114,10 @@ export const judgesPage: PageDef<JudgesModel> = {
       label: `${r.feed}: oracle request ${r.oracleRequestId.slice(0, 8)}`,
       url: r.url,
     }));
+    // The pinned first rounds, when the book's Questions is mainnet's: the one the Intake's own
+    // callback answered, and the one whose request this page shows Questions paying for.
+    const kept = pinnedRounds(deployments.contracts.questions.address);
+    const callbackDelivery = kept.find((r) => r.answered.byCallback) ?? null;
     const auditLinks: Evidence[] = AUDITS.map((a, index) => ({
       label: `audit report ${index + 1} (job ${a.jobId.slice(0, 8)})`,
       url: IMD_LINK.jobReport(a.jobId),
@@ -1182,7 +1217,7 @@ export const judgesPage: PageDef<JudgesModel> = {
         command: `curl -s ${IMD_LINK.jobReport(AUDITS[0]?.jobId ?? "")} | head -40`,
       }),
       row({
-        primitive: "Intake, version 2 (oracle requests bought on chain)",
+        primitive: "Intake, version 2 (work of any kind bought on chain)",
         where: MAINNET.INTAKE,
         whereUrl: etherscanAddress(MAINNET.INTAKE),
         use: "Questions.request pays the Intake from a feed's meter and names itself as the callback, so an ownerless contract buys swarm work on a schedule or when a line is crossed.",
@@ -1243,14 +1278,24 @@ export const judgesPage: PageDef<JudgesModel> = {
                 ? unread("Questions", feeds.error)
                 : notYet("questions"),
         },
-        proofs: feedProofLinks,
+        proofs: [
+          ...feedProofLinks,
+          ...(callbackDelivery
+            ? [
+                {
+                  label: `${callbackDelivery.feed}: answer delivered by the Intake's callback`,
+                  url: etherscanTx(callbackDelivery.answered.hash),
+                },
+              ]
+            : []),
+        ],
         proofNote: !questionsLaunched
           ? "The live oracle attested all three house feed questions, for a wallet. No contract of ours has stored an answer: Questions is not launched. In the tests the real callback stores these three with their real signatures."
           : answeredFeeds === null
             ? "The live oracle attested all three house feed questions, for a wallet. Whether our Questions contract has stored an answer could not be read for this page."
             : answeredFeeds === 0
               ? "The live oracle attested all three house feed questions, for a wallet. Our Questions contract has stored no answer yet (read for this page); in the tests the real callback stores those three with their real signatures."
-              : `Read for this page: ${formatInt(answeredFeeds)} feed${answeredFeeds === 1 ? "" : "s"} of our Questions contract hold${answeredFeeds === 1 ? "s" : ""} an answer whose attestation the contract checked on chain.${deliveredWords} The three links are the earlier answers bought for a wallet.`,
+              : `Read for this page: ${formatInt(answeredFeeds)} feed${answeredFeeds === 1 ? "" : "s"} of our Questions contract hold${answeredFeeds === 1 ? "s" : ""} an answer whose attestation the contract checked on chain.${deliveredWords} The first three links are the earlier answers bought for a wallet${callbackDelivery ? `; the last is the answer IdentityMD's Intake delivered to our Questions contract by its own callback on ${formatUtc(callbackDelivery.answered.at)}` : ""}.`,
         command: feedRows[0]?.command ?? null,
       }),
       row({
@@ -1308,13 +1353,13 @@ export const judgesPage: PageDef<JudgesModel> = {
           what: "claimed by seat owners from Payroll",
           reason: l ? null : ledgerReason,
         },
-        proofs: [{ label: "look up a seat", url: "/seats/1998" }],
+        proofs: [{ label: `look up seat #${TIP_SEAT}`, url: `/seats/${TIP_SEAT}` }],
         proofNote: l
           ? "The seat's owner and its claimable share, read live."
           : ledger.live
             ? "The owner is read live. Payroll is launched, but its ledger could not be read for this page."
             : "The owner is read live; nothing can be claimed until Payroll exists.",
-        command: `cast call ${MAINNET.SEATS} "ownerOf(uint256)(address)" 1998 --rpc-url ${PUBLIC_RPC}`,
+        command: `cast call ${MAINNET.SEATS} "ownerOf(uint256)(address)" ${TIP_SEAT} --rpc-url ${PUBLIC_RPC}`,
       }),
       row({
         primitive: "Seat Adapter and ERC-8004 agent ids",
@@ -1329,11 +1374,18 @@ export const judgesPage: PageDef<JudgesModel> = {
           what: "in tips claimed through agent bindings",
           reason: l ? null : ledgerReason,
         },
-        proofs: [{ label: "the seats behind the reference job", url: referencePath }],
+        proofs: firstTip
+          ? [
+              {
+                label: `order ${firstOrder!.id}'s tip: claimTip(${firstTip.agentId}) paid seat #${firstTip.tokenId}'s owner`,
+                url: etherscanTx(firstTip.tx.hash),
+              },
+            ]
+          : [{ label: `look up agent ${TIP_AGENT}'s seat`, url: `/seats?agent=${TIP_AGENT}` }],
         proofNote: binding?.bound
-          ? `Read for this page: agent 52211 is bound to seat #${binding.tokenId}.`
+          ? `Read for this page: agent ${TIP_AGENT}, the agent order 1's work record names, is bound to seat #${binding.tokenId}.`
           : "The binding could not be read for this page; the command reads it.",
-        command: `cast call ${MAINNET.SEAT_ADAPTER} "bindingOf(uint256)((uint8,address,uint256))" 52211 --rpc-url ${PUBLIC_RPC}`,
+        command: `cast call ${MAINNET.SEAT_ADAPTER} "bindingOf(uint256)((uint8,address,uint256))" ${TIP_AGENT} --rpc-url ${PUBLIC_RPC}`,
       }),
       {
         primitive: "The launch pipeline",
@@ -1544,6 +1596,9 @@ export const judgesPage: PageDef<JudgesModel> = {
       );
     }
 
+    // The Doorbell's claimed path is on: say plainly that nobody is watching it.
+    if (bell?.allowClaimed === true) notLive.push(NO_WATCHER);
+
     // ---- Who has used our contracts, from what this page read. Our own wallets and contracts are HOUSE. ----
     const byOthers: string[] = [];
     const byUsOnly: string[] = [];
@@ -1604,7 +1659,7 @@ export const judgesPage: PageDef<JudgesModel> = {
             );
           } else {
             byUsOnly.push(
-              `the ${plural(rings.read, "ring")} of the Doorbell whose log this server could read ${rings.read === 1 ? "was" : "were all"} sent by our own wallets`,
+              `the ${plural(rings.read, "ring")} of the Doorbell whose log ${bell.ringers.pinned > 0 ? "was read" : "this server could read"} ${rings.read === 1 ? "was" : "were all"} sent by our own wallets`,
             );
           }
           if (rings.read < bell.rings) notRead.push("who sent the Doorbell's other rings");
@@ -1688,7 +1743,7 @@ export const judgesPage: PageDef<JudgesModel> = {
     }
     notLive.push(
       deskLaunched
-        ? `The keeper, the runner and the indexer are in the repository (bots/keeper, bots/runner, apps/indexer). ${RUNNER_STATEMENT.short} The indexer folds launch A's events into tables; ${launchIsLive(deployments, "C") ? "for the hire desk, the crowd pots, the Doorbell and launch C's three contracts it stores the raw logs and its handlers are still stubs, so it holds no table of orders, claims, pots, rules or endowments" : "for the hire desk, the crowd pots and the Doorbell it stores the raw logs and its handlers are still stubs, so it holds no table of orders, claims or pots"}. This site does not read from the indexer; it reads the chain and IdentityMD's API directly, so an order's or a pot's job text is shown only while its opening log is within about a day, or where this site keeps the history itself (config/history.ts holds order 1's), and there is no history of rings.`
+        ? `The keeper, the runner and the indexer are in the repository (bots/keeper, bots/runner, apps/indexer). ${RUNNER_STATEMENT.short} The indexer folds launch A's events into tables; ${launchIsLive(deployments, "C") ? "for the hire desk, the crowd pots, the Doorbell and launch C's three contracts it stores the raw logs and its handlers are still stubs, so it holds no table of orders, claims, pots, rules or endowments" : "for the hire desk, the crowd pots and the Doorbell it stores the raw logs and its handlers are still stubs, so it holds no table of orders, claims or pots"}. This site does not read from the indexer; it reads the chain and IdentityMD's API directly, so an order's or a pot's job text is shown only while its opening log is within about a day, or where this site keeps the history itself (config/history.ts holds order 1's${pinnedRings(deployments.contracts.doorbell.address) ? ", and who sent the Doorbell's rings up to its first hire" : ""})${pinnedRings(deployments.contracts.doorbell.address) ? "; a later ring's sender is known only while its log is within about a day" : ", and there is no history of rings"}.`
         : questionsLaunched
           ? "The keeper, the runner and the indexer are in the repository (bots/keeper, bots/runner, apps/indexer). Since launch A the keeper has feeds to keep; the runner has no desk to take orders from. This site does not read from the indexer; it reads the chain and IdentityMD's API directly."
           : "The keeper, the runner and the indexer are in the repository (bots/keeper, bots/runner, apps/indexer). None has anything to act on yet: there is no feed to keep and no desk to take orders from. This site does not read from the indexer; it reads the chain and IdentityMD's API directly.",
@@ -1761,6 +1816,28 @@ export const judgesPage: PageDef<JudgesModel> = {
         ],
       });
     }
+    const rings = pinnedRings(deployments.contracts.doorbell.address);
+    if (rings) {
+      const ringer = rings.byRinger.map(
+        (r) =>
+          `${houseLabel(r.ringer) ? `house wallet ${houseLabel(r.ringer)}` : r.ringer} (${plural(r.rings, "ring")})`,
+      );
+      groups.push({
+        title: `The Doorbell's ${rings.rings} rings`,
+        rows: [
+          liveTx(
+            "Ring 1",
+            `ring() on the Doorbell. Its Rang log counts the ring and names the ringer. Every one of the ${rings.rings} rings up to its first hire was sent by ${ringer.join(" and ")}: all HOUSE, none OUTSIDE (the Rang logs of blocks ${formatInt(rings.fromBlock)} to ${formatInt(rings.toBlock)}, read on ${rings.read}).`,
+            rings.first,
+          ),
+          liveTx(
+            `Ring ${rings.rings}`,
+            "The 25th ring, which opened order 1: the first row of the order below.",
+            rings.last,
+          ),
+        ],
+      });
+    }
     if (firstOrder) {
       groups.push({
         title: `Order ${firstOrder.id}: opened by a contract, paid on proof`,
@@ -1817,7 +1894,88 @@ export const judgesPage: PageDef<JudgesModel> = {
                     note: `What it answered on ${firstOrder.prove.read}: the record's hash (the receipt), then the hashes of its kind, its 85-byte order header, its job text and its state, then the agent the record names. Change one byte of the record and it reverts. The order page calls it live: /orders/${firstOrder.id}.`,
                   }
                 : null,
+            proveSecond:
+              firstOrder && workProofAddress
+                ? {
+                    commands: [
+                      {
+                        comment: `A research report's work record (job ${SECOND_KIND_JOB.jobId.slice(0, 8)}), exactly as IdentityMD serves it`,
+                        command: `curl -s ${IMD_LINK.workRecord(hashNo0x(SECOND_KIND_JOB.recordHash))} -o report-record.json`,
+                      },
+                      {
+                        comment:
+                          "The same call, free: no key, no transaction. The job carries no order header, so the header length is 0",
+                        command: castView(workProofAddress, "WORK_PROOF", workProofAbi, "prove", [
+                          SECOND_KIND_JOB.jobIdBytes16,
+                          `"0x$(xxd -p report-record.json | tr -d '\\n')"`,
+                          "0",
+                        ]),
+                      },
+                    ],
+                    answer: `(${SECOND_KIND_JOB.recordHash}, ${SECOND_KIND_JOB.kindHash}, …, [${SECOND_KIND_JOB.agentIds.join(", ")}])`,
+                    note: `Order ${firstOrder.id}'s job is a picture (skill:create-image). This is the other kind the team's runner takes, a research report (skill:research-report): job ${SECOND_KIND_JOB.jobId}, done by the swarm for somebody else. It did not come through HELP WANTED and nobody of ours paid for it; it is here because its receipt is on chain, written by IdentityMD's registry writer on ${formatUtc(SECOND_KIND_JOB.receiptTx.at)} (${SECOND_KIND_JOB.receiptTx.hash}). Called on ${SECOND_KIND_JOB.read}, prove answered with the record's hash first, the kind hash of skill:research-report second and agent ${SECOND_KIND_JOB.agentIds.join(", ")} last. A later receipt for the same job would make this call revert. A proof shows what IdentityMD recorded, not that the work is good.`,
+                  }
+                : null,
           };
+
+    // ---- Proven on chain: our contracts and IdentityMD's, working together. Kept in config/history.ts. ----
+    const provenOnChain: ProvenOnChain[] = [];
+    const paidIntake = kept.find((r) => r.feed === "payrolls") ?? null;
+    if (paidIntake) {
+      provenOnChain.push({
+        title: "Our Questions contract paid IdentityMD's Intake, version 2",
+        words: `On ${formatUtc(paidIntake.opened.at)}, house wallet ${houseLabel(paidIntake.opened.from) ?? paidIntake.opened.from} called request(feedId) on our Questions contract for the ${paidIntake.feed} feed. Questions paid the Intake, version 2 (${MAINNET.INTAKE}), ${formatImd(paidIntake.opened.priceWei)} IMD from the feed's meter and named itself as the callback. The Intake moved the IMD from Questions to IdentityMD's fee address in the same call and logged Requested with Questions as the payer. A contract, not a wallet, bought the work.`,
+        at: paidIntake.opened.at,
+        tx: paidIntake.opened.hash,
+        txUrl: etherscanTx(paidIntake.opened.hash),
+        commands: [
+          {
+            comment:
+              "Its logs: the IMD moved from Questions to the fee address, the Intake's Requested, and Questions' RoundOpened",
+            command: `cast receipt ${paidIntake.opened.hash} logs --rpc-url ${PUBLIC_RPC}`,
+          },
+        ],
+      });
+    }
+    if (callbackDelivery) {
+      provenOnChain.push({
+        title: "IdentityMD's callback delivered an answer to our contract",
+        words: `On ${formatUtc(callbackDelivery.answered.at)}, IdentityMD's Intake writer (${MAINNET.INTAKE_WRITER}) sent the Intake, version 2, the ${callbackDelivery.feed} feed's answer, and the Intake called our Questions contract back with it. Questions checked the oracle's signature (${callbackDelivery.answered.agreed} of 7 panel members agreed) and stored the answer. The Intake's Completed log in the same transaction reads answered, and delivered.`,
+        at: callbackDelivery.answered.at,
+        tx: callbackDelivery.answered.hash,
+        txUrl: etherscanTx(callbackDelivery.answered.hash),
+        commands: [
+          {
+            comment: "Its logs: Questions' RoundAnswered, then the Intake's Completed",
+            command: `cast receipt ${callbackDelivery.answered.hash} logs --rpc-url ${PUBLIC_RPC}`,
+          },
+        ],
+      });
+    }
+    const tipClaim = firstOrder?.tipClaims[0] ?? null;
+    if (firstOrder && tipClaim) {
+      provenOnChain.push({
+        title: `A tip followed the agent to its seat's owner: claimTip(${tipClaim.agentId}) → bindingOf → seat #${tipClaim.tokenId} → ownerOf → ${tipClaim.paidTo}`,
+        words: `On ${formatUtc(tipClaim.tx.at)}, ${houseLabel(tipClaim.tx.from) ? `house wallet ${houseLabel(tipClaim.tx.from)}` : tipClaim.tx.from} called Payroll.claimTip(${tipClaim.agentId}). Agent ${tipClaim.agentId} is the agent order ${firstOrder.id}'s work record names. Payroll asked IdentityMD's seat Adapter which seat the agent is bound to (bindingOf: seat #${tipClaim.tokenId}), asked the Seats token who owns that seat (ownerOf: ${tipClaim.paidTo}), and paid that address the ${formatImd(tipClaim.amountWei)} IMD tip the settlement credited. Its TipClaimed log names the agent, the seat and the owner.`,
+        at: tipClaim.tx.at,
+        tx: tipClaim.tx.hash,
+        txUrl: etherscanTx(tipClaim.tx.hash),
+        commands: [
+          {
+            comment: `The seat agent ${tipClaim.agentId} is bound to now (it read seat ${tipClaim.tokenId} on ${HISTORY_READ_ON})`,
+            command: `cast call ${MAINNET.SEAT_ADAPTER} "bindingOf(uint256)((uint8,address,uint256))" ${tipClaim.agentId} --rpc-url ${PUBLIC_RPC}`,
+          },
+          {
+            comment: `Who owns seat ${tipClaim.tokenId} now (it read ${tipClaim.paidTo} on ${HISTORY_READ_ON})`,
+            command: `cast call ${MAINNET.SEATS} "ownerOf(uint256)(address)" ${tipClaim.tokenId} --rpc-url ${PUBLIC_RPC}`,
+          },
+          {
+            comment: "The claim's logs: TipClaimed(agent, seat, owner, amount) and the IMD transfer",
+            command: `cast receipt ${tipClaim.tx.hash} logs --rpc-url ${PUBLIC_RPC}`,
+          },
+        ],
+      });
+    }
 
     // ---- What the explorers show for each launched contract's source. ----
     const verification: JudgesModel["verification"] = {
@@ -1884,6 +2042,7 @@ export const judgesPage: PageDef<JudgesModel> = {
     return {
       generatedAt: now.toISOString(),
       live,
+      provenOnChain,
       thirtySeconds,
       verification,
       unused: UNUSED_FEATURES.map((u) => ({ ...u })),
@@ -1910,7 +2069,11 @@ export const judgesPage: PageDef<JudgesModel> = {
           txUrl: etherscanTx(EMPLOYERS_FIRST_ATTEMPT.transaction),
           outcome: EMPLOYERS_FIRST_ATTEMPT.outcome,
         },
-        limit: `What this does not show: the requests named no callback, so no answer was delivered to a contract. That our Questions contract accepts these three attestations is shown by a test that feeds them, with their real signatures, to the real callback. ${
+        limit: `What this does not show: these three requests named no callback, so none of them delivered an answer to a contract. A test feeds the three attestations, with their real signatures, to the real callback. ${
+          callbackDelivery
+            ? `On chain it has been shown since: on ${formatUtc(callbackDelivery.answered.at)} IdentityMD's Intake writer delivered the ${callbackDelivery.feed} feed's answer to our Questions contract through the Intake's own callback (${callbackDelivery.answered.hash}), and the contract checked the oracle's signature and stored it. `
+            : ""
+        }${
           !questionsLaunched
             ? "On chain it will be shown by the first answered round after launch A."
             : answeredFeeds === null
@@ -2178,6 +2341,17 @@ export const judgesPage: PageDef<JudgesModel> = {
                   m.live.prove.note,
                 ).trimEnd()
               : null,
+            m.live.proveSecond
+              ? doc(
+                  "### The same proof for a research report",
+                  fence(
+                    m.live.proveSecond.commands.map((c) => `# ${c.comment}\n${c.command}`).join("\n\n"),
+                    "sh",
+                  ),
+                  `It answers:\n\n${fence(m.live.proveSecond.answer)}`,
+                  m.live.proveSecond.note,
+                ).trimEnd()
+              : null,
           ).trimEnd()
         : null,
       "## What this is",
@@ -2300,6 +2474,18 @@ export const judgesPage: PageDef<JudgesModel> = {
         ? `**${h.notShown}**`
         : "**The receipt is on chain:** WorkRegistry.latest for this job equals the record's hash.",
       fence(h.commands.map((c) => `# ${c.comment}\n${c.command}`).join("\n\n"), "sh"),
+      ...(m.provenOnChain.length > 0
+        ? [
+            "### 4. Our contracts and IdentityMD's, working together on mainnet",
+            ...m.provenOnChain.map((p) =>
+              doc(
+                `**${p.title}.** ${link(p.tx, p.txUrl)}`,
+                p.words,
+                fence(p.commands.map((c) => `# ${c.comment}\n${c.command}`).join("\n\n"), "sh"),
+              ).trimEnd(),
+            ),
+          ]
+        : []),
       "## What anyone can check on the live protocol today",
       ...m.claims.map((c, index) =>
         doc(

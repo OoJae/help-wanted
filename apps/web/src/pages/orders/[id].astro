@@ -43,6 +43,13 @@ const c = m.card;
               : `Order ${m.id} does not exist yet.`}
         </h1>
         <p class="deck">{m.statusWords}</p>
+        {m.picture && (
+          <p class="actions">
+            <a class="btn btn--ghost" href={m.picture.url} rel="noopener">
+              {m.picture.label}
+            </a>
+          </p>
+        )}
       </div>
       {c?.stamp && (
         <p class="release__stamp">
@@ -282,17 +289,32 @@ const c = m.card;
     </section>
   )}
 
-  {m.mediaCid && (
+  {(m.picture || m.mediaCid) && (
     <section class="section" id="work">
       <div class="section__head">
         <h2>The work</h2>
-        <p>as IdentityMD's API lists it</p>
+        <p>as IdentityMD lists it</p>
       </div>
-      <p>
-        IdentityMD's API gives the job's media this IPFS CID (<code>media.cid</code>). It is printed as text;
-        this site serves and links no copy.
-      </p>
-      <p class="data break">{m.mediaCid}</p>
+      {m.picture && (
+        <p class="actions">
+          <a class="btn" href={m.picture.url} rel="noopener">
+            {m.picture.label}
+          </a>
+        </p>
+      )}
+      {m.picture && (
+        <p class="small">
+          The link opens IdentityMD's page of the job, which shows it. This site serves no copy.
+        </p>
+      )}
+      {m.mediaCid && (
+        <>
+          <p>
+            IdentityMD's API gives the job's media this IPFS CID (<code>media.cid</code>).
+          </p>
+          <p class="data break">{m.mediaCid}</p>
+        </>
+      )}
     </section>
   )}
 

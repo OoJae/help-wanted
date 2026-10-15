@@ -498,7 +498,9 @@ has its figure.
   those three calls of the runner, the wallet sent nothing else to HELP WANTED's contracts up to
   block 26198957 (15 October, 15:57 UTC). These are mainnet calls, not runs on a local node. The
   team's keeper is not hosted: the team runs it by hand. (The team's runner is hosted, since
-  15 October 2026: `bots/runner/README.md`.) What follows is still not shown.
+  15 October 2026: `bots/runner/README.md`.) So no watcher is running: nothing of the team's
+  watches delivery claims on the Doorbell's orders, which are all on the claimed path
+  (`launches/b-desk/docs/THREATS.md`, D2). What follows is still not shown.
 - **How late the writer can be.** More than seven hours was seen on 13 October 2026. For the
   employers feed, which only the callback can answer, the round is closable by anyone 36 hours,
   5 minutes and one second after its request.

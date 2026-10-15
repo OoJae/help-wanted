@@ -23,7 +23,7 @@ import { UpstreamBusyError, UpstreamDownError, messageOf } from "./cache";
 import { errorResponse, jsonResponse, OPEN_CORS } from "./http";
 import { parseHash, parseJobId } from "./ids";
 import { API_ROUTES } from "./siteDocs";
-import { loadPath } from "./twins";
+import { fenceUntrusted, loadPath } from "./twins";
 
 function tooMany(retryAfterSeconds: number): Response {
   return errorResponse(429, "too_many_requests", `Slow down: try again in ${retryAfterSeconds} s.`, {
@@ -43,7 +43,8 @@ async function fromPage(
     {
       generatedAt: ctx.now.toISOString(),
       sampleData: ctx.sources.env.sampleData,
-      ...(pick ? (pick(loaded.model) as object) : (loaded.model as object)),
+      // Third-party text (job texts, objectives, oracle questions) is fenced as in the JSON twins.
+      ...(fenceUntrusted(pick ? pick(loaded.model) : loaded.model) as object),
     },
     { status: loaded.status },
   );
@@ -139,7 +140,8 @@ export async function handleApi(path: string, _request: Request, ctx: LoadContex
       // A check that could not run is this server failing to answer, not a finding about the job.
       const unchecked = model.result.verdict === "unchecked";
       return jsonResponse(
-        { generatedAt: ctx.now.toISOString(), ...(loaded.model as object) },
+        // The job's objective is third-party text, fenced as in the JSON twin.
+        { generatedAt: ctx.now.toISOString(), ...(fenceUntrusted(loaded.model) as object) },
         unchecked ? { status: 503, headers: { "retry-after": "30", "cache-control": "no-store" } } : {},
       );
     }
@@ -629,7 +631,12 @@ async function status(ctx: LoadContext): Promise<Response> {
       status: ok ? "ok" : "degraded",
       now: now.toISOString(),
       uptimeSeconds: Math.round((now.getTime() - sources.startedAt) / 1000),
-      commit: env.commit,
+      // The commit this server was built from, as the host says it (Railway sets
+      // RAILWAY_GIT_COMMIT_SHA on a deploy from GitHub); "unknown" when the host said nothing.
+      commit: env.commit ?? "unknown",
+      commitSource: env.commit
+        ? "RAILWAY_GIT_COMMIT_SHA, or GIT_COMMIT where that is not set"
+        : "unknown: neither RAILWAY_GIT_COMMIT_SHA nor GIT_COMMIT was set for this server",
       sampleData: env.sampleData,
       launchedContracts: deployments.launchedCount,
       siteOrigin: env.siteOrigin,

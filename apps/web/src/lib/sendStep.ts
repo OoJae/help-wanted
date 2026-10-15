@@ -31,6 +31,11 @@ export interface MinedReceipt {
 }
 
 export interface StepDeps {
+  /**
+   * A check made before anything is signed: resolves with why the step must not be sent, or null
+   * when it may be. A step it refuses fails with nothing sent.
+   */
+  guard?(): Promise<string | null>;
   /** For an approval: skip it when the allowance already covers the amount. */
   allowance?: { needed: bigint; read(): Promise<bigint> };
   /** True when a contract answers at the target address. Asked before anything is signed. */
@@ -59,6 +64,13 @@ export function canSend(state: StepState): boolean {
 export async function sendStep(deps: StepDeps, emit: (state: StepState) => void): Promise<void> {
   let hash: Hex;
   try {
+    if (deps.guard) {
+      const refusal = await deps.guard();
+      if (refusal) {
+        emit({ status: "failed", message: `Not sent: ${refusal}`, hash: null });
+        return;
+      }
+    }
     if (deps.hasCode && !(await deps.hasCode())) {
       emit({
         status: "failed",

@@ -318,6 +318,91 @@ export const ORDER_HISTORY: { workOrders: Address; orders: readonly PinnedOrder[
 };
 
 // ---------------------------------------------------------------------------------------------
+// The Doorbell: who rang it
+// ---------------------------------------------------------------------------------------------
+
+export interface PinnedRings {
+  doorbell: Address;
+  /** How many `Rang` logs the read below found, and the blocks they are in. */
+  rings: number;
+  fromBlock: number;
+  toBlock: number;
+  /** Rings by sender (lowercase address), as the logs name them. */
+  byRinger: readonly { ringer: string; rings: number }[];
+  /** The first ring and the 25th, which opened order 1. */
+  first: PinnedTx;
+  last: PinnedTx;
+  read: string;
+}
+
+/**
+ * Every ring of the Doorbell up to its first hire. The contract counts every ring (`rings()`) and
+ * names the ringer in each ring's `Rang(ringer, count)` log. Those logs were read on 15 October
+ * 2026 with `cast logs` from the Doorbell's launch block (26,184,581) to the head, through
+ * rpc.mevblocker.io: 25 logs, counts 1 to 25, in blocks 26,184,821 to 26,184,854, every one sent
+ * by house wallet H1. `rings()` read 25 the same day, so no other ring exists. The public RPC no
+ * longer serves logs that old, so the split is kept here; rings after block 26,184,854 are read
+ * live.
+ */
+export const RING_HISTORY: PinnedRings = {
+  doorbell: "0xFd5ab7E03E8554210Faa3cCd3b9D47C622fffcCb",
+  rings: 25,
+  fromBlock: 26184821,
+  toBlock: 26184854,
+  byRinger: [{ ringer: H1.toLowerCase(), rings: 25 }],
+  first: {
+    hash: "0x6e4c2e22c3ea019c47b2c5d3c47679ddc32ee6ad24a9dcc30c15fed84cecc8a2",
+    block: 26184821,
+    at: "2026-10-13T16:39:35Z",
+    from: H1,
+  },
+  last: {
+    hash: "0xa9c9f25681b4512fc51d06cdd17d575e1ef3385d881b9ff62e25447bf8d815fb",
+    block: 26184854,
+    at: "2026-10-13T16:46:11Z",
+    from: H1,
+  },
+  read: HISTORY_READ_ON,
+};
+
+/** The pinned rings, when the book's Doorbell is the one they were read from. */
+export function pinnedRings(doorbell: string | null): PinnedRings | null {
+  if (!doorbell || doorbell.toLowerCase() !== RING_HISTORY.doorbell.toLowerCase()) return null;
+  return RING_HISTORY;
+}
+
+// ---------------------------------------------------------------------------------------------
+// A second kind of job, proven through WorkProof: a research report
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * A research report the swarm did for somebody else, chosen because its receipt is on chain: it
+ * did not come through HELP WANTED, and nobody of ours paid for it. Order 1's job is a picture
+ * (skill:create-image); this one is the other kind the team's runner takes. Read on 15 October
+ * 2026: IdentityMD's API gives the job as completed, template skill:research-report, paid by
+ * 0x5585fd05304802980f3514427195c223d7745393. Its record (3,412 bytes, served with no trailing
+ * newline) hashes to `recordHash`, and `WorkRegistry.latest` for the job held that hash, written by
+ * the registry's writer in `receiptTx`. `WorkProof.prove(jobId, record, 0)` on the launched
+ * WorkProof answered with that hash, the kind hash of skill:research-report and agent 53933.
+ */
+export const SECOND_KIND_JOB = {
+  jobId: "08f59d80-106b-4aea-9c93-d0cb49f5c30b",
+  jobIdBytes16: "0x08f59d80106b4aea9c93d0cb49f5c30b",
+  kind: "skill:research-report",
+  recordHash: "0x83cc828f2dd79ccfcd91b3719b1d1172e4ecf10c5a6219b9674f4c37df9153e3",
+  kindHash: "0x1eca772919112a33a7f2dec9335cff7b36a9ebb94160fa9a3c07556d47f2988b",
+  recordBytes: 3412,
+  agentIds: ["53933"],
+  receiptTx: {
+    hash: "0xa4f7961432dbe834ccb82fa8e28729a20b86cbcde633f38be136a0902e47ead6",
+    block: 26199121,
+    at: "2026-10-15T16:29:59Z",
+    from: MAINNET.WORK_REGISTRY_WRITER,
+  } satisfies PinnedTx,
+  read: HISTORY_READ_ON,
+} as const;
+
+// ---------------------------------------------------------------------------------------------
 // x402: every payment for a swarm job made from a house wallet
 // ---------------------------------------------------------------------------------------------
 

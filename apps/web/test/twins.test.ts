@@ -323,7 +323,10 @@ describe("pages that work on today's data", () => {
     expect(markdown).toContain("| Robots idle | 894 |");
     expect(markdown).toContain("Receipt in the WorkRegistry: none yet");
     // A job's objective is someone else's text: it is always printed as a quotation.
-    expect(markdown).toMatch(/\n> A custom token: Tithe Demo/);
+    // Other people's objectives are fenced as untrusted text, never run in with the page's words.
+    expect(markdown).toMatch(
+      /UNTRUSTED TEXT BEGINS \(the job's objective, written by whoever ordered it\)\. [^\n]*\n```text\nA custom token: Tithe Demo/,
+    );
   });
 
   it("/ stamps RECEIPT ON CHAIN only for a finished job the registry answers for", async () => {
@@ -485,7 +488,10 @@ describe("pages that work on today's data", () => {
     }
     expect(model.claims[0]?.readNow).toContain("PROVEN ON CHAIN");
     expect(model.claims.map((c) => c.readNow).join(" ")).toContain("121 IMD in 99 payments from 34 payers");
-    expect(model.claims.map((c) => c.readNow).join(" ")).toContain("bound to seat #1998");
+    // The bindingOf example is order 1's agent, 51519, whose tip was paid through its seat.
+    expect(model.claims.map((c) => c.readNow).join(" ")).toContain(
+      "Agent 51519 (the one order 1's work record names) is bound to seat #1049",
+    );
     expect(model.claims.map((c) => c.readNow).join(" ")).toContain(
       "Intake version 2: nonce() is 44. Version 1 (legacy): nonce() is 13.",
     );
@@ -632,7 +638,9 @@ describe("pages that work on today's data", () => {
       "settled by panel agreement",
     ]);
     // What the three answers do not show is said beside them.
-    expect(model.feedProofs.limit).toContain("no answer was delivered to a contract");
+    expect(model.feedProofs.limit).toContain(
+      "these three requests named no callback, so none of them delivered an answer to a contract",
+    );
 
     // 2. The two audits, every finding with what was done about it.
     expect(model.audits.reports.map((r) => r.reportUrl)).toEqual([
@@ -1124,7 +1132,7 @@ describe("the root files", () => {
     expect(text).toContain("Its on-chain receipt is still queued at IdentityMD");
     expect(text).toContain("so this is not a proof on chain");
     expect(text).toContain(
-      "Oracle requests ever bought on chain: 44 through the mainnet Intake (version 2) and 13",
+      "Requests ever bought on chain through IdentityMD's Intake, by each contract's own counter, nonce(): 44 through version 2, which counts requests of any kind (oracle questions, jobs, launches, workflows), and 13 through the legacy version 1, which sells oracle questions only.",
     );
     // A page that waits for a contract says which one.
     expect(text).toContain("Not live until WorkOrders is launched");

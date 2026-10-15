@@ -888,7 +888,7 @@ export function render(doc: EvidenceDocument): string {
     "pnpm evidence",
     "```",
     "",
-    "The command reads only: it holds no key and sends no transaction. It prints the block it pinned. Settings, all optional: `RPC_URL` (one URL, or several separated by commas; the default public node keeps logs for about 9,000 blocks, so an older launch needs a node with history), `CHUNK_SIZE` (blocks per log query, default 2000), `EVIDENCE_BLOCK` (pin a block by number), `EVIDENCE_API=off` (leave IdentityMD's API out). When a read fails, or a count disagrees with a contract, nothing is written.",
+    "The command reads only: it holds no key and sends no transaction. It prints the block it pinned. Settings, all optional: `RPC_URL` (one URL, or several separated by commas, tried in order; the default is `https://ethereum-rpc.publicnode.com,https://rpc.mevblocker.io`, because the first keeps logs for about 9,000 blocks only and the second keeps older ones), `CHUNK_SIZE` (blocks per log query, default 2000), `EVIDENCE_BLOCK` (pin a block by number), `EVIDENCE_API=off` (leave IdentityMD's API out). When a read fails, or a count disagrees with a contract, nothing is written.",
     "",
   ];
   return `${parts

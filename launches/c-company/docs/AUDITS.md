@@ -66,10 +66,12 @@ count of tests in `README.md`; sentences in `docs/THREATS.md` (E3, E5 and E12); 
 the manifest node wrote; `test/endowments/Endowments.audit.t.sol`, the adapter's two tests; and
 three files of tests from `write_foundry_tests` (`test/endowments/Endowments.edges.t.sol`,
 `test/rules/RulesEdges.t.sol`, `test/rules/ZapDelta.t.sol`, 24 tests that found no defect). With
-them the default suite runs 441 tests in 23 suites. Every file on the launch repository's `main` is
-in this folder, and each is the same byte for byte (compared on 15 October 2026), apart from
-`README.md`, `docs/LAUNCH.md` and `docs/THREATS.md`, which the team has brought up to date since the
-launch. This file is the team's own, written after the launch.
+them the default suite ran 441 tests in 23 suites. Every file on the launch repository's `main` is
+in this folder, and each is the same byte for byte (compared on 15 October 2026, file by file, by
+git's hash of each file's bytes), apart from four. `README.md`, `docs/LAUNCH.md` and
+`docs/THREATS.md` the team has brought up to date since the launch. In `docs/DEVIATIONS.md` a
+formatter re-padded one table, the last, with spaces and dashes inside its rows; no word of it
+changed. This file is the team's own, written after the launch.
 
 The judge's summary says that it built the project with the pinned settings, that all 441 tests
 passed, that all five specialist findings reproduce, and: "Nothing blocks the launch." IdentityMD's
@@ -97,7 +99,11 @@ record holds no identifier for a finding; the eight-character names below are th
 The three contracts have no owner and no upgrade path. A change to any rule in rows 4 to 7 would
 need a new launch. The sentences `docs/THREATS.md` gained for them say what each reviewer showed on
 their own copy of the code. Row 4 is also shown by a test this repository held before the review
-(`test_harvest_pot_aPotThatNeedsOneWeiIsSentOneWei`); rows 5 to 7 are shown by no test here.
+(`test_harvest_pot_aPotThatNeedsOneWeiIsSentOneWei`). Rows 5 to 7 are shown by tests the team added
+on 15 October 2026, after the launch, in three new files: row 5 by `test/rules/ZapAsPayee.t.sol`
+(three tests), row 6 by `test/endowments/Endowments.target.t.sol` (one) and row 7 by
+`test/rules/RulesUnusedHalf.t.sol` (two). They change nothing under `src/`. With them the default
+suite runs 447 tests in 26 suites (15 October 2026, Foundry 1.8.3).
 
 ## What the pipeline checked before it deployed
 
@@ -122,7 +128,8 @@ of this folder; on 15 October 2026 it printed a match for all three contracts.
   existing test of this repository covers the fifth. `audit_imported_code` says it reproduced its
   two findings in a scratch test, and `audit_math`, `audit_permissions` and `audit_economics` say
   they removed theirs. None of them is in the launch repository. Rows 1 and 2 are pinned by the
-  adapter's two tests, which are, and row 4 by a test this repository already held; rows 5 to 7
-  by no test here.
+  adapter's two tests, which are, and row 4 by a test this repository already held. Rows 5 to 7
+  are pinned by tests the team wrote after the launch (above), which are in this folder and not in
+  the launch repository.
 - **An answer to the ten later findings.** No node answered them, and the record names no file of
   answers. What the team knows of them is what the record holds.

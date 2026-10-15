@@ -322,7 +322,10 @@ describe("with the hire desk launched", () => {
     };
     expect(model.order.spec).toBe(spec);
     expect(specHash(model.order.spec)).toBe(model.order.terms.specHash);
-    expect(markdownTwin(loaded!)).toContain(`> ${spec}`);
+    expect(markdownTwin(loaded!)).toContain(`\`\`\`text\n${spec}\n\`\`\`\nUNTRUSTED TEXT ENDS.`);
+    expect(markdownTwin(loaded!)).toContain(
+      "UNTRUSTED TEXT BEGINS (the order's job text, written by its employer).",
+    );
     // An open order shows what a runner would be paid now: between the opening price and the most.
     const now = model.money.find((row) => row.label === "Price if a runner took it now");
     expect(now?.imd).toBe("3");
@@ -557,7 +560,10 @@ describe("a pot's page shows what the pot will order", () => {
     expect(model.spec).toBe(SPEC);
     expect(model.specMissing).toBeNull();
     // It is someone else's text: quoted, never run in with the page's own words.
-    expect(markdownTwin(loaded!)).toContain(`> ${SPEC}`);
+    expect(markdownTwin(loaded!)).toContain(`\`\`\`text\n${SPEC}\n\`\`\`\nUNTRUSTED TEXT ENDS.`);
+    expect(markdownTwin(loaded!)).toContain(
+      "UNTRUSTED TEXT BEGINS (the pot's job text, written by whoever opened the pot).",
+    );
     expect(model.facts.find((f) => f.label === "Pays on")?.value).toBe("an on-chain receipt only");
   });
 

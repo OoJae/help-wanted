@@ -47,6 +47,7 @@ import {
 } from "~/lib/format";
 import { jobIdToBytes16, parseHash, parseJobId } from "~/lib/ids";
 import { specProblemWords } from "~/lib/specWords";
+import { ACCEPT_FLOOR_BPS, PREFILL_BPS, plainDown, shareOf } from "~/lib/zapQuote";
 
 export type FieldKind =
   "imd" | "eth" | "number" | "text" | "longtext" | "address" | "bytes32" | "select" | "checkbox";
@@ -85,6 +86,20 @@ export interface FlowCall {
   gas?: bigint;
   /** For an `approve`: the allowance the later call needs, so an existing one can be reused. */
   allowance?: { spender: string | null; amount: bigint };
+  /**
+   * A view read just before the wallet is asked to sign. When it answers zero the call is not sent,
+   * and `refusal` says why: what the form cannot know when it is filled in, it checks then.
+   */
+  guard?: FlowGuard;
+}
+
+/** A read that must not answer zero for a call to be sent. */
+export interface FlowGuard {
+  to: string | null;
+  abi: Abi;
+  functionName: string;
+  args: readonly unknown[];
+  refusal: string;
 }
 
 /** A read to make before sending: the same contract, asked with `cast call`. Nothing is signed. */
@@ -1017,15 +1032,23 @@ const openPot = simple({
   fields: [
     KIND_FIELD,
     { ...SPEC_FIELD, label: "The job text", name: "spec" },
-    { name: "target", label: "Target", kind: "imd", unit: "IMD", initial: "5", required: true },
+    {
+      name: "target",
+      label: "Target",
+      kind: "imd",
+      unit: "IMD",
+      initial: "1.5",
+      required: true,
+      help: "A target of 1 to 2 IMD pays for one job: the runner pays the swarm 0.5 IMD out of the 90% of the price it keeps.",
+    },
     {
       name: "minPay",
       label: "Opening price of the order",
       kind: "imd",
       unit: "IMD",
-      initial: "2",
+      initial: "0.8",
       required: true,
-      help: "The order's price starts here and rises to the target while it waits for a runner.",
+      help: "The order's price starts here and rises to the target while it waits for a runner. Between 0.7 and 1 IMD leaves a runner a margin over the swarm's 0.5 IMD.",
     },
     { name: "rampHours", label: "Price rises over", kind: "number", unit: "hours", initial: "24" },
     {
@@ -1033,7 +1056,7 @@ const openPot = simple({
       label: "Runner's bond",
       kind: "imd",
       unit: "IMD",
-      initial: "0.5",
+      initial: "0.25",
       required: true,
       help: "Between the desk's minimum of 0.25 IMD and the target.",
     },
@@ -1990,6 +2013,8 @@ const createRule: FlowDef = {
       problems.push(...amountProblems([["The payment", values.payAmount]]));
       if (!isAddress(recipient, { strict: false }) || /^0x0{40}$/i.test(recipient))
         problems.push("THEN pay: give the address to pay.");
+      const zapNamed = zapPayeeProblem(ctx, recipient, "the recipient", "the payment", "fire");
+      if (zapNamed) problems.push(`THEN pay: ${zapNamed}`);
       if (amount === null || amount === 0n) problems.push("THEN pay: give the amount in IMD.");
       if (isAddress(recipient, { strict: false }) && amount !== null) {
         pay = { recipient: getAddress(recipient), amount };
@@ -2177,13 +2202,26 @@ const NEW_ID_LINE =
   "Read the new endowment's number from the Created event of that transaction, not from a guess: numbers are handed out in order, and somebody else's may have been created in between.";
 
 /**
- * Why nobody should name launch C's Zap as a payee, though Endowments and Rules accept it: each
+ * Why these forms refuse launch C's Zap as a payee, though Endowments and Rules would accept it: each
  * call to Zap ends by sending its caller all the IMD Zap holds (launch C's THREATS.md, Z4, and row 5
  * of its docs/AUDITS.md).
  */
 function zapPayeeLine(ctx: FlowContext, as: string, what: string, by: string): string {
   const zap = ctx.addresses.zap;
-  return `Zap${zap ? ` (${zap})` : ""} is accepted as ${as} but should not be named: each call to Zap ends by sending its caller all the IMD Zap holds, so whoever calls ${by} can take ${what} in the same transaction (launch C's docs/THREATS.md, Z4).`;
+  return `This form refuses Zap${zap ? ` (${zap})` : ""} as ${as}, though the contract would accept it: each call to Zap ends by sending its caller all the IMD Zap holds, so whoever calls ${by} could take ${what} in the same transaction (launch C's docs/THREATS.md, Z4).`;
+}
+
+/** The refusal itself, when the address typed is Zap's. Null for any other address. */
+function zapPayeeProblem(
+  ctx: FlowContext,
+  typed: string,
+  as: string,
+  what: string,
+  by: string,
+): string | null {
+  const zap = ctx.addresses.zap;
+  if (!zap || !isAddress(typed, { strict: false }) || typed.toLowerCase() !== zap.toLowerCase()) return null;
+  return `That is Zap's address. Zap cannot be ${as}: each call to Zap ends by sending its caller all the IMD Zap holds, so whoever calls ${by} could take ${what} in the same transaction (launch C's docs/THREATS.md, Z4). The contract would accept it; this form does not.`;
 }
 
 const endowCreateMeter = simple({
@@ -2253,22 +2291,52 @@ const endowCreatePot = simple({
     if (potId === null || potId === 0n) problems.push("Give the pot or series number.");
     if (!isAddress(who, { strict: false }) || /^0x0{40}$/i.test(who))
       problems.push("Give the fallback beneficiary's address.");
+    const zapNamed = zapPayeeProblem(
+      ctx,
+      who,
+      "the fallback beneficiary",
+      "what the harvest pays it",
+      "harvest",
+    );
+    if (zapNamed) problems.push(zapNamed);
     if (problems.length > 0 || potId === null) return { ok: false, problems };
+    // A pot that takes no chips now would send every harvest to the fallback beneficiary instead.
+    const guard: FlowGuard = {
+      to: ctx.addresses.crowdPots,
+      abi: crowdPotsAbi,
+      functionName: "remaining",
+      args: [potId],
+      refusal: `pot or series ${potId} needs nothing now: CrowdPots.remaining(${potId}) reads 0, so it would take no chip and every harvest would go to the fallback beneficiary. Endow a pot that is still collecting.`,
+    };
     return {
       ok: true,
-      calls: [
-        approve("endowments", ctx.addresses.endowments, ENDOWMENT.SEED),
-        call(
-          "endowments",
+      reads: [
+        read(
+          "crowdPots",
           ctx,
-          endowmentsAbi,
-          "createForPot",
-          [potId, getAddress(who)],
-          `Create an endowment whose yield chips into pot ${potId} in the name of ${getAddress(who)}`,
+          crowdPotsAbi,
+          "remaining",
+          [potId.toString()],
+          "What the pot still needs, in IMD-wei. Zero means it takes no chip now (full, launched, out of time, or no such pot): the wallet button refuses it",
         ),
+      ],
+      calls: [
+        { ...approve("endowments", ctx.addresses.endowments, ENDOWMENT.SEED), guard },
+        {
+          ...call(
+            "endowments",
+            ctx,
+            endowmentsAbi,
+            "createForPot",
+            [potId, getAddress(who)],
+            `Create an endowment whose yield chips into pot ${potId} in the name of ${getAddress(who)}`,
+          ),
+          guard,
+        },
       ],
       summary: [
         `The endowment's target is fixed for good: pot or series ${potId}. Its yield is chipped in for what the pot still needs, in the beneficiary's name.`,
+        `Before anything is signed, the wallet button reads CrowdPots.remaining(${potId}) and refuses a pot that needs nothing now. The contract itself would accept one.`,
         "The beneficiary is a party to trust: it is paid directly whenever the pot takes no chips (it is full, launched, out of time or cannot be read). For a single pot that is the normal end. Depositors should read who it is before depositing.",
         zapPayeeLine(ctx, "the fallback beneficiary", "what the harvest pays it", "harvest"),
         SEED_LINE,
@@ -2288,6 +2356,8 @@ const endowCreateRecipient = simple({
     const who = (values.recipient ?? "").trim();
     if (!isAddress(who, { strict: false }) || /^0x0{40}$/i.test(who))
       return { ok: false, problems: ["Give the recipient's address."] };
+    const zapNamed = zapPayeeProblem(ctx, who, "a recipient", "the yield", "harvest");
+    if (zapNamed) return { ok: false, problems: [zapNamed] };
     return {
       ok: true,
       calls: [
@@ -2503,7 +2573,14 @@ const ZAP_FIELDS: FlowField[] = [
     kind: "imd",
     unit: "IMD",
     required: true,
-    help: "Run the quote command first and take about 99% of what it prints. The call reverts, and costs only gas, if the swap would produce less. Zap sets no limit of its own: a minimum of nearly nothing accepts any price.",
+    help: "Filled in with 99% of the quote for this much ETH whenever a quote could be read; without one, run the quote command and take about 99% of what it prints. The call reverts, and costs only gas, if the swap would produce less. Zap sets no limit of its own: a minimum of nearly nothing accepts any price.",
+  },
+  {
+    name: "acceptAnyPrice",
+    label: "Accept any price: send even though my minimum is below 95% of the quote",
+    kind: "checkbox",
+    initial: "false",
+    help: "Leave it off. Without it, the form refuses a minimum below 95% of the quote, which would let the swap go through at a much worse price than the pool gives now.",
   },
   {
     name: "deadlineMinutes",
@@ -2523,6 +2600,24 @@ interface ZapTerms {
   minutes: number;
   /** The deadline as a shell expression, so a command run later is not already late. */
   castDeadline: string;
+  /** What the minimum is held against, in words: the quote for this much ETH, or that none was read. */
+  quoteLine: string;
+}
+
+/**
+ * The quote a form carries, when it is for the amount of ETH the visitor typed: `quoteImd` IMD for
+ * `quoteEth` ETH, from a simulated swap (lib/zapQuote.ts), filled in by the page and refreshed by
+ * the browser. Not form fields: nobody types them.
+ */
+function zapQuoteOf(
+  values: Record<string, string>,
+  wei: bigint | null,
+): { imd: bigint; at: string | null } | null {
+  const imdOut = parseUnits(values.quoteImd ?? "", 18);
+  const eth = parseUnits(values.quoteEth ?? "", 18);
+  if (imdOut === null || imdOut === 0n || eth === null || wei === null || eth !== wei) return null;
+  const at = (values.quoteAt ?? "").trim();
+  return { imd: imdOut, at: at && !Number.isNaN(Date.parse(at)) ? at : null };
 }
 
 function zapTerms(values: Record<string, string>, ctx: FlowContext, problems: string[]): ZapTerms | null {
@@ -2539,14 +2634,33 @@ function zapTerms(values: Record<string, string>, ctx: FlowContext, problems: st
   const minutes = Number((values.deadlineMinutes ?? ZAP_DEADLINE_MINUTES).trim());
   if (!Number.isFinite(minutes) || minutes < 1 || minutes > 120)
     problems.push("Set the deadline between 1 and 120 minutes ahead.");
+  // The minimum is held against the quote for this very amount, when the form has one.
+  const quote = zapQuoteOf(values, wei);
+  const anyPrice = values.acceptAnyPrice === "true";
+  const suggested = quote ? plainDown(shareOf(quote.imd, PREFILL_BPS)) : null;
+  if (quote && minOut !== null && minOut > 0n) {
+    if (minOut > quote.imd) {
+      problems.push(
+        `The least IMD you accept, ${formatImd(minOut)}, is more than the ${formatImd(quote.imd)} IMD this much ETH buys now: the swap would revert (TooLittleOut) and cost you the gas. Take about 99% of the quote, ${suggested} IMD.`,
+      );
+    } else if (minOut * 10_000n < quote.imd * ACCEPT_FLOOR_BPS && !anyPrice) {
+      problems.push(
+        `The least IMD you accept, ${formatImd(minOut)}, is below 95% of the quote (${formatImd(quote.imd)} IMD for this much ETH), so the swap could go through at a much worse price than the pool gives now. Raise it to about 99% of the quote, ${suggested} IMD, or tick "Accept any price" to send it as it is.`,
+      );
+    }
+  }
   if (problems.length > 0 || wei === null || minOut === null) return null;
   const secs = Math.round(minutes * 60);
+  const share = quote ? Number((minOut * 10_000n) / quote.imd) / 100 : null;
   return {
     wei,
     minOut,
     deadline: BigInt(ctx.now + secs),
     minutes,
     castDeadline: `$(($(date +%s) + ${secs}))`,
+    quoteLine: quote
+      ? `The quote: ${formatUnits(wei, 18)} ETH buys ${formatImd(quote.imd)} IMD now, by a simulated swap that sends nothing${quote.at ? ` (read ${formatUtc(quote.at)})` : ""}. Your minimum is ${share}% of it${anyPrice && minOut * 10_000n < quote.imd * ACCEPT_FLOOR_BPS ? `, below 95%: you ticked "Accept any price", so the swap may go through at a much worse price than the quote` : ""}.`
+      : "No quote has been read for this amount of ETH. Run the quote command first and set your minimum to about 99% of what it prints: a minimum far below it accepts a worse price, and one above it reverts.",
   };
 }
 
@@ -2605,6 +2719,7 @@ const zapChipIn = simple({
         `Zap swaps ${formatUnits(terms.wei, 18)} ETH for IMD and chips it into pot ${potId} in your name: the chip, and any refund of it, are yours. You need no IMD and no approval.`,
         "All of the ETH is swapped before the pot is asked what it needs. What the pot does not take comes back to you as IMD in the same transaction. A pot that takes nothing at all reverts the call, so you keep your ETH.",
         `The call reverts unless the swap produces at least ${formatImd(terms.minOut)} IMD.`,
+        terms.quoteLine,
         zapDeadlineLine(terms),
         ZAP_PRICE_LINE,
       ],
@@ -2650,6 +2765,7 @@ const zapFundMeter = simple({
       summary: [
         `Zap swaps ${formatUnits(terms.wei, 18)} ETH for IMD and adds all of it to the meter of ${feed.name}. The meter shares are yours, not Zap's: you can redeem them with defund for their part of what the meter has not spent.`,
         `The call reverts unless the swap produces at least ${formatImd(terms.minOut)} IMD, and for a feed that does not exist.`,
+        terms.quoteLine,
         zapDeadlineLine(terms),
         TIP_RULE,
         ZAP_PRICE_LINE,
@@ -2695,6 +2811,7 @@ const zapBuy = simple({
       summary: [
         `Zap swaps ${formatUnits(terms.wei, 18)} ETH for IMD and sends the IMD to you. It is how a wallet with only ETH gets the IMD to post an order in its own name: Zap does not open orders, because the desk makes whoever calls it the employer.`,
         `The call reverts unless the swap produces at least ${formatImd(terms.minOut)} IMD.`,
+        terms.quoteLine,
         zapDeadlineLine(terms),
         ZAP_PRICE_LINE,
       ],

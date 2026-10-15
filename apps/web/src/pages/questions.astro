@@ -421,6 +421,9 @@ const answeredOnChain = m.houseFeeds.filter((f) => f.live?.exists && f.live.roun
         {i.legacy.address}
       </a>
       ) is legacy and holds the earlier history, including the three requests that proved the house feeds.
+      Each counts every request it takes in <code>nonce()</code>. Version 2 sells oracle questions, jobs,
+      launches and workflows on Ethereum; version 1 sells oracle questions only (<code>priceOf</code>, read 15
+      October 2026). Each row names its action.
     </p>
     <ul>
       <li>Version 2: {i.current.words}</li>
@@ -440,14 +443,19 @@ const answeredOnChain = m.houseFeeds.filter((f) => f.live?.exists && f.live.roun
       {i.rows.map((row) => (
         <article class:list={["ad", row.house && "ad--house"]}>
           <p class="ad__kind">
-            Request {row.requestId.slice(0, 10)} · Intake version {row.version}
+            Request {row.requestId.slice(0, 10)} · Intake version {row.version} · {row.action}
             {row.house && " · HOUSE"}
           </p>
           {row.question ? (
             <Theirs by="The payer's question, quoted" text={row.question} />
-          ) : (
+          ) : row.action.startsWith("oracle.request") ? (
             <p class="ad__text">
               The request body is not the JSON the oracle expects; no question could be read.
+            </p>
+          ) : (
+            <p class="ad__text">
+              Not an oracle question, so no question is shown. Its body is the payer's and is not printed
+              here.
             </p>
           )}
           <ul class="ad__meta">

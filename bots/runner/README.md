@@ -3,9 +3,15 @@
 The runner is the bot that turns an order on the HELP WANTED hire desk into a job for the
 IdentityMD swarm, and collects when the job is done.
 
-A contract cannot buy a swarm job by itself: IdentityMD takes payment for jobs through x402, which
-needs an ordinary wallet's signature. So an employer (a wallet, a contract, a crowd pot) escrows IMD
-on the desk, and a runner does the buying:
+A contract can buy a swarm job from IdentityMD itself: IdentityMD's Intake contract takes the
+request and bills it up front, in the same transaction. x402, IdentityMD's other way to pay, needs
+an ordinary wallet's signature and is paid up front too. Neither holds the IMD back until the work
+is recorded. The hire desk does: an employer (a wallet, a contract, a crowd pot) escrows IMD on the
+desk, the escrow pays on IdentityMD's WorkRegistry receipt for that exact job (or, where the
+employer opted in, on a bonded claim that nobody challenges for 24 hours or that the order's arbiter
+upholds), and the employer is refunded otherwise. A runner does the buying, and the desk does not
+ask how a job was paid for. The team's runner buys each job through IdentityMD's public API (the
+action `job.open`, paid by x402), not through the Intake contract:
 
 1. it posts a small bond and **claims** the order;
 2. it **pays the swarm 0.5 IMD** to open the job, with the order's 85-byte header at byte 0 of the
@@ -27,9 +33,16 @@ The runner is paid 90% of the order's price and gets its bond back. Anyone can r
 > Since 15 October 2026, 14:18 UTC, the team's runner has run around the clock on a hosted server
 > (Railway, [Docker and hosting](#docker-and-hosting)), signing as the team's wallet H1. It takes
 > orders from any employer, one order at a time, pays at most one 0.5 IMD swarm fee a day, posts
-> bonds of at most 0.25 IMD, and takes `skill:research-report` and `skill:create-image` jobs. By
-> block 26,198,957 (15 October 2026, 15:57 UTC) order 1 was still the one order it had taken. Read
-> [What can cost you money](#what-can-cost-you-money) before going live.
+> bonds of at most 0.25 IMD, and takes `skill:research-report` and `skill:create-image` jobs. Its
+> `EMPLOYERS` is empty on purpose, against the advice below for a hosted runner: the desk is for
+> employers the team does not know, and while no other runner exists a list would leave their
+> orders untaken. The caps bound what that can cost, for as long as it runs: at most 0.5 IMD in
+> swarm fees a day, and at most 0.25 IMD in bonds at any one time, which it can lose order by
+> order, plus gas. On 15 October 2026 it was also set to take an order that leaves it no margin
+> (`MIN_MARGIN_IMD=0`, `EXPECTED_FAILURE_BPS=0`), so that it can serve the first order that a rule
+> of the team's, in launch C, opens on the desk. At block 26,200,224 (15 October 2026) only one
+> order had been opened on the desk, order 1. Read [What can cost you money](#what-can-cost-you-money)
+> before going live.
 
 ## Safe by default
 
@@ -170,8 +183,9 @@ is 0.594. Set `EXPECTED_FAILURE_BPS` to the share of jobs you actually see fail.
 1. **Make a wallet for the runner only.** Make it yourself (`cast wallet new`, a hardware wallet
    export, your platform's key tool). Keep it small: it needs ETH for gas and enough IMD for the
    bonds and the 0.5 IMD fees of the orders it holds at once. With the defaults, 0.03 ETH and
-   3 IMD is plenty. The wallet must be an ordinary account (or an EIP-7702 account): IdentityMD
-   does not take payment from contract wallets such as a Safe.
+   3 IMD is plenty. The wallet must be an ordinary account (or an EIP-7702 account): IdentityMD's
+   x402 payment needs a signature made with the wallet's own key, and its documents, read on
+   15 October 2026, say contract wallets such as a Safe are not supported yet.
 2. **Give it storage that survives a restart.** `STORE_PATH` (default `./data/runner.json`) holds
    what the runner has signed and where each order stands. On a hosting platform mount a
    persistent volume there; a container's own filesystem is gone at the next deploy.

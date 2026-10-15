@@ -16,6 +16,10 @@ import {
   type Addresses,
   type FlowField,
 } from "~/flows";
+import { decodeFunctionResult, encodeFunctionData } from "viem";
+import { parseUnits } from "~/lib/format";
+import { createEthReader } from "~/lib/jsonrpc";
+import { decodeZapQuote, PREFILL_BPS, plainDown, shareOf, zapQuoteRequest } from "~/lib/zapQuote";
 
 const WalletSend = lazy(() => import("./WalletSend"));
 
@@ -119,10 +123,93 @@ export default function FlowRunner({ flowId, preset, addresses, rpcUrl, sendBloc
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
 
   const fields = useMemo(() => (flow ? flow.fields({ ...preset, ...values }) : []), [flow, preset, values]);
+
+  // A Zap form quotes the amount of ETH typed, from the browser, with no wallet: a simulated swap
+  // (lib/zapQuote.ts). The minimum follows the quote at 99% until the visitor types one of their own.
+  const isZap = flow?.contract === "zap";
+  const zapAddress = addresses.zap;
+  const minTyped = useRef(false);
+  const ethText = values.eth ?? "";
+  const quotedEth = values.quoteEth ?? "";
+  useEffect(() => {
+    if (!isZap || !zapAddress) return;
+    const wei = parseUnits(ethText, 18);
+    if (wei === null || wei === 0n) return;
+    if (parseUnits(quotedEth, 18) === wei) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      const reader = createEthReader(rpcUrl);
+      const request = zapQuoteRequest(zapAddress, wei, Math.floor(Date.now() / 1000));
+      if (!reader.callWith) return;
+      reader
+        .callWith(
+          { to: request.to, data: request.data, from: request.from, value: request.value },
+          request.overrides,
+        )
+        .then((result) => {
+          const imd = decodeZapQuote(result);
+          if (cancelled || imd === 0n) return;
+          setValues((old) => ({
+            ...old,
+            quoteEth: ethText,
+            quoteImd: plainDown(imd, 18),
+            quoteAt: new Date().toISOString(),
+            ...(minTyped.current ? {} : { minImdOut: plainDown(shareOf(imd, PREFILL_BPS)) }),
+          }));
+        })
+        .catch(() => {
+          // No quote: the plan says so, and asks for the quote command.
+        });
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [isZap, zapAddress, ethText, quotedEth, rpcUrl]);
   const plan = useMemo(
     () => (flow ? flow.plan(values, { addresses, now }) : null),
     [flow, values, addresses, now],
   );
+
+  // A call that carries a guard (a pot endowment, which must not target a pot that needs nothing) is
+  // checked as soon as the plan names it, so the visitor hears why before pressing anything. The
+  // wallet step checks it again just before signing.
+  const guard = plan?.ok ? (plan.calls.find((c) => c.guard)?.guard ?? null) : null;
+  const guardKey = guard
+    ? `${guard.to}:${guard.functionName}:${guard.args.map((a) => String(a)).join(",")}`
+    : "";
+  const [refusal, setRefusal] = useState<string | null>(null);
+  useEffect(() => {
+    setRefusal(null);
+    if (!guard || !guard.to) return;
+    let cancelled = false;
+    const to = guard.to;
+    const timer = setTimeout(() => {
+      const data = encodeFunctionData({
+        abi: guard.abi,
+        functionName: guard.functionName,
+        args: guard.args as unknown[],
+      });
+      createEthReader(rpcUrl)
+        .call(to, data)
+        .then((result) => {
+          const answer = decodeFunctionResult({
+            abi: guard.abi,
+            functionName: guard.functionName,
+            data: result,
+          });
+          if (!cancelled && answer === 0n) setRefusal(guard.refusal);
+        })
+        .catch(() => {
+          // Unread: the wallet step reads it again before anything is signed.
+        });
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // The key stands for the guard: a new plan object with the same guard is the same check.
+  }, [guardKey, rpcUrl]);
 
   // The server printed a worked example under this form, open, for readers without JavaScript.
   // Once this form shows a live plan of its own, the example folds away so nothing is said twice.
@@ -139,6 +226,7 @@ export default function FlowRunner({ flowId, preset, addresses, rpcUrl, sendBloc
 
   const contractAddress = addresses[flow.contract];
   const set = (name: string) => (value: string) => {
+    if (name === "minImdOut") minTyped.current = true;
     setTouched(true);
     setWallet(false);
     setValues((old) => ({ ...old, [name]: value }));
@@ -208,6 +296,11 @@ export default function FlowRunner({ flowId, preset, addresses, rpcUrl, sendBloc
             ))}
           </div>
 
+          {refusal && (
+            <ul className="problems" role="status">
+              <li>Not sendable: {refusal}</li>
+            </ul>
+          )}
           {contractAddress === null ? (
             <div className="walletline">
               <button className="btn" type="button" disabled>
@@ -216,6 +309,13 @@ export default function FlowRunner({ flowId, preset, addresses, rpcUrl, sendBloc
               <span className="small">
                 Sending is switched off: {CONTRACT_NAMES[flow.contract]} is not launched yet.
               </span>
+            </div>
+          ) : refusal ? (
+            <div className="walletline">
+              <button className="btn" type="button" disabled>
+                {flow.action}
+              </button>
+              <span className="small spot">Sending is switched off: see why above.</span>
             </div>
           ) : sendBlocked ? (
             <div className="walletline">

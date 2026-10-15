@@ -3,10 +3,10 @@
   "about": "What exists on chain of HELP WANTED, read at one pinned block. Written by scripts/evidence/build.ts (pnpm evidence) and by nothing else; do not edit by hand.",
   "chainId": 1,
   "pinnedBlock": {
-    "number": 26199756,
-    "hash": "0x6ddd696b5d1857ac483a4e660d502c1b0537fd2fcacdc0135d76cab3ef762cdc",
-    "timestamp": 1792089431,
-    "time": "2026-10-15T18:37:11Z",
+    "number": 26200139,
+    "hash": "0x5ba89450466ec7979fd0ab037d86077799089630aab9d8923cf63753a7cb11be",
+    "timestamp": 1792094039,
+    "time": "2026-10-15T19:53:59Z",
     "finality": "finalized"
   },
   "houseRule": "HOUSE is the activity of the wallets the team publishes in evidence/house-wallets.json and of HELP WANTED's own contracts; everything else is OUTSIDE. Each event is counted for one account: the one that made the call, the one the event pays, or the one an earlier event settled (the opener of a round, the employer of an order). When the account made the call itself, the count is HOUSE if that account or the sender of the transaction is on the list. scripts/evidence/contracts.ts holds the rule of every event.",
@@ -354,7 +354,7 @@
       ],
       "logs": {
         "fromBlock": 26182869,
-        "toBlock": 26199756,
+        "toBlock": 26200139,
         "count": 44,
         "transactions": 33
       },
@@ -1060,7 +1060,7 @@
       ],
       "logs": {
         "fromBlock": 26184581,
-        "toBlock": 26199756,
+        "toBlock": 26200139,
         "count": 32,
         "transactions": 29
       },
@@ -1451,7 +1451,7 @@
       ],
       "logs": {
         "fromBlock": 26198165,
-        "toBlock": 26199756,
+        "toBlock": 26200139,
         "count": 6,
         "transactions": 4
       },
@@ -2005,7 +2005,7 @@
     "read": true,
     "reason": null,
     "base": "https://api.imd.fun",
-    "fetchedAt": "2026-10-15T18:51:12.506Z",
+    "fetchedAt": "2026-10-15T20:10:12.275Z",
     "launches": [
       {
         "launch": "a",
@@ -2109,10 +2109,10 @@
   },
   "reads": {
     "rpcHosts": [
-      "rpc.mevblocker.io",
-      "ethereum-rpc.publicnode.com"
+      "ethereum-rpc.publicnode.com",
+      "rpc.mevblocker.io"
     ],
-    "chunkSize": 1500,
-    "logChunks": 25
+    "chunkSize": 2000,
+    "logChunks": 18
   }
 }

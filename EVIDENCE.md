@@ -2,7 +2,7 @@
 
 This file is written by `pnpm evidence` (`scripts/evidence/build.ts`) and by nothing else. Do not edit it: run the command again. The same facts, for a program, are in `evidence/evidence.json`.
 
-Everything below was read from Ethereum mainnet (chain 1) at **block 26,199,756**, hash `0x6ddd696b5d1857ac483a4e660d502c1b0537fd2fcacdc0135d76cab3ef762cdc`, mined 15 Oct 2026, 18:37:11 UTC. It was the node's finalized block when the run began, so it can no longer change. Logs were read from each launch's own block up to that block, in ranges of at most 1,500 blocks; code and views were read at that block. Read through `rpc.mevblocker.io`, `ethereum-rpc.publicnode.com`.
+Everything below was read from Ethereum mainnet (chain 1) at **block 26,200,139**, hash `0x5ba89450466ec7979fd0ab037d86077799089630aab9d8923cf63753a7cb11be`, mined 15 Oct 2026, 19:53:59 UTC. It was the node's finalized block when the run began, so it can no longer change. Logs were read from each launch's own block up to that block, in ranges of at most 2,000 blocks; code and views were read at that block. Read through `ethereum-rpc.publicnode.com`, `rpc.mevblocker.io`.
 
 A number is here only if it was read. A zero is a count that was read and is zero. "Not launched" means there is nothing to read.
 
@@ -64,7 +64,7 @@ HOUSE is the activity of the wallets the team publishes in evidence/house-wallet
 
 **Live.** IdentityMD launch 1531. Created in transaction [`0x9ce6111c9f454373ac208cc9b54ebd0a4b09e58706f20e568f0f9e8bbb392c58`](https://etherscan.io/tx/0x9ce6111c9f454373ac208cc9b54ebd0a4b09e58706f20e568f0f9e8bbb392c58), block 26,182,869 (13 Oct 2026, 10:07:59 UTC), sent by `0xcECc29B037f5064fCdF45a5C318F132ef76aA551` to `0xfF03410d0Fe5fa8f7F59F743de35E333D9857120`; the transaction succeeded.
 
-44 logs of these contracts, in 33 transactions, were read from block 26,182,869 to block 26,199,756. The source is in `launches/a-payroll`; its known limits are in `launches/a-payroll/docs/THREATS.md`.
+44 logs of these contracts, in 33 transactions, were read from block 26,182,869 to block 26,200,139. The source is in `launches/a-payroll`; its known limits are in `launches/a-payroll/docs/THREATS.md`.
 
 ### Standing Questions (`Questions`)
 
@@ -211,7 +211,7 @@ Every event in each contract's ABI, with how often it was logged. A row of zeros
 
 **Live.** IdentityMD launch 1573. Created in transaction [`0xfb28bef9c477cfe3777231d8c41f202e691673fc4cec98ecb8b07f1bfff7bf9c`](https://etherscan.io/tx/0xfb28bef9c477cfe3777231d8c41f202e691673fc4cec98ecb8b07f1bfff7bf9c), block 26,184,581 (13 Oct 2026, 15:51:11 UTC), sent by `0xcECc29B037f5064fCdF45a5C318F132ef76aA551` to `0xfF03410d0Fe5fa8f7F59F743de35E333D9857120`; the transaction succeeded.
 
-32 logs of these contracts, in 29 transactions, were read from block 26,184,581 to block 26,199,756. The source is in `launches/b-desk`; its known limits are in `launches/b-desk/docs/THREATS.md`.
+32 logs of these contracts, in 29 transactions, were read from block 26,184,581 to block 26,200,139. The source is in `launches/b-desk`; its known limits are in `launches/b-desk/docs/THREATS.md`.
 
 ### The hire desk (`WorkOrders`)
 
@@ -311,7 +311,7 @@ Every event in each contract's ABI, with how often it was logged. A row of zeros
 
 **Live.** IdentityMD launch 1845. Created in transaction [`0x1806c02e5e38d4c8496476b3f3cf39f250a9d0c97ff5834c75a0475a12bd62fb`](https://etherscan.io/tx/0x1806c02e5e38d4c8496476b3f3cf39f250a9d0c97ff5834c75a0475a12bd62fb), block 26,198,165 (15 Oct 2026, 13:18:47 UTC), sent by `0xcECc29B037f5064fCdF45a5C318F132ef76aA551` to `0xfF03410d0Fe5fa8f7F59F743de35E333D9857120`; the transaction succeeded.
 
-6 logs of these contracts, in 4 transactions, were read from block 26,198,165 to block 26,199,756. The source is in `launches/c-company`; its known limits are in `launches/c-company/docs/THREATS.md`.
+6 logs of these contracts, in 4 transactions, were read from block 26,198,165 to block 26,200,139. The source is in `launches/c-company`; its known limits are in `launches/c-company/docs/THREATS.md`.
 
 ### Rules
 
@@ -452,7 +452,7 @@ Before anything was written, what the builder counted from the logs, what the de
 
 ## What IdentityMD's API said
 
-Read from `https://api.imd.fun` with GET requests, starting at 15 Oct 2026, 18:51:12 UTC. These answers are not pinned to a block: they are what IdentityMD's service said when it was asked, and they are kept apart from the chain reads above.
+Read from `https://api.imd.fun` with GET requests, starting at 15 Oct 2026, 20:10:12 UTC. These answers are not pinned to a block: they are what IdentityMD's service said when it was asked, and they are kept apart from the chain reads above.
 
 | Launch | IdentityMD's record | Status | Kind | Source repository IdentityMD built from | Commit | Lists the book's addresses |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -486,4 +486,4 @@ pnpm install
 pnpm evidence
 ```
 
-The command reads only: it holds no key and sends no transaction. It prints the block it pinned. Settings, all optional: `RPC_URL` (one URL, or several separated by commas; the default public node keeps logs for about 9,000 blocks, so an older launch needs a node with history), `CHUNK_SIZE` (blocks per log query, default 2000), `EVIDENCE_BLOCK` (pin a block by number), `EVIDENCE_API=off` (leave IdentityMD's API out). When a read fails, or a count disagrees with a contract, nothing is written.
+The command reads only: it holds no key and sends no transaction. It prints the block it pinned. Settings, all optional: `RPC_URL` (one URL, or several separated by commas, tried in order; the default is `https://ethereum-rpc.publicnode.com,https://rpc.mevblocker.io`, because the first keeps logs for about 9,000 blocks only and the second keeps older ones), `CHUNK_SIZE` (blocks per log query, default 2000), `EVIDENCE_BLOCK` (pin a block by number), `EVIDENCE_API=off` (leave IdentityMD's API out). When a read fails, or a count disagrees with a contract, nothing is written.

@@ -124,13 +124,19 @@ describe("launch B on the day of its launch: live, and nothing has been called o
     expect(loaded.meta.description).toContain("CrowdPots is live and no pot has been opened yet.");
     expect(said).not.toMatch(NOT_LAUNCHED_OF_B);
     expect(said).not.toContain("**No pots.**");
-    // The example in the form: a 2 IMD target that starts at 1 IMD and allows a bonded claim.
-    expect(markdown).toContain("a target of 2 IMD, an order priced from 1 IMD");
-    expect(markdown).toContain("The pot collects up to 2 IMD for 3 d.");
-    expect(markdown).toContain("priced from 1 IMD and rising over 24 h");
-    expect(markdown).toContain("The pot's order accepts a bonded delivery claim.");
-    // Paying with ETH still waits for launch C, and the page says so.
-    expect(markdown).toContain(`Zap (launch C) is ${NOT_LAUNCHED}.`);
+    // The form starts small and receipt-only: a 1.5 IMD target from 0.8 IMD, the desk's minimum bond.
+    expect(markdown).toContain("a target of 1.5 IMD, an order priced from 0.8 IMD");
+    expect(markdown).toContain("The pot collects up to 1.5 IMD for 3 d.");
+    expect(markdown).toContain("priced from 0.8 IMD and rising over 24 h, with a runner's bond of 0.25 IMD");
+    expect(markdown).toContain("The pot's order pays only on an on-chain receipt.");
+    // With no pot on chain there is nothing to chip into or claim back: those forms are not shown.
+    const model = loaded.model as PotsModel;
+    expect(model.flows).toEqual([]);
+    expect(model.zapFlow).toBeNull();
+    expect(markdown).toContain("No pot exists yet (CrowdPots.potCount() read 0 for this page)");
+    expect(markdown).not.toContain("### Chip in\n");
+    expect(markdown).not.toContain("## Chip in with ETH");
+    expect(markdown).not.toContain("### Claim a pot refund");
   });
 
   it("the Doorbell reads live, unfunded, 25 rings from a hire, at 1 IMD a picture with the claimed path on", async () => {

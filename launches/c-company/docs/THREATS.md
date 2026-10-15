@@ -171,6 +171,17 @@ allows (`test_onWorkDelivered_gasFitsTheDesksAllowance`; on the real desk `integ
 is lost: `reconcile` does the same later. The callback does not open a new order; a rule hires
 again only when somebody fires it again.
 
+_Erratum, 15 October 2026._ R9 is inexact in two places; the code is as it was deployed. The desk
+calls `onWorkDelivered` after a settlement, not inside it: `settle`, `finalize`, `resolve` when it
+finds for the runner, and `redeliver` each call it last, in the same transaction, once every
+payment is made and the desk's lock is released. A callback that fails undoes nothing: the desk
+records `CallbackFailed`, and anyone may call `redeliver` or `reconcile` later. The comment on
+`onWorkDelivered` in `src/rules/Rules.sol` says the desk calls it "inside a `try`"; the desk makes
+a plain call with the whole 150,000 gas instead, to the same effect. And 62,000 gas is what the
+callback used against this project's stand-in desk. Against the real desk, in this project's
+`integration/` tests, it used 24,860 gas for a proven delivery and 28,681 for a cancelled rule's
+change, read from their traces on 15 October 2026.
+
 **R10. A tip is paid for every fire, whatever becomes of the order.** A keeper can fire a HIRE rule
 whose order nobody then takes. The order's escrow returns; the tip does not. Cooldown and the
 maximum number of fires are the creator's limits on this (`test_fire_respectsTheCooldown`,
@@ -189,7 +200,9 @@ rule created with a PAY half, or a PAY rule with a HIRE half, stores only its ow
 `RuleCreated` publishes the caller's whole parameters, the unused half included. No money moves on
 that half. Read a rule's terms with `getRule`, not from the event. IdentityMD's reviewers raised this
 before the launch (`docs/AUDITS.md`, row 7); it was added here on 15 October 2026, after the launch,
-and no test here shows it.
+and two tests added the same day show it
+(`test_createRule_aHireRuleWithAPayHalf_publishesTheHalfInRuleCreated_butNeverPaysIt`,
+`test_createRule_aPayRuleWithAHireHalf_publishesTheHalfInRuleCreated_butNeverHires`).
 
 **R12. The tip is the first firer's.** Whoever's `fire` is mined first is paid the tip; a keeper whose
 transaction somebody copies and has mined ahead loses its gas, and its own transaction reverts having
@@ -363,7 +376,8 @@ of time) is accepted, where a feed that cannot be asked is refused. Such an endo
 harvest to its fallback beneficiary (E6), while its `Created` event names a pot as its target. A
 depositor should read what the pot still needs (`CrowdPots.remaining`) before depositing.
 IdentityMD's reviewers raised this before the launch (`docs/AUDITS.md`, row 6); it was added here on
-15 October 2026, after the launch, and no test here shows it.
+15 October 2026, after the launch, and a test added the same day shows it
+(`test_createForPot_acceptsAPotThatNeedsNothing_andEveryHarvestGoesToTheFallback`).
 
 **E10. Dust, and tokens sent directly.** IMD is accounted for to the wei. sIMD shares are not: the
 split of a staked batch between endowments rounds down and leaves under one share-wei per endowment
@@ -416,8 +430,11 @@ recipient or its fallback beneficiary, and a PAY rule may name it as its recipie
 payment then goes to whoever calls Zap next, and the caller of `harvest` or `fire` can be that
 caller in the same transaction. Only yield, or the PAY amount, is exposed this way, never a
 depositor's principal. Nobody should name Zap as a payee. IdentityMD's reviewers raised this before
-the launch (`docs/AUDITS.md`, row 5); it was added here on 15 October 2026, after the launch, and no
-test here shows it.
+the launch (`docs/AUDITS.md`, row 5); it was added here on 15 October 2026, after the launch, and
+three tests added the same day show it
+(`test_harvest_aRecipientEndowmentNamingZap_paysZap_andTheNextZapCallerTakesTheYield`,
+`test_harvest_aPotEndowmentWhoseFallbackIsZap_paysZapOnceThePotNeedsNothing_andTheNextZapCallerTakesIt`,
+`test_fire_aPayRuleNamingZap_paysZap_andTheNextZapCallerTakesThePayment`).
 
 **Z5. Zap does not open orders.** The hire desk makes whoever calls it the employer, who receives
 the refund, the change and the callback, and that must be the person who paid. `buy` hands over the
@@ -606,8 +623,10 @@ reason in the table should treat the matching finding as open.
   pipeline's audit of the imported code, four specialist reviewers and a judge read the code and
   raised 13 findings, none marked blocking. The pipeline changed nothing under `src/`
   (`ADAPTATION.md`), and `docs/AUDITS.md` lists every finding with what became of it. Four of them
-  are limits this document stated in part or not at all; R11, E7, E9 and Z4 state them since, and
-  for three of them (R11, E9, Z4) no test here shows what the reviewers showed. By block 26,198,957
+  are limits this document stated in part or not at all; R11, E7, E9 and Z4 state them since. E7
+  cites a test this folder held before the review; for the other three, tests added on 15 October
+  2026 show what the reviewers showed (`test/rules/RulesUnusedHalf.t.sol`,
+  `test/endowments/Endowments.target.t.sol`, `test/rules/ZapAsPayee.t.sol`). By block 26,198,957
   the team's wallet W1 had created one endowment, for the meter of launch A's payrolls feed,
   deposited 1 IMD into it and called `stake` twice; no rule had been created and nothing had gone
   through `Zap`. The entries below were written before the launch and are kept as they were, but

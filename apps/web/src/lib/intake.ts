@@ -1,10 +1,12 @@
 /**
- * Oracle requests bought on chain through the IdentityMD Intake, decoded from its two events:
+ * Requests bought on chain through the IdentityMD Intake, decoded from its two events:
  * `Requested` (someone paid and asked) and `Completed` (the writer closed the request).
  *
  * There are two Intake contracts on mainnet: version 2, which IdentityMD names for anything new
  * and which launch A is built on, and the legacy version 1, which holds the earlier history. Both
  * emit the same two events, so one decoder reads both; each row says which contract logged it.
+ * Each counts every request it takes in its `nonce()`: version 2 sells oracle questions, jobs,
+ * launches and workflows on Ethereum, version 1 oracle questions only. Each row names its action.
  *
  * The question text inside a request body is written by whoever paid for it. It is third-party
  * text: the pages print it inside a quotation and never treat it as anything else.

@@ -71,7 +71,21 @@ function Steps({ calls, rpcUrl, action }: Props) {
   function depsFor(call: FlowCall, from: `0x${string}`): StepDeps {
     const to = call.to as `0x${string}`;
     const spender = call.allowance?.spender;
+    const guard = call.guard;
     return {
+      guard:
+        guard && guard.to
+          ? async () => {
+              const answer = await readContract(config, {
+                address: guard.to as `0x${string}`,
+                abi: guard.abi,
+                functionName: guard.functionName,
+                args: guard.args as unknown[],
+                chainId: mainnet.id,
+              });
+              return answer === 0n ? guard.refusal : null;
+            }
+          : undefined,
       hasCode: async () => {
         const code = await getBytecode(config, { address: to, chainId: mainnet.id });
         return code !== undefined && code !== "0x";

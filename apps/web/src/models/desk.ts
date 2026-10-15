@@ -21,6 +21,7 @@ import {
   orderTicket,
   PAID_ACTION_PRICE,
   priceAt,
+  sameAddress,
   splitPrice,
   workOrdersAbi,
   workProofAbi,
@@ -29,10 +30,11 @@ import { etherscanAddress, etherscanTx, explorerJob, IMD_LINK } from "~/config/c
 import { NOT_OFFERED, TEMPLATES, templateBySlug, type JobTemplate } from "~/config/templates";
 import type { Live, Order, OrderBook } from "~/data/house";
 import { GAS_LIMIT } from "~/lib/contracts";
-import { formatDuration, formatImd, formatUtc, plural } from "~/lib/format";
+import { formatDuration, formatImd, formatUtc, parseUnits, plural } from "~/lib/format";
+import { ethFor, zapPreset, type ZapQuote } from "~/lib/zapQuote";
 import { hashNo0x, jobIdToBytes16, parseIndex } from "~/lib/ids";
 import { hashServedRecord } from "~/lib/verify";
-import { bullets, doc, fence, inline, link, numbered, quote, table } from "~/lib/md";
+import { bullets, doc, fence, inline, link, numbered, quote, table, untrusted } from "~/lib/md";
 import { orderCard, orderStatusWords, templateForKindHash, type OrderCard } from "./cards";
 import {
   castCall,
@@ -40,8 +42,10 @@ import {
   castWrite,
   CLAIM_TIP_RULE,
   contractStatus,
+  ethNote,
   launchWords,
   liveNote,
+  loadZapQuote,
   PAYS_WHEN,
   PUBLIC_RPC,
   type ContractStatus,
@@ -108,6 +112,7 @@ export const RUNNER_STATEMENT = {
     "HELP WANTED's runner bot runs on a hosted server (Railway), around the clock. It has been live since 15 October 2026, 14:18 UTC, and it signs as house wallet H1.",
     "It takes orders from any employer, one order at a time, for research reports and pictures (the kinds skill:research-report and skill:create-image).",
     "It pays at most one 0.5 IMD swarm fee a day, and posts bonds of at most 0.25 IMD.",
+    "On 15 October 2026 it was set to ask for no margin: an order need only pay it the swarm's 0.5 IMD fee, and the gas is its own cost. The team did this so that it can serve the first order that a rule of the team's, in launch C, opens on the desk.",
   ],
   /** The other bot, said where runners are: it is not hosted. */
   keeper: "The keeper (bots/keeper) is not hosted: it is run by hand.",
@@ -171,8 +176,16 @@ export const HIRE_IS_FOR = [
 export const RUNNING_IS_FOR = [
   "Anyone with a wallet and some IMD who wants a margin for carrying orders to the swarm: 90% of an order's price, for the swarm's 0.5 IMD and the gas.",
   "Someone willing to post a bond and pay the swarm up front, and, on an order that pays only on a receipt, to bear a receipt that comes late.",
-  "Not for a contract: buying a swarm job needs an ordinary wallet's signatures, which is why runners exist.",
+  "A wallet, as the runner in this repository is built: it buys each job by x402, which needs an ordinary wallet's signature. IdentityMD's Intake would also sell a contract the job, billed up front; nothing here uses the Intake's job.open.",
 ] as const;
+
+/**
+ * Why runners exist, in one paragraph: IdentityMD is paid before the work, by either of its two
+ * doors, and the desk pays only later, on the receipt or on a bonded claim that stands. Checked against IdentityMD's docs ("Pay onchain", "How
+ * paying works") and the Intake's own `priceOf` on 15 October 2026.
+ */
+export const WHY_RUNNERS =
+  "IdentityMD bills up front. Its Intake takes the 0.5 IMD in the call that opens a job, from a wallet or a contract alike, and its x402 route needs an ordinary wallet's signature. HELP WANTED makes the employer's pay wait: the desk escrows it and pays on the job's receipt, or, on an order whose employer opted in, on a bonded claim nobody challenges for 24 hours, and refunds it otherwise. So somebody fronts the swarm's fee. A runner is the wallet that does it, under bond, for a margin. The team's runner pays by x402. The Intake's job.open is not used here.";
 
 // ---------------------------------------------------------------------------------------------
 // /hire
@@ -190,6 +203,8 @@ export interface TemplateCard {
   /** What the record's size means for an employer, when it means something. */
   recordNote: string | null;
   suggestedPay: string;
+  /** The suggested pay in ETH, at the quote read for the page; null without one. */
+  suggestedPayEth: string | null;
 }
 
 export interface HireIndexModel {
@@ -213,9 +228,15 @@ export interface HireIndexModel {
   /** What the team says of its own runner, dated; null where the book's desk is not mainnet's. */
   runnerStatement: RunnerStatementView | null;
   whoFor: readonly string[];
+  /** Buying IMD with ETH through Zap, for a wallet that holds only ETH. */
+  zapFlow: FlowPreview;
+  /** How the ETH beside IMD amounts on this page was worked out. Null without a quote. */
+  ethNote: string | null;
 }
 
-function templateCard(t: JobTemplate): TemplateCard {
+function templateCard(t: JobTemplate, quote: ZapQuote | null = null): TemplateCard {
+  const low = ethFor(parseUnits(t.suggestedMinPay, 18) ?? 0n, quote);
+  const high = ethFor(parseUnits(t.suggestedMaxPay, 18) ?? 0n, quote);
   return {
     slug: t.slug,
     path: `/hire/${t.slug}`,
@@ -227,6 +248,7 @@ function templateCard(t: JobTemplate): TemplateCard {
     recordSize: t.recordSize,
     recordNote: t.recordNote ?? null,
     suggestedPay: `${t.suggestedMinPay} to ${t.suggestedMaxPay} IMD`,
+    suggestedPayEth: low && high ? `about ${low} to ${high} ETH` : null,
   };
 }
 
@@ -259,17 +281,18 @@ export const hireIndexPage: PageDef<HireIndexModel> = {
   id: "hire",
   pattern: "/hire",
   async load({ sources, now }) {
-    const [receipts, writer, orders] = await Promise.all([
+    const [receipts, writer, orders, quote] = await Promise.all([
       loadReceiptFlow(sources),
       sources.chain.receiptWriter(),
       sources.house.orders(40),
+      loadZapQuote(sources),
     ]);
     return {
       generatedAt: now.toISOString(),
       desk: contractStatus(sources.deployments, "workOrders"),
       deskLaunch: launchWords(sources.deployments, "workOrders"),
       ordersOpened: ordersOpenedWords(orders),
-      templates: TEMPLATES.map(templateCard),
+      templates: TEMPLATES.map((t) => templateCard(t, quote)),
       notOffered: [...NOT_OFFERED],
       how: HOW_AN_ORDER_WORKS,
       terms: ORDER_TERMS,
@@ -279,6 +302,8 @@ export const hireIndexPage: PageDef<HireIndexModel> = {
       whoTakes: whoTakesOrders(orders, houseSet(sources.deployments)),
       runnerStatement: runnerStatement(sources.deployments.contracts.workOrders.address),
       whoFor: HIRE_IS_FOR,
+      zapFlow: previewFlow("zap-buy", sources.deployments, now, zapPreset(quote), zapPreset(quote)),
+      ethNote: ethNote(quote),
     };
   },
   meta: () => ({
@@ -303,10 +328,11 @@ export const hireIndexPage: PageDef<HireIndexModel> = {
           t.staff,
           t.delivers,
           t.turnaround,
-          t.suggestedPay,
+          `${t.suggestedPay}${t.suggestedPayEth ? ` (${t.suggestedPayEth})` : ""}`,
           link(t.path, t.path),
         ]),
       ),
+      m.ethNote,
       "Turnaround was measured on real swarm jobs on 10 Oct 2026. It is an observation, not a promise.",
       "## Not offered yet",
       bullets(m.notOffered.map((n) => `${n.title}: ${n.why}`)),
@@ -322,9 +348,16 @@ export const hireIndexPage: PageDef<HireIndexModel> = {
         "sh",
       ),
       bullets(m.claimLimits),
+      "## Only ETH? Buy IMD first",
+      ZAP_BUY_WORDS,
+      flowMarkdown(m.zapFlow),
     );
   },
 };
+
+/** Why /hire offers the swap, and what it does not do. */
+export const ZAP_BUY_WORDS =
+  'The desk escrows IMD, and makes whoever calls it the employer. A wallet that holds only ETH buys the IMD first through Zap (launch C), which swaps on the Uniswap v4 ETH/IMD pool and sends the IMD to the wallet; then it posts the order in its own name. The form fills in the least IMD you accept with 99% of a quote for the ETH you type, and refuses a minimum below 95% of it unless you tick "Accept any price".';
 
 export interface HireTemplateModel {
   generatedAt: string;
@@ -585,6 +618,11 @@ export interface OrderModel {
   tips: OrderTip[];
   /** The IPFS CID IdentityMD's API gives for the job's media, as text. Null when it gives none. */
   mediaCid: string | null;
+  /**
+   * IdentityMD's own page of a delivered picture job, which shows the picture. This site serves no
+   * copy of it. Null for an order whose job made no picture or is not delivered.
+   */
+  picture: { label: string; url: string } | null;
   commands: { comment: string; command: string }[];
   flows: FlowPreview[];
   sources: SourceNote[];
@@ -956,6 +994,16 @@ export const orderPage: PageDef<OrderModel> = {
       proof,
       tips,
       mediaCid,
+      picture:
+        delivered && c?.jobId && template?.kind === "skill:create-image"
+          ? {
+              label:
+                order && sameAddress(order.employer, deployments.contracts.doorbell.address ?? "")
+                  ? "See the picture the Doorbell paid for"
+                  : "See the picture this order paid for",
+              url: explorerJob(c.jobId),
+            }
+          : null,
       commands: [
         {
           comment: "The order's state and money: (state, employer, escrow, spent, returned).",
@@ -1036,7 +1084,9 @@ export const orderPage: PageDef<OrderModel> = {
                 o.terms ? `Delivery window: ${formatDuration(o.terms.deliverySecs * 1000)}` : "",
               ].filter(Boolean),
             ),
-            o.spec ? `The job text, as the employer wrote it:\n\n${quote(o.spec)}` : null,
+            o.spec
+              ? `The job text, as the employer wrote it:\n\n${untrusted(o.spec, "the order's job text, written by its employer")}`
+              : null,
             "## Timeline",
             table(
               ["Step", "Reached", "Detail"],
@@ -1076,10 +1126,15 @@ export const orderPage: PageDef<OrderModel> = {
             ),
           ).trimEnd()
         : null,
-      m.mediaCid
+      m.picture || m.mediaCid
         ? doc(
             "## The work",
-            `IdentityMD's API gives the job's media the IPFS CID ${inline(m.mediaCid)} (GET /jobs/${m.order?.claim?.jobId ?? "<job id>"}, media.cid). It is printed as text; this site serves and links no copy.`,
+            m.picture
+              ? `${m.picture.label}: ${link(m.picture.url, m.picture.url)} (IdentityMD's page of the job, which shows it; this site serves no copy).`
+              : null,
+            m.mediaCid
+              ? `IdentityMD's API gives the job's media the IPFS CID ${inline(m.mediaCid)} (GET /jobs/${m.order?.claim?.jobId ?? "<job id>"}, media.cid).`
+              : null,
           ).trimEnd()
         : null,
       "## Check it yourself",
@@ -1113,6 +1168,8 @@ export interface RunnersModel {
   generatedAt: string;
   desk: ContractStatus;
   launched: boolean;
+  /** Why runners exist: IdentityMD bills up front, and the desk pays later, on the receipt or on a bonded claim that stands. */
+  why: string;
   /** Who runs runners, said from what is configured: nobody can run one before the desk exists. */
   whoRuns: string;
   /** How many orders the launched desk has opened; null when it is not launched or was not read. */
@@ -1162,7 +1219,7 @@ const RUNNER_RISKS = [
   "A delivery claim that a receipt contradicts costs you the bond. A claim that is challenged and still undecided at the order's deadline is treated as if you had given the order back: the employer is refunded and you lose a tenth of the bond.",
   "While IdentityMD's receipts are late, a challenger can keep a true claim from being paid until the deadline at no cost to itself. Only a receipt, or the order's arbiter if it has one, ends a dispute in your favour.",
   "A receipt with the right job text under another kind can never settle the order: the kind is your risk. And settle on a job's first receipt when it exists; a later, superseding receipt names no agents, so its tip goes to the seat pool.",
-  "Payment needs an ordinary wallet's signatures and IdentityMD's paid routes refuse browsers, so buying the job is done by the open-source runner in this repository (bots/runner), not from this page. The on-chain steps can be sent from here.",
+  "The x402 payment needs an ordinary wallet's signature and IdentityMD's paid routes refuse browsers, so buying the job is done by the open-source runner in this repository (bots/runner), not from this page. The on-chain steps can be sent from here.",
   "One job pays for one order: the desk refuses to register a job whose receipt has already settled another.",
 ];
 
@@ -1185,6 +1242,7 @@ export const runnersPage: PageDef<RunnersModel> = {
       generatedAt: now.toISOString(),
       desk,
       launched: read.live,
+      why: WHY_RUNNERS,
       whoRuns: read.live
         ? "The team's own runner (bots/runner in the repository) signs with house wallet H1; what the team says of where and how it runs is below, beside what the desk shows. Anyone can run another, and none has any privilege."
         : "The team will run one from house wallet H1 once the desk is launched; anyone will be able to run another, and none will have any privilege.",
@@ -1284,11 +1342,11 @@ export const runnersPage: PageDef<RunnersModel> = {
   meta: () => ({
     title: "Runners",
     description:
-      "A runner takes an order from the hire desk, buys the swarm job with its own wallet, and is paid when the work is proven. Anyone can be one.",
+      "A runner takes an order from the hire desk, buys the swarm job with its own wallet, and is paid when the work is proven or, on an order that opts in, when its bonded claim stands. Anyone can be one.",
   }),
   markdown(m) {
     return doc(
-      `A contract cannot buy a swarm job itself: payment needs an ordinary wallet's signatures. A runner is the wallet that does it, under bond, for a margin. ${m.whoRuns}`,
+      `${m.why} ${m.whoRuns}`,
       m.openWords,
       "## Who takes orders today",
       ...whoTakesMarkdown(m.whoTakes, m.runnerStatement),

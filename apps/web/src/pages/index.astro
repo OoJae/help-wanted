@@ -55,6 +55,11 @@ const specimenText = specimen
               <a class="btn btn--ghost" href={lead.orderPath}>
                 Order {lead.orderPath.split("/").pop()}, step by step
               </a>
+              {lead.picture && (
+                <a class="btn btn--ghost" href={lead.picture.url} rel="noopener">
+                  {lead.picture.label}
+                </a>
+              )}
             </p>
             <p class="small">
               On Etherscan:{" "}
@@ -131,6 +136,25 @@ const specimenText = specimen
       {m.whatIsNew.map((line) => (
         <li class="step step--open">
           <p class="step__detail">{line}</p>
+        </li>
+      ))}
+    </ol>
+  </section>
+
+  <section class="section" aria-labelledby="flow">
+    <div class="section__head">
+      <h2 id="flow">One order, in five steps</h2>
+      <p>
+        <a href="/hire">how an order works</a>
+      </p>
+    </div>
+    <ol class="steps steps--across">
+      {m.strip.map((s) => (
+        <li class="step step--open">
+          <div>
+            <p class="step__title">{s.step}</p>
+            <p class="step__detail">{s.words}</p>
+          </div>
         </li>
       ))}
     </ol>

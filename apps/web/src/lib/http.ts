@@ -11,6 +11,38 @@ export const OPEN_CORS: Record<string, string> = {
 
 const CACHE = "public, max-age=30, stale-while-revalidate=60";
 
+/**
+ * Sent with every response the server renders: pages, twins, the API and the root text files. Static
+ * files in dist/client (/_astro/*, the icons, /og.png) are served by the Node adapter before the
+ * middleware runs, so they go without them. No page may be framed by another site, so nothing on
+ * it can be overlaid to trick a click (`frame-ancestors 'none'`, and X-Frame-Options for browsers
+ * that predate it); the site is served over HTTPS only (HSTS, a year); nothing is sniffed into
+ * another type; and an outbound link says only which site a reader came from.
+ */
+export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
+  "content-security-policy": "frame-ancestors 'none'",
+  "strict-transport-security": "max-age=31536000; includeSubDomains",
+  "x-frame-options": "DENY",
+  "x-content-type-options": "nosniff",
+  "referrer-policy": "strict-origin-when-cross-origin",
+};
+
+/** Puts the security headers on a response. A response whose headers are frozen is copied first. */
+export function withSecurityHeaders(response: Response): Response {
+  try {
+    for (const [name, value] of Object.entries(SECURITY_HEADERS)) response.headers.set(name, value);
+    return response;
+  } catch {
+    const copy = new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: new Headers(response.headers),
+    });
+    for (const [name, value] of Object.entries(SECURITY_HEADERS)) copy.headers.set(name, value);
+    return copy;
+  }
+}
+
 /** `JSON.stringify` that writes a bigint as a decimal string, so amounts in wei survive exactly. */
 export function toJson(value: unknown, pretty = true): string {
   return JSON.stringify(

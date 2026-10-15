@@ -1,9 +1,10 @@
 ---
 import Commands from "~/components/Commands.astro";
+import FlowBlock from "~/components/FlowBlock.astro";
 import NotLaunched from "~/components/NotLaunched.astro";
 import Layout from "~/layouts/Layout.astro";
 import { pageData } from "~/lib/page";
-import type { HireIndexModel } from "~/models/desk";
+import { ZAP_BUY_WORDS, type HireIndexModel } from "~/models/desk";
 import { receiptFlowMeaning } from "~/models/receipts";
 
 const loaded = await pageData<HireIndexModel>(Astro);
@@ -74,7 +75,10 @@ const { model: m, meta } = loaded;
           <p class="ad__text">{t.delivers}</p>
           <ul class="ad__meta">
             <li>Turnaround: {t.turnaround}</li>
-            <li>Suggested pay: {t.suggestedPay}</li>
+            <li>
+              Suggested pay: {t.suggestedPay}
+              {t.suggestedPayEth && <span class="muted"> ({t.suggestedPayEth})</span>}
+            </li>
             {t.recordSize && <li>Work record: {t.recordSize}</li>}
             <li>
               Record kind: <span class="break data">{t.kind}</span>
@@ -88,6 +92,7 @@ const { model: m, meta } = loaded;
         </article>
       ))}
     </div>
+    {m.ethNote && <p class="small">{m.ethNote}</p>}
     <h3 class="sub">Not offered yet</h3>
     <ul>
       {m.notOffered.map((n) => (
@@ -162,5 +167,14 @@ const { model: m, meta } = loaded;
         <li>{line}</li>
       ))}
     </ol>
+  </section>
+
+  <section class="section" id="zap-buy">
+    <div class="section__head">
+      <h2>Only ETH? Buy IMD first</h2>
+      <p>through Zap, launch C</p>
+    </div>
+    <p>{ZAP_BUY_WORDS}</p>
+    <FlowBlock flow={m.zapFlow} exampleNote="0.01 ETH" />
   </section>
 </Layout>

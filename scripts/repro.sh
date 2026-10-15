@@ -16,7 +16,8 @@
 # against the launch manifest in each project's docs/LAUNCH.md.
 #
 # One line is printed per contract. The exit status is 0 only when every contract matches; 1 when
-# one differs or has no code; 2 when something could not be built or read.
+# one differs or has no code; 2 when something could not be built or read, the deployments book
+# included: a book that gives no launched contract is an error, not a pass.
 #
 # It needs Foundry (forge, cast), Node 18 or newer (no packages: nothing to install) and an
 # Ethereum mainnet RPC. It sends no transaction and reads no key.
@@ -33,7 +34,9 @@
 #   REPRO_KEEP       1 to keep the temporary build folder and print where it is
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# `pwd -P` gives the folder with every symbolic link resolved (on macOS, /tmp is one), which is
+# the path Node sees for the scripts it runs.
+ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
 RPC_URL="${RPC_URL:-https://ethereum-rpc.publicnode.com}"
 
 for tool in forge cast node; do
@@ -42,9 +45,14 @@ done
 
 CONTRACTS="$(node "$ROOT/scripts/lib/book.mjs" contracts)" || exit 2
 BOOK_CHAIN="$(node "$ROOT/scripts/lib/book.mjs" chain-id)" || exit 2
+# Three launches are recorded in the book, so an empty answer means it was not read as it should be.
 if [ -z "$CONTRACTS" ]; then
-  echo "repro: the deployments book holds no address. Nothing is launched, so there is nothing to compare."
-  exit 0
+  echo "repro: the deployments book gave no launched contract, so nothing was compared." >&2
+  exit 2
+fi
+if [ -z "$BOOK_CHAIN" ]; then
+  echo "repro: the deployments book gave no chain id, so nothing was compared." >&2
+  exit 2
 fi
 
 NODE_CHAIN="$(cast chain-id --rpc-url "$RPC_URL")" || { echo "repro: the RPC did not answer" >&2; exit 2; }

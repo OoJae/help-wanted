@@ -7,15 +7,16 @@ import type { Hex } from "viem";
 import { NOT_LAUNCHED } from "~/config/deployments";
 import { pinnedOrder } from "~/config/history";
 import { houseSet } from "~/config/house";
-import { MAINNET, PAID_ACTION_PRICE } from "@help-wanted/shared";
-import { etherscanTx, REFERENCE_JOB } from "~/config/chain";
+import { kindHash, MAINNET, PAID_ACTION_PRICE } from "@help-wanted/shared";
+import { etherscanTx, explorerJob, REFERENCE_JOB } from "~/config/chain";
 import type { SwarmHealth } from "~/data/api";
 import { messageOf, within } from "~/lib/cache";
 import { formatImd, formatInt, formatUtc, plural } from "~/lib/format";
 import { jobIdToBytes16 } from "~/lib/ids";
-import { bullets, doc, link, numbered, quote, table } from "~/lib/md";
+import { bullets, doc, link, numbered, table, untrusted } from "~/lib/md";
 import { jobCard, jobEnded, orderCard, type JobCard, type OrderCard } from "./cards";
 import { contractStatus, liveNote, PAYS_WHEN, type ContractStatus } from "./common";
+import { doorbellNeeds, ringsByOrigin } from "./money";
 import { countReceipts, receiptFlow, receiptFlowMeaning, type ReceiptFlow } from "./receipts";
 import { sourceNote, type PageDef, type SourceNote } from "./types";
 import { runVerify } from "./verify";
@@ -38,6 +39,9 @@ export interface WireProof {
   receiptReadAt: string | null;
 }
 
+/** The kind a picture job's work record carries, hashed as the desk pins it. */
+const PICTURE_KIND_HASH = kindHash("skill:create-image").toLowerCase();
+
 /** How long the front page waits for that check before going out without it. */
 const PROOF_WAIT_MS = 2_500;
 
@@ -51,6 +55,8 @@ export interface WireLead {
   links: { label: string; url: string }[];
   /** What the desk answers about the order now, in one sentence. */
   now: string;
+  /** IdentityMD's page of the job, which shows the picture. Null for a job that made no picture. */
+  picture: { label: string; url: string } | null;
 }
 
 /** One of the three things a visitor can do from the front page. */
@@ -73,11 +79,37 @@ export interface WireDoorbell {
 
 /** What is new here, in four lines. */
 export const WHAT_IS_NEW = [
-  "A contract cannot sign for a swarm job, and it cannot check the work: IdentityMD's x402 payment needs a wallet's signature, and the work happens off chain.",
-  "So a bonded runner signs. It takes the order under bond, pays the swarm's 0.5 IMD by x402, and opens the job with the 85-byte order header at the start of its text.",
+  "IdentityMD bills up front. Its Intake lets a wallet or a contract open a swarm job in one call and takes the 0.5 IMD in that same call, and its x402 route needs an ordinary wallet's signature. Either way IdentityMD is paid before the work is done.",
+  "HELP WANTED makes the pay wait. The desk holds the employer's IMD in escrow until the job is proven, or until a bonded claim stands on an order that opts in (line 4 says how), and refunds it otherwise. The team's runner, under bond, pays the swarm's 0.5 IMD by x402 and opens the job with the 85-byte order header at the start of its text. The Intake's job.open is not used here.",
   "WorkProof checks the job's work record against IdentityMD's WorkRegistry: its keccak256 must equal latest(jobId). The desk then checks that the record carries the order's 85-byte order header, kind and job text. A proof shows what IdentityMD recorded, not that the work is good.",
   "The escrow pays on that receipt, or, on an order that opts in, on a bonded delivery claim nobody challenges for 24 hours. Otherwise the employer is refunded.",
 ] as const;
+
+/** One order, end to end, in five steps: the strip on the front page. */
+export const HOW_AN_ORDER_FLOWS: readonly { step: string; words: string }[] = [
+  {
+    step: "The employer escrows",
+    words: "The employer, a contract or a wallet, escrows IMD on the desk against a pinned job text.",
+  },
+  {
+    step: "A runner buys the job",
+    words:
+      "A bonded runner takes the order and pays the swarm's 0.5 IMD from its own wallet. The team's runner pays by x402.",
+  },
+  {
+    step: "The swarm works",
+    words: "IdentityMD's swarm does the job. Its text begins with the order's 85-byte order header.",
+  },
+  {
+    step: "A WorkRegistry receipt",
+    words: "IdentityMD writes the hash of the job's work record to its WorkRegistry on Ethereum.",
+  },
+  {
+    step: "The desk pays or refunds",
+    words:
+      "WorkProof holds the record against that receipt and the desk pays the runner. An order that opted in may also pay on a bonded claim nobody challenges for 24 hours. Otherwise the employer is refunded.",
+  },
+];
 
 export interface WireModel {
   generatedAt: string;
@@ -86,6 +118,8 @@ export interface WireModel {
   /** Order 1, paid on proof. Null where the deployments book's desk is not the one it happened on. */
   lead: WireLead | null;
   whatIsNew: readonly string[];
+  /** The five steps of an order, in order. */
+  strip: readonly { step: string; words: string }[];
   actions: { hire: WireAction; ring: WireAction & { doorbell: WireDoorbell | null }; verify: WireAction };
   /** One line: whose use of our contracts this page found, HOUSE or OUTSIDE. Null when nothing was read. */
   houseStatus: string | null;
@@ -250,28 +284,54 @@ export const wirePage: PageDef<WireModel> = {
           : readNow
             ? `Read for this page: order ${first.id} is ${readNow.state}${readNow.state === "Delivered" ? (readNow.terms?.proven ? " and marked proven" : ", not marked proven") : ""}.`
             : `The desk could not be read just now, so its state now is not given here.`,
+        // The record names the kind; a picture job's page at IdentityMD shows the picture.
+        picture:
+          first.prove.kindHash.toLowerCase() === PICTURE_KIND_HASH
+            ? { label: "See the picture the Doorbell paid for", url: explorerJob(first.jobId) }
+            : null,
       };
     }
 
     // ---- The three actions. ----
     const bell = bellRead.live ? bellRead.data : null;
     const every = 25;
-    const doorbell: WireDoorbell | null = bell
-      ? {
-          rung: bell.rings === null ? null : bell.rings % every,
-          every,
-          funded: bell.funded,
-          balanceImd: bell.balanceWei === null ? null : formatImd(bell.balanceWei),
-          priceImd: bell.maxPayWei === null ? null : formatImd(bell.maxPayWei),
-          words: `${bell.rings === null ? "Its ring count could not be read" : `${formatInt(bell.rings % every)} of ${every} rings toward its next hire`}. ${
+    let doorbell: WireDoorbell | null = null;
+    if (bell) {
+      const needs = doorbellNeeds(bell);
+      const split =
+        bell.ringers && bell.ringers.read > 0 ? ringsByOrigin(bell.ringers, houseSet(deployments)) : null;
+      const counted =
+        bell.rings === null || bell.rings === 0
+          ? "Every ring is counted on chain, and each ring's log names who rang."
+          : `Every ring is counted on chain, and each ring's log names who rang: ${
+              split
+                ? `of the ${plural(split.read, "ring")} read, ${formatInt(split.house)} ${split.house === 1 ? "was" : "were"} the team's own (HOUSE) and ${formatInt(split.outside)} ${split.outside === 1 ? "was" : "were"} anyone else's (OUTSIDE).`
+                : "who rang could not be read just now."
+            }`;
+      doorbell = {
+        rung: bell.rings === null ? null : bell.rings % every,
+        every,
+        funded: bell.funded,
+        balanceImd: bell.balanceWei === null ? null : formatImd(bell.balanceWei),
+        priceImd: bell.maxPayWei === null ? null : formatImd(bell.maxPayWei),
+        words: [
+          `${bell.rings === null ? "Its ring count could not be read" : `${formatInt(bell.rings % every)} of ${every} rings toward its next hire`}. ${
             bell.funded === null
               ? "Whether it is funded could not be read."
               : bell.funded
                 ? `Funded: it holds ${bell.balanceWei === null ? "enough" : `${formatImd(bell.balanceWei)} IMD`}, so the next 25th ring opens an order.`
                 : `Not funded: it holds ${bell.balanceWei === null ? "too little" : `${formatImd(bell.balanceWei)} IMD`}${bell.maxPayWei === null ? "" : ` and a hire needs ${formatImd(bell.maxPayWei)} IMD`}, so a 25th ring now would hire nothing.`
           }`,
-        }
-      : null;
+          needs,
+          counted,
+          bell.allowClaimed === true
+            ? "Its orders also pay on a bonded delivery claim nobody challenges for 24 hours. No watcher is running: the team runs nothing that would challenge an untrue one."
+            : null,
+        ]
+          .filter((line): line is string => line !== null)
+          .join(" "),
+      };
+    }
     const actions: WireModel["actions"] = {
       hire: {
         label: "Hire",
@@ -310,6 +370,7 @@ export const wirePage: PageDef<WireModel> = {
       headline,
       lead,
       whatIsNew: WHAT_IS_NEW,
+      strip: HOW_AN_ORDER_FLOWS,
       actions,
       houseStatus,
       swarm: health ? { ...health, idle: Math.max(0, health.online - health.working) } : null,
@@ -361,6 +422,9 @@ export const wirePage: PageDef<WireModel> = {
             bullets([
               `The order: ${link(m.lead.orderPath, m.lead.orderPath)}`,
               `The proof, checked in your browser: ${link(m.lead.verifyPath, m.lead.verifyPath)}`,
+              ...(m.lead.picture
+                ? [`${m.lead.picture.label}: ${link(m.lead.picture.url, m.lead.picture.url)}`]
+                : []),
               ...m.lead.links.map(
                 (l) => `${l.label[0]?.toUpperCase()}${l.label.slice(1)}: ${link(l.url, l.url)}`,
               ),
@@ -370,6 +434,8 @@ export const wirePage: PageDef<WireModel> = {
         : `**${m.headline}**`,
       "## What is new",
       numbered([...m.whatIsNew]),
+      "## One order, in five steps",
+      numbered(m.strip.map((x) => `${x.step}. ${x.words}`)),
       "## Three things to do",
       bullets([
         `${link(a.hire.label, a.hire.path)}: ${a.hire.words}`,
@@ -377,7 +443,7 @@ export const wirePage: PageDef<WireModel> = {
         `${link(a.verify.label, a.verify.path)}: ${a.verify.words}`,
       ]),
       m.houseStatus,
-      `HELP WANTED is a job board where the employers are smart contracts. A contract escrows IMD against a pinned job; a bonded runner opens the swarm job; the escrow ${PAYS_WHEN}.`,
+      `HELP WANTED is a job board where the employers are smart contracts. An employer escrows IMD against a pinned job; a bonded runner opens the swarm job; the escrow ${PAYS_WHEN}.`,
       "## The swarm right now",
       m.lead ? `**${m.headline}**` : null,
       s
@@ -443,7 +509,7 @@ export const wirePage: PageDef<WireModel> = {
                 : "Receipt: not finished",
             `Check it: ${link(c.verifyPath, c.verifyPath)} · ${link("explorer", c.explorerUrl)}`,
           ]),
-          quote(c.objective),
+          untrusted(c.objective, "the job's objective, written by whoever ordered it"),
         ).trimEnd(),
       ),
     );

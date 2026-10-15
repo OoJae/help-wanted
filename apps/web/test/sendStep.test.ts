@@ -40,6 +40,24 @@ async function run(deps: StepDeps): Promise<StepState[]> {
 }
 
 describe("sending one step", () => {
+  it("a guard that refuses stops the step before the wallet is asked: nothing is sent", async () => {
+    const { deps, log } = wallet({
+      guard: async () => "pot or series 4 needs nothing now: CrowdPots.remaining(4) reads 0.",
+    });
+    const states = await run(deps);
+    expect(states).toEqual([
+      {
+        status: "failed",
+        message: "Not sent: pot or series 4 needs nothing now: CrowdPots.remaining(4) reads 0.",
+        hash: null,
+      },
+    ]);
+    expect(log).toEqual([]);
+    // A guard that lets it through changes nothing else.
+    const passed = wallet({ guard: async () => null });
+    expect((await run(passed.deps)).map((s) => s.status)).toEqual(["signing", "mining", "done"]);
+  });
+
   it("signs, waits and finishes: signing, mining, done", async () => {
     const { deps, log } = wallet();
     const states = await run(deps);

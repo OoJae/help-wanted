@@ -595,9 +595,13 @@ describe("the desk over a chain client", () => {
 
   it("reads an order and its claim at one and the same block", async () => {
     const asked: { functionName: string; blockNumber: bigint | undefined }[] = [];
+    const cacheTimes: (number | undefined)[] = [];
     let head = 99n;
     const reader: ReaderLike = {
-      getBlockNumber: async () => head++,
+      getBlockNumber: async (args) => {
+        cacheTimes.push(args?.cacheTime);
+        return head++;
+      },
       getBalance: async () => 7n,
       async readContract({ functionName, blockNumber }) {
         asked.push({ functionName, blockNumber });
@@ -657,6 +661,9 @@ describe("the desk over a chain client", () => {
       { functionName: "orderOf", blockNumber: 99n },
       { functionName: "claimOf", blockNumber: 99n },
     ]);
+    // The block number is asked of the node, not taken from viem's cache: a reading right after one
+    // of the runner's own transactions must name a block that holds it.
+    expect(cacheTimes).toEqual([0]);
     expect(await desk.condition(1n)).toEqual({ met: true, holdsNow: false });
     // The header comes back as bytes and is read as text, with nothing dropped.
     expect(await desk.headerOf(1n)).toBe("[help-wanted order ");

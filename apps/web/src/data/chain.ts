@@ -32,6 +32,7 @@ import {
 import { guardReader, type EthReader, type LogFilter, type RawLog } from "~/lib/jsonrpc";
 import { readMany, readOne, type ViewCall, type ViewResult } from "~/lib/multicall";
 import { decodePayment, uniquePayments, type Payment, type TallyWindow } from "~/lib/tally";
+import { decodeZapQuote, zapQuoteRequest } from "~/lib/zapQuote";
 import intakeSeedLegacy from "./seed/intake-logs-mainnet.json";
 import intakeSeedWindow from "./seed/intake-logs-mainnet-26172396-26182396.json";
 
@@ -181,6 +182,11 @@ export interface ChainSource {
   isContract(address: string): Promise<boolean>;
   /** Cached view calls against any contract, for the pages about our own deployments. */
   views(cacheKey: string, calls: readonly ViewCall[], ttlMs?: number): Promise<Cached<ViewResult[]>>;
+  /**
+   * What `ethWei` buys through Zap now, in IMD-wei: a simulated `buy` from an address given ETH for
+   * the call (lib/zapQuote.ts). Rejects when the RPC cannot simulate it.
+   */
+  zapQuote(zap: string, ethWei: bigint): Promise<Cached<bigint>>;
   /**
    * Cached logs of one contract over the newest blocks the RPC serves (or from `fromBlock`, when
    * that is newer). A page view never becomes a log query of its own.
@@ -854,6 +860,24 @@ export class RpcChainSource implements ChainSource {
 
   views(cacheKey: string, calls: readonly ViewCall[], ttlMs = 30 * SECOND): Promise<Cached<ViewResult[]>> {
     return this.#cache.get(`chain:views:${cacheKey}`, { ttlMs }, () => readMany(this.#visitorReader, calls));
+  }
+
+  zapQuote(zap: string, ethWei: bigint): Promise<Cached<bigint>> {
+    return this.#cache.get(
+      `chain:zap-quote:${zap.toLowerCase()}:${ethWei}`,
+      { ttlMs: 60 * SECOND },
+      async () => {
+        const callWith = this.#visitorReader.callWith;
+        if (!callWith) throw new Error("this RPC reader cannot simulate a call that carries ETH");
+        const request = zapQuoteRequest(zap, ethWei, Math.floor(this.#now() / 1000));
+        return decodeZapQuote(
+          await callWith(
+            { to: request.to, data: request.data, from: request.from, value: request.value },
+            request.overrides,
+          ),
+        );
+      },
+    );
   }
 
   recentLogs(

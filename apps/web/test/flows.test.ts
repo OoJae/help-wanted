@@ -13,6 +13,7 @@ import {
   type Hex,
 } from "viem";
 import { describe, expect, it } from "vitest";
+import { ethFor, plainDown, zapPreset, zapQuoteRequest } from "~/lib/zapQuote";
 import { resolveDeployments } from "~/config/deployments";
 import {
   crowdPotsAbi,
@@ -1034,21 +1035,37 @@ describe("rules and endowments (launch C)", () => {
     expect(potHarvest.calls[0]?.gas).toBe(850_000n);
   });
 
-  it("says Zap is accepted as a payee but should not be named (launch C's THREATS.md, Z4)", () => {
+  it("refuses Zap as a payee, which the contracts would accept (launch C's THREATS.md, Z4)", () => {
     const recipient = ok(
       flowById("endow-create-recipient")!.plan({ recipient: ADDRESS_1 }, ctx(ALL_LAUNCHED)),
     );
     const said = recipient.summary.join(" ");
     expect(said).toContain("IMD, sIMD, Questions and CrowdPots are refused as recipients");
     expect(said).toContain(
-      `Zap (${ALL_LAUNCHED.zap}) is accepted as a recipient but should not be named: each call to Zap ends by sending its caller all the IMD Zap holds, so whoever calls harvest can take the yield in the same transaction (launch C's docs/THREATS.md, Z4).`,
+      `This form refuses Zap (${ALL_LAUNCHED.zap}) as a recipient, though the contract would accept it: each call to Zap ends by sending its caller all the IMD Zap holds, so whoever calls harvest could take the yield in the same transaction (launch C's docs/THREATS.md, Z4).`,
     );
-    const pot = ok(
-      flowById("endow-create-pot")!.plan({ potId: "4", beneficiary: ADDRESS_1 }, ctx(ALL_LAUNCHED)),
-    );
-    expect(pot.summary.join(" ")).toContain(
-      "is accepted as the fallback beneficiary but should not be named",
-    );
+    // Named, Zap is refused outright, in any spelling of its address.
+    for (const spelling of [ALL_LAUNCHED.zap!, ALL_LAUNCHED.zap!.toUpperCase().replace("0X", "0x")]) {
+      expect(
+        problems(flowById("endow-create-recipient")!.plan({ recipient: spelling }, ctx(ALL_LAUNCHED))).join(
+          " ",
+        ),
+      ).toContain("That is Zap's address. Zap cannot be a recipient");
+    }
+    expect(
+      problems(
+        flowById("endow-create-pot")!.plan({ potId: "4", beneficiary: ALL_LAUNCHED.zap! }, ctx(ALL_LAUNCHED)),
+      ).join(" "),
+    ).toContain("Zap cannot be the fallback beneficiary");
+    expect(
+      problems(
+        flowById("create-rule")!.plan(
+          { ...FILLED["create-rule"]!, action: "pay", payRecipient: ALL_LAUNCHED.zap!, payAmount: "1" },
+          ctx(ALL_LAUNCHED),
+        ),
+      ).join(" "),
+    ).toContain("THEN pay: That is Zap's address. Zap cannot be the recipient");
+    // Any other payee goes through, with the reason in the plan.
     const pay = ok(
       flowById("create-rule")!.plan(
         { ...FILLED["create-rule"]!, action: "pay", payRecipient: ADDRESS_1, payAmount: "1" },
@@ -1056,11 +1073,100 @@ describe("rules and endowments (launch C)", () => {
       ),
     );
     expect(pay.summary.join(" ")).toContain(
-      "so whoever calls fire can take the payment in the same transaction",
+      "so whoever calls fire could take the payment in the same transaction",
     );
     // A HIRE rule pays no recipient, so it says nothing of Zap.
     const hire = ok(flowById("create-rule")!.plan(FILLED["create-rule"]!, ctx(ALL_LAUNCHED)));
     expect(hire.summary.join(" ")).not.toContain("Zap");
+  });
+
+  it("a pot endowment reads what the pot still needs, and the wallet refuses a pot that needs nothing", () => {
+    const plan = ok(
+      flowById("endow-create-pot")!.plan({ potId: "4", beneficiary: ADDRESS_1 }, ctx(ALL_LAUNCHED)),
+    );
+    expect(castReadCommand(plan.reads![0]!, "RPC")).toBe(
+      `cast call ${ALL_LAUNCHED.crowdPots} "remaining(uint256)(uint256)" 4 --rpc-url RPC`,
+    );
+    // Both steps, the approval too, carry the check: nothing is approved for a pot that takes nothing.
+    for (const call of plan.calls) {
+      expect(call.guard).toMatchObject({
+        to: ALL_LAUNCHED.crowdPots,
+        functionName: "remaining",
+        args: [4n],
+      });
+      expect(call.guard?.refusal).toContain("CrowdPots.remaining(4) reads 0");
+    }
+    expect(plan.summary.join(" ")).toContain("refuses a pot that needs nothing now");
+  });
+});
+
+describe("Zap's minimum, held against a quote", () => {
+  const QUOTE = { quoteEth: "0.01", quoteImd: "3.547506876144594614", quoteAt: "2026-10-15T20:00:00.000Z" };
+
+  it("passes 99% of the quote, and says what share of the quote the minimum is", () => {
+    const plan = ok(
+      flowById("zap-buy")!.plan({ eth: "0.01", minImdOut: "3.512", ...QUOTE }, ctx(ALL_LAUNCHED)),
+    );
+    const said = plan.summary.join(" ");
+    expect(said).toContain("The quote: 0.01 ETH buys 3.5475 IMD now, by a simulated swap that sends nothing");
+    expect(said).toContain("Your minimum is 98.99% of it.");
+    expect((plan.calls[0]!.args as bigint[])[0]).toBe(3_512_000_000_000_000_000n);
+  });
+
+  it("refuses a minimum the swap cannot meet: it would revert TooLittleOut", () => {
+    // The minimum this page used to print, 8 IMD for 0.01 ETH, is more than the pool gives.
+    for (const id of ["zap-chip-in", "zap-fund-meter", "zap-buy"]) {
+      const flow = flowById(id)!;
+      const said = problems(
+        flow.plan({ ...initialValues(flow), ...FILLED[id], minImdOut: "8", ...QUOTE }, ctx(ALL_LAUNCHED)),
+      ).join(" ");
+      expect(said, id).toContain("is more than the 3.5475 IMD this much ETH buys now");
+      expect(said, id).toContain("TooLittleOut");
+      expect(said, id).toContain("about 99% of the quote, 3.512 IMD");
+    }
+  });
+
+  it("refuses a minimum below 95% of the quote unless the visitor ticks Accept any price", () => {
+    const flow = flowById("zap-chip-in")!;
+    const low = { potId: "4", eth: "0.01", minImdOut: "3", ...QUOTE };
+    expect(problems(flow.plan(low, ctx(ALL_LAUNCHED))).join(" ")).toContain(
+      "is below 95% of the quote (3.5475 IMD for this much ETH)",
+    );
+    const ticked = ok(flow.plan({ ...low, acceptAnyPrice: "true" }, ctx(ALL_LAUNCHED)));
+    expect(ticked.summary.join(" ")).toContain('you ticked "Accept any price"');
+    // 95% itself passes without the tick.
+    ok(flow.plan({ ...low, minImdOut: "3.3702" }, ctx(ALL_LAUNCHED)));
+  });
+
+  it("holds the minimum against a quote only for the amount it quoted", () => {
+    // The visitor typed another amount: the quote no longer applies, and the plan asks for one.
+    const plan = ok(flowById("zap-buy")!.plan({ eth: "0.02", minImdOut: "8", ...QUOTE }, ctx(ALL_LAUNCHED)));
+    expect(plan.summary.join(" ")).toContain("No quote has been read for this amount of ETH.");
+  });
+
+  it("starts from a quote: 99% of it, rounded down, and the quote itself out of sight", () => {
+    const quote = {
+      ethWei: 10n ** 16n,
+      imdWei: 3_547_506_876_144_594_614n,
+      readAt: "2026-10-15T20:00:00.000Z",
+    };
+    expect(zapPreset(quote)).toEqual({
+      eth: "0.01",
+      quoteEth: "0.01",
+      quoteImd: "3.547506876144594614",
+      quoteAt: "2026-10-15T20:00:00.000Z",
+      minImdOut: "3.512",
+    });
+    expect(zapPreset(null)).toEqual({ eth: "0.01" });
+    expect(plainDown(5n * 10n ** 13n)).toBe("0.00005");
+    expect(ethFor(10n ** 18n, quote)).toBe("0.0028");
+  });
+
+  it("asks Zap for the quote as a simulated buy that carries the ETH, from an address given a balance", () => {
+    const request = zapQuoteRequest(ALL_LAUNCHED.zap!, 10n ** 16n, NOW_SECONDS);
+    expect(request.value).toBe(10n ** 16n);
+    expect(request.data.slice(0, 10)).toBe(toFunctionSelector(signatureOf(zapAbi, "buy")));
+    expect(Object.keys(request.overrides)).toEqual([request.from]);
   });
 });
 

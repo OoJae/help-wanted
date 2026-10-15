@@ -17,19 +17,26 @@
  *
  * Settings (environment variables, all optional):
  *   RPC_URL         one Ethereum mainnet RPC URL, or several separated by commas, tried in order.
- *                   Default https://ethereum-rpc.publicnode.com, which serves logs for roughly the
- *                   last 9,000 blocks only. Once a launch is older than that, add a node that keeps
- *                   history, for example
- *                   RPC_URL=https://ethereum-rpc.publicnode.com,https://rpc.mevblocker.io
- *   CHUNK_SIZE      widest block range per log query. Default 2000. A node that wants less is
- *                   asked for half, and half again.
+ *                   Default https://ethereum-rpc.publicnode.com,https://rpc.mevblocker.io. Each
+ *                   range of logs is asked of the first, then of the second if the first does not
+ *                   serve it. The first serves logs for roughly the last 9,000 blocks only, so
+ *                   older logs (the early ones of launches A and B) are read from the second,
+ *                   which keeps history.
+ *   CHUNK_SIZE      widest block range per log query. Default 2000, which both default nodes serve.
+ *                   A node that wants less is asked for half, and half again.
  *   EVIDENCE_BLOCK  pin a block by number instead of the node's finalized block.
  *   EVIDENCE_API    "off" to leave IdentityMD's public API out of the run. Default on.
  *   API_GAP_MS      pause between two API requests. Default 13000 (under five a minute).
  *   EVIDENCE_OUT    write the two files into this folder instead of the repository (to compare).
  *   EVIDENCE_TAPE   also write every answer the run got to this file (the tests replay one).
  */
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { imdReads, type HttpGet } from "./imd.js";
@@ -40,7 +47,9 @@ import { DEPLOYMENT_BOOK, type DeploymentBook } from "./shared.js";
 import { emptyTape, recordingGet, recordingPost, slimTape } from "./tape.js";
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-export const DEFAULT_RPC_URL = "https://ethereum-rpc.publicnode.com";
+/** A public node for recent reads and recent logs, then one that keeps the older logs. */
+export const DEFAULT_RPC_URL =
+  "https://ethereum-rpc.publicnode.com,https://rpc.mevblocker.io";
 export const DEFAULT_CHUNK_SIZE = 2000;
 
 export interface Settings {
@@ -208,6 +217,23 @@ export async function main(
   }
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+/**
+ * True when this file is the script that was started. `import.meta.url` has every symbolic link
+ * resolved and `process.argv[1]` is the path as given, so the two are compared as real paths: a
+ * repository reached through a link (on macOS, /tmp is one) would otherwise run nothing and exit 0.
+ */
+export function isMainScript(
+  argv1: string | undefined = process.argv[1],
+  self: string = fileURLToPath(import.meta.url),
+): boolean {
+  if (!argv1) return false;
+  try {
+    return realpathSync(argv1) === realpathSync(self);
+  } catch {
+    return false;
+  }
+}
+
+if (isMainScript()) {
   process.exit(await main());
 }

@@ -13,7 +13,7 @@ import type { AgentBinding } from "~/data/chain";
 import { UpstreamBusyError } from "~/lib/cache";
 import { excerpt, formatInt, formatUtc } from "~/lib/format";
 import { isZeroHash, jobIdToBytes16, parseJobId } from "~/lib/ids";
-import { bullets, doc, fence, inline, link, numbered, quote, table } from "~/lib/md";
+import { bullets, doc, fence, inline, link, numbered, table, untrusted } from "~/lib/md";
 import { notRunResult, provenDelivery, verifyCommands, verifyJob, type VerifyResult } from "~/lib/verify";
 import { PUBLIC_RPC } from "./common";
 import { loadReceiptFlow, receiptFlowMeaning, type ReceiptFlow } from "./receipts";
@@ -349,7 +349,7 @@ export const verifyJobPage: PageDef<VerifyJobModel> = {
               ],
             ),
             facts.objective
-              ? `The objective, as written by whoever ordered the job (quoted, first 400 characters):\n\n${quote(excerpt(facts.objective, 400))}`
+              ? `The objective, as written by whoever ordered the job (first 400 characters):\n\n${untrusted(excerpt(facts.objective, 400), "the job's objective, written by whoever ordered it")}`
               : null,
           ).trimEnd()
         : null,

@@ -24,9 +24,25 @@ export interface LogFilter {
   toBlock: bigint;
 }
 
+/** An `eth_call` that carries a sender and ETH, as a simulated payable call needs. */
+export interface CallRequest {
+  to: string;
+  data: Hex;
+  from?: string;
+  value?: bigint;
+}
+
+/** Balances given to addresses for the length of one simulated call (an `eth_call` state override). */
+export type StateOverrides = Record<string, { balance: string }>;
+
 export interface EthReader {
   /** `eth_call` at the latest block. */
   call(to: string, data: Hex): Promise<Hex>;
+  /**
+   * `eth_call` with a sender, ETH and state overrides, for a quote that must not depend on what
+   * the asker holds. Optional: a reader without it cannot quote.
+   */
+  callWith?(request: CallRequest, overrides?: StateOverrides): Promise<Hex>;
   blockNumber(): Promise<bigint>;
   getLogs(filter: LogFilter): Promise<RawLog[]>;
   /** The timestamp of a block in seconds, or null when the node does not have the block. */
@@ -78,6 +94,17 @@ export function createEthReader(url: string, options: RpcOptions = {}): EthReade
 
   return {
     call: (to, data) => request<Hex>("eth_call", [{ to, data }, "latest"]),
+    callWith: (call, overrides) =>
+      request<Hex>("eth_call", [
+        {
+          to: call.to,
+          data: call.data,
+          ...(call.from ? { from: call.from } : {}),
+          ...(call.value !== undefined ? { value: toQuantity(call.value) } : {}),
+        },
+        "latest",
+        ...(overrides ? [overrides] : []),
+      ]),
     blockNumber: async () => BigInt(await request<string>("eth_blockNumber", [])),
     getLogs: (filter) =>
       request<RawLog[]>("eth_getLogs", [
@@ -136,8 +163,12 @@ export function guardReader(reader: EthReader, guards: ReaderGuards): EthReader 
       throw error;
     }
   }
+  const callWith = reader.callWith?.bind(reader);
   return {
     call: (to, data) => run(() => reader.call(to, data)),
+    ...(callWith
+      ? { callWith: (call: CallRequest, overrides?: StateOverrides) => run(() => callWith(call, overrides)) }
+      : {}),
     blockNumber: () => run(() => reader.blockNumber()),
     getLogs: (filter) => run(() => reader.getLogs(filter)),
     blockTimestamp: (block) => run(() => reader.blockTimestamp(block)),

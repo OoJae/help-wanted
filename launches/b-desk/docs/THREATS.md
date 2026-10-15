@@ -477,7 +477,11 @@ refunds the order even when the claim was true
 (`test_claimsOn_anUndecidedDisputeRefundsTheDoorbell_withTheRunnersForfeitedShare`). It has no
 arbiter and no reserved runner. This is the setting `docs/LAUNCH.md` recommends while receipts are
 stalled, for the reason given there; whoever funds the Doorbell should have a keeper watching its
-orders with 0.25 IMD for each claim it may have to challenge.
+orders with 0.25 IMD for each claim it may have to challenge. No watcher is running. On
+15 October 2026 the team's keeper, the bot that can challenge an untrue claim, is not hosted: the
+team runs it by hand and has no other watcher, and we know of nobody else who watches the
+Doorbell's orders. At block 26,200,224 that day the Doorbell held no IMD, so it could open no
+order until somebody funds it.
 
 **D3. With the claimed path off, a wrong kind or a header the swarm does not keep means no order is
 ever paid.** Each ends in a refund, the next 25th ring orders again, and the IMD stays in the

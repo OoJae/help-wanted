@@ -21,7 +21,7 @@ import {
 import { NOT_LAUNCHED } from "~/config/deployments";
 import { REFERENCE_JOB, etherscanAddress, etherscanTx } from "~/config/chain";
 import type { AgentBinding, StakingFacts } from "~/data/chain";
-import { HISTORY_READ_ON, pinnedEndowment, pinnedTipClaims } from "~/config/history";
+import { HISTORY_READ_ON, ORDER_HISTORY, pinnedEndowment, pinnedTipClaims } from "~/config/history";
 import { HOUSE_WALLETS, houseSet } from "~/config/house";
 import type {
   DoorbellRingers,
@@ -33,11 +33,31 @@ import type {
 } from "~/data/house";
 import { messageOf } from "~/lib/cache";
 import { COMPARISONS, ENDOWMENT, PAYROLL_SPLIT, RULE } from "~/lib/contracts";
-import { formatDuration, formatImd, formatInt, formatUnits, formatUtc, plural } from "~/lib/format";
+import {
+  formatDuration,
+  formatImd,
+  formatInt,
+  formatUnits,
+  formatUtc,
+  parseUnits,
+  plural,
+} from "~/lib/format";
 import { parseIndex } from "~/lib/ids";
-import { bullets, doc, fence, inline, link, numbered, quote, table } from "~/lib/md";
+import { bullets, doc, fence, inline, link, numbered, table, untrusted } from "~/lib/md";
 import { potCard, templateForKindHash, type PotCard } from "./cards";
-import { castView, contractStatus, liveNote, notLiveNotes, PUBLIC_RPC, type ContractStatus } from "./common";
+import {
+  castView,
+  contractStatus,
+  ethBeside,
+  ethNote,
+  liveNote,
+  loadZapQuote,
+  notLiveNotes,
+  PUBLIC_RPC,
+  type ContractStatus,
+} from "./common";
+import { zapPreset } from "~/lib/zapQuote";
+import { RUNNER_STATEMENT } from "./desk";
 import { flowMarkdown, previewFlow, type FlowPreview } from "./flowPreview";
 import { sourceNote, type PageDef, type SourceNote } from "./types";
 
@@ -55,14 +75,20 @@ export interface PotsModel {
   error: string | null;
   how: string[];
   check: string[];
-  /** Chipping in, and claiming a refund. */
+  /** Chipping in, and claiming a refund. Empty while no pot exists: there is nothing to chip into. */
   flows: FlowPreview[];
+  /** Why those forms are not shown, while no pot exists. Null when they are. */
+  flowsHidden: string | null;
   /** Opening a pot, with its job kind in text. */
   openFlow: FlowPreview;
-  /** Where the example in that form comes from, and why it allows a bonded claim. */
+  /** What the form starts with, and why. */
   openNote: string;
-  /** Chipping in with ETH through Zap, with a minimum and a deadline. */
-  zapFlow: FlowPreview;
+  /** The opening form's terms in IMD, with ETH beside them at the quote read for this page. */
+  openTerms: { label: string; imd: string; eth: string | null }[];
+  /** Chipping in with ETH through Zap, with a minimum and a deadline. Null while no pot exists. */
+  zapFlow: FlowPreview | null;
+  /** How the ETH beside IMD amounts on this page was worked out. Null without a quote. */
+  ethNote: string | null;
   sources: SourceNote[];
 }
 
@@ -101,6 +127,22 @@ export const OPEN_POT_EXAMPLE = {
   firstChip: "0",
 };
 
+/**
+ * What the form to open a pot starts with: small and receipt-only. A target of 1.5 IMD, an order
+ * priced from 0.8 IMD, a runner's bond of 0.25 IMD (the desk's minimum), and no bonded claim:
+ * IdentityMD's receipts have been arriving since 13 October 2026, and order 1 was paid on one.
+ */
+export const OPEN_POT_DEFAULT = {
+  ...OPEN_POT_EXAMPLE,
+  target: "1.5",
+  minPay: "0.8",
+  bond: "0.25",
+  allowClaimed: "false",
+};
+
+export const OPEN_POT_DEFAULT_NOTE =
+  "The form starts small and receipt-only: a research report, a target of 1.5 IMD, an order priced from 0.8 IMD and rising to the target over a day, the desk's minimum runner's bond of 0.25 IMD, and no bonded delivery claim, so the pot pays only on IdentityMD's receipt and is refunded otherwise. The job text is the one launch B's launch document proposed for the first pot; that document's terms were larger (a target of 2 IMD, a bond of 0.5 IMD) and allowed a bonded claim, because receipts were stalled when it was written.";
+
 /** What the page says of that example, in the Markdown twin and beside the form. */
 export const OPEN_POT_EXAMPLE_NOTE =
   "The example is the first pot proposed in launch B's launch document: a research report, a target of 2 IMD, an order priced from 1 IMD and rising to the target over a day, a runner's bond of 0.5 IMD. It allows a bonded delivery claim, because IdentityMD's receipts were stalled when that document was written and a receipt-only pot could not have been paid; the document says to open pots without it once receipts are arriving.";
@@ -110,32 +152,50 @@ export const potsPage: PageDef<PotsModel> = {
   pattern: "/pots",
   async load({ sources, now }) {
     const { house, deployments } = sources;
-    const read = await house.pots(40);
+    const [read, quote] = await Promise.all([house.pots(40), loadZapQuote(sources)]);
     const pots = contractStatus(deployments, "crowdPots");
     const zap = contractStatus(deployments, "zap");
+    const count = read.live && read.data ? read.data.count : null;
+    // With no pot on chain there is nothing to chip into or claim back: those forms wait for one.
+    const none = read.live && count === 0;
+    const imdOf = (text: string) => parseUnits(text, 18) ?? 0n;
+    const terms = [
+      { label: "Target", imd: OPEN_POT_DEFAULT.target },
+      { label: "Opening price of the order", imd: OPEN_POT_DEFAULT.minPay },
+      { label: "Runner's bond", imd: OPEN_POT_DEFAULT.bond },
+    ];
     return {
       generatedAt: now.toISOString(),
       pots,
       zap,
       launched: read.live,
-      count: read.live && read.data ? read.data.count : null,
+      count,
       cards: read.live && read.data ? read.data.pots.map((p) => potCard(p, now)) : [],
       error: read.live ? read.error : null,
       how: HOW_A_POT_WORKS,
       check: BEFORE_YOU_CHIP,
-      flows: [
-        previewFlow("chip-in", deployments, now, {}, { potId: "1", amount: "0.5" }),
-        previewFlow(
-          "claim-refund",
-          deployments,
-          now,
-          {},
-          { potId: "1", contributor: "0x0000000000000000000000000000000000000001" },
-        ),
-      ],
-      openFlow: previewFlow("open-pot", deployments, now, {}, OPEN_POT_EXAMPLE),
-      openNote: OPEN_POT_EXAMPLE_NOTE,
-      zapFlow: previewFlow("zap-chip-in", deployments, now, {}, { potId: "1", eth: "0.01", minImdOut: "8" }),
+      flows: none
+        ? []
+        : [
+            previewFlow("chip-in", deployments, now, {}, { potId: "1", amount: "0.5" }),
+            previewFlow(
+              "claim-refund",
+              deployments,
+              now,
+              {},
+              { potId: "1", contributor: "0x0000000000000000000000000000000000000001" },
+            ),
+          ],
+      flowsHidden: none
+        ? "No pot exists yet (CrowdPots.potCount() read 0 for this page), so the forms to chip in, to chip in with ETH and to claim a refund are not shown. They appear once a pot is open. Open the first one below."
+        : null,
+      openFlow: previewFlow("open-pot", deployments, now, {}, OPEN_POT_DEFAULT),
+      openNote: OPEN_POT_DEFAULT_NOTE,
+      openTerms: terms.map((t) => ({ ...t, eth: ethBeside(imdOf(t.imd), quote) })),
+      zapFlow: none
+        ? null
+        : previewFlow("zap-chip-in", deployments, now, zapPreset(quote), { potId: "1", ...zapPreset(quote) }),
+      ethNote: ethNote(quote),
       sources: [liveNote("Pots", read)],
     };
   },
@@ -173,13 +233,20 @@ export const potsPage: PageDef<PotsModel> = {
       "The contract cannot check these for you:",
       bullets(m.check),
       "## The transactions",
+      m.flowsHidden,
       ...m.flows.map(flowMarkdown),
       "## Open a pot",
       `A pot names its job kind in text, as the first member of its terms. ${m.openNote}`,
+      bullets(m.openTerms.map((t) => `${t.label}: ${t.imd} IMD${t.eth ? ` (${t.eth})` : ""}`)),
+      m.ethNote,
       flowMarkdown(m.openFlow),
-      "## Chip in with ETH",
-      `Zap (launch C) is ${m.zap.label}. It swaps ETH for IMD on the Uniswap v4 ETH/IMD pool and chips into the pot in your name. Its three entry points each take the least IMD you accept and a deadline; the form sets the deadline a few minutes ahead and shows it.`,
-      flowMarkdown(m.zapFlow),
+      m.zapFlow
+        ? doc(
+            "## Chip in with ETH",
+            `Zap (launch C) is ${m.zap.label}. It swaps ETH for IMD on the Uniswap v4 ETH/IMD pool and chips into the pot in your name. Its three entry points each take the least IMD you accept and a deadline. The form fills the minimum with 99% of a quote for the ETH typed, refuses one below 95% of it unless you tick "Accept any price", and sets the deadline a few minutes ahead and shows it.`,
+            flowMarkdown(m.zapFlow),
+          ).trimEnd()
+        : null,
     );
   },
 };
@@ -205,6 +272,8 @@ export interface PotModel {
   /** Said beside the chip-in form when the text cannot be shown. Null when it is shown, or there is no pot. */
   specMissing: string | null;
   flows: FlowPreview[];
+  /** How the ETH beside IMD amounts on this page was worked out. Null without a quote. */
+  ethNote: string | null;
   commands: { comment: string; command: string }[];
   sources: SourceNote[];
 }
@@ -216,8 +285,13 @@ export const potPage: PageDef<PotModel> = {
     const id = parseIndex(params.id);
     if (id === null || id < 1) return null;
     const { house, deployments } = sources;
-    const read = await house.pot(id);
+    const [read, quote] = await Promise.all([house.pot(id), loadZapQuote(sources)]);
     if (read.live && read.data === null && !read.error) return null;
+    // An IMD amount with what it costs in ETH beside it, at the quote read for this page.
+    const imdWords = (wei: bigint) => {
+      const eth = ethBeside(wei, quote);
+      return `${formatImd(wei)} IMD${eth ? ` (${eth})` : ""}`;
+    };
     const pot = read.live ? read.data : null;
     const pots = contractStatus(deployments, "crowdPots");
     const known = templateForKindHash(pot?.kindHash);
@@ -229,14 +303,13 @@ export const potPage: PageDef<PotModel> = {
         label: "Job kind",
         value: kind ?? "could not be read; do not chip in to a kind you have not read",
       });
-      if (pot.targetWei !== null) facts.push({ label: "Target", value: `${formatImd(pot.targetWei)} IMD` });
+      if (pot.targetWei !== null) facts.push({ label: "Target", value: imdWords(pot.targetWei) });
       if (pot.raisedWei !== null) facts.push({ label: "Raised", value: `${formatImd(pot.raisedWei)} IMD` });
-      facts.push({ label: "Still needed", value: `${formatImd(pot.remainingWei)} IMD` });
+      facts.push({ label: "Still needed", value: imdWords(pot.remainingWei) });
       if (pot.deadline) facts.push({ label: "Collects until", value: formatUtc(pot.deadline * 1000) });
       if (pot.minPayWei !== null)
-        facts.push({ label: "Order's opening price", value: `${formatImd(pot.minPayWei)} IMD` });
-      if (pot.bondWei !== null)
-        facts.push({ label: "Runner's bond", value: `${formatImd(pot.bondWei)} IMD` });
+        facts.push({ label: "Order's opening price", value: imdWords(pot.minPayWei) });
+      if (pot.bondWei !== null) facts.push({ label: "Runner's bond", value: imdWords(pot.bondWei) });
       if (pot.hireSecs !== null)
         facts.push({ label: "Waits for a runner for", value: formatDuration(pot.hireSecs * 1000) });
       if (pot.deliverySecs !== null)
@@ -280,8 +353,9 @@ export const potPage: PageDef<PotModel> = {
           : null,
       flows: [
         previewFlow("chip-in", deployments, now, { potId: String(id) }, { amount: "0.5" }),
-        previewFlow("zap-chip-in", deployments, now, { potId: String(id) }, { eth: "0.01", minImdOut: "8" }),
+        previewFlow("zap-chip-in", deployments, now, { potId: String(id), ...zapPreset(quote) }),
       ],
+      ethNote: ethNote(quote),
       commands: [
         {
           comment: "What the pot still needs.",
@@ -317,7 +391,7 @@ export const potPage: PageDef<PotModel> = {
           : `**Pot ${m.id} does not exist yet.** CrowdPots is ${m.pots.label}.`,
       m.error ? `CrowdPots could not be read just now: ${m.error}` : null,
       m.spec
-        ? `The job this pot will order, in its opener's words (it hashes to the pot's job text hash):\n\n${quote(m.spec)}`
+        ? `The job this pot will order, in its opener's words (it hashes to the pot's job text hash):\n\n${untrusted(m.spec, "the pot's job text, written by whoever opened the pot")}`
         : m.specMissing,
       m.kindNote,
       m.facts.length > 0
@@ -326,6 +400,7 @@ export const potPage: PageDef<PotModel> = {
             m.facts.map((f) => [f.label, f.value]),
           )
         : null,
+      m.ethNote,
       fence(m.commands.map((c) => `# ${c.comment}\n${c.command}`).join("\n\n"), "sh"),
       ...m.flows.map(flowMarkdown),
     );
@@ -694,7 +769,8 @@ export interface SeatsModel {
   how: string[];
   /** One sentence for each launch this page leans on that is not live. Empty once all are. */
   notLive: string[];
-  example: { seat: number; agent: string; job: string };
+  /** Order 1's job, its agent and the seat that agent was bound to, with what happened to its tip. */
+  example: { seat: number; agent: string; job: string; words: string };
   flows: FlowPreview[];
   sources: SourceNote[];
 }
@@ -763,10 +839,16 @@ export const seatsPage: PageDef<SeatsModel> = {
       rejected,
       how: HOW_SEATS_ARE_PAID,
       notLive: notLiveNotes(deployments, SEATS_NOT_LIVE),
-      example: { seat: 1998, agent: "52211", job: REFERENCE_JOB.jobId },
+      example: {
+        seat: 1049,
+        agent: "51519",
+        job: ORDER_HISTORY.orders[0]?.jobId ?? REFERENCE_JOB.jobId,
+        words:
+          "That is order 1's job. IdentityMD's Adapter bound that agent to seat #1049 when read on 15 October 2026, and that day Payroll paid order 1's 0.05 IMD tip for the agent to the seat's owner (claimTip(51519)). The two forms below are worked through for this seat and this agent. That tip is paid, so claimTip(51519) now pays nothing until another settled order tips the agent.",
+      },
       flows: [
-        previewFlow("claim-seat", deployments, now, {}, { tokenId: "1998" }),
-        previewFlow("claim-tip", deployments, now, {}, { agentId: "52211" }),
+        previewFlow("claim-seat", deployments, now, {}, { tokenId: "1049" }),
+        previewFlow("claim-tip", deployments, now, {}, { agentId: "51519" }),
       ],
       sources: [liveNote("Seat pool", ledger)],
     };
@@ -778,7 +860,7 @@ export const seatsPage: PageDef<SeatsModel> = {
   }),
   markdown(m) {
     return doc(
-      `There are ${formatInt(m.seatCount)} IdentityMD seats (${link(m.seats, m.seatsUrl)}). HELP WANTED pays their owners in two ways. To look one up, open \`/seats/<number>\`, for example ${link("/seats/1998", "/seats/1998")}; for an agent, \`/seats?agent=<id>\`.`,
+      `There are ${formatInt(m.seatCount)} IdentityMD seats (${link(m.seats, m.seatsUrl)}). HELP WANTED pays their owners in two ways. To look one up, open \`/seats/<number>\`, for example ${link("/seats/1049", "/seats/1049")}; for an agent, \`/seats?agent=<id>\`.`,
       m.payroll.address
         ? null
         : `**Nothing can be claimed yet: Payroll (launch A) is ${NOT_LAUNCHED}.** Seat owners and agent bindings are read live today.`,
@@ -813,7 +895,7 @@ export const seatsPage: PageDef<SeatsModel> = {
       "## How seats are paid",
       numbered(m.how),
       "## A worked example",
-      `Job ${inline(m.example.job)}'s work record names agent ${m.example.agent}. The Adapter binds that agent to seat #${m.example.seat}. Had the job been ordered through our desk, that seat's owner would have been tipped. See ${link(`/verify/${m.example.job}`, `/verify/${m.example.job}`)}.`,
+      `Job ${inline(m.example.job)}'s work record names agent ${m.example.agent}. ${m.example.words} See ${link(`/verify/${m.example.job}`, `/verify/${m.example.job}`)}.`,
       fence(
         `cast call ${m.adapter} "bindingOf(uint256)((uint8,address,uint256))" ${m.example.agent} --rpc-url ${PUBLIC_RPC}`,
         "sh",
@@ -884,8 +966,8 @@ export const seatPage: PageDef<SeatModel> = {
     const tokenId = parseIndex(params.tokenId, MAINNET.SEAT_COUNT - 1);
     if (tokenId === null) return null;
     const { chain, house, deployments } = sources;
-    // The reference job's agent is looked up every time so that its seat always shows its agent.
-    await chain.bindings(["52211"]).catch(() => []);
+    // The reference job's agent and order 1's are looked up every time, so their seats show them.
+    await chain.bindings(["52211", "51519"]).catch(() => []);
     const [owner, pay] = await Promise.all([
       chain.seatOwner(tokenId).then(
         (value) => ({ value, error: null as string | null }),
@@ -1504,8 +1586,30 @@ export function ringersWords(state: DoorbellState, ours: ReadonlySet<string>): s
   const split = ringsByOrigin(state.ringers, ours);
   if (split.read === 0)
     return "No ring's log could be read just now, so the rings are not split between HOUSE and OUTSIDE here.";
-  return `Of the ${plural(split.read, "ring")} whose log this server read (blocks ${formatInt(split.fromBlock)} to ${formatInt(split.toBlock)}), ${formatInt(split.house)} ${split.house === 1 ? "was" : "were"} sent by our own wallets (HOUSE) and ${formatInt(split.outside)} by others (OUTSIDE).`;
+  const { pinned, pinnedOn } = state.ringers;
+  const where =
+    pinned > 0
+      ? `whose log was read (blocks ${formatInt(split.fromBlock)} to ${formatInt(split.toBlock)}; the logs of the first ${formatInt(pinned)} are older than the public RPC serves, so they were read from the chain on ${pinnedOn ?? "an earlier day"} and are kept with this site)`
+      : `whose log this server read (blocks ${formatInt(split.fromBlock)} to ${formatInt(split.toBlock)})`;
+  return `Of the ${plural(split.read, "ring")} ${where}, ${formatInt(split.house)} ${split.house === 1 ? "was" : "were"} sent by our own wallets (HOUSE) and ${formatInt(split.outside)} by others (OUTSIDE).`;
 }
+
+/**
+ * What the Doorbell needs before it can hire again, in one sentence: the IMD it lacks for one
+ * order's escrow and the rings it still has to hear. Null when either could not be read.
+ */
+export function doorbellNeeds(state: DoorbellState): string | null {
+  const { maxPayWei: max, balanceWei: held, funded } = state;
+  const rings = plural(state.ringsUntilHire, "more ring");
+  const again = state.hires !== null && state.hires > 0 ? "hire again" : "hire";
+  if (funded === true) return `To ${again} it needs only ${rings}: it already holds the escrow of one order.`;
+  if (funded === null || max === null || held === null) return null;
+  const short = max > held ? max - held : max;
+  return `To ${again} it needs ${formatImd(short)} IMD and ${rings}: it holds ${formatImd(held)} IMD, and one order escrows ${formatImd(max)} IMD.`;
+}
+
+/** Said wherever the Doorbell's claimed path is described. */
+export const NO_WATCHER = `No watcher is running: the team runs nothing that watches the Doorbell's orders to challenge an untrue delivery claim. Its keeper (bots/keeper) can challenge one, but it is run by hand, not hosted (the team's statement, ${RUNNER_STATEMENT.asOf}).`;
 
 /**
  * Where a launched Doorbell stands, one sentence each, from its own views, its ring logs and the
@@ -1543,15 +1647,17 @@ export function doorbellFacts(state: DoorbellState, ours: ReadonlySet<string>): 
         ? `It is funded: it holds ${holds}, and the next 25th ring opens an order for ${needs}.`
         : `It is not funded: it holds ${holds} and one order needs ${needs}, so a 25th ring that comes now is counted and hires nothing. Anyone may fund it with a plain IMD transfer; what it holds can never be withdrawn and leaves only as the escrow of its own orders.`;
   const who = ringersWords(state, ours);
+  const toHire = doorbellNeeds(state);
   const facts = [
-    `${formatInt(state.ringsUntilHire)} ring${state.ringsUntilHire === 1 ? "" : "s"} until the next hire. ${rung}, and ${hired}.${who ? ` ${who}` : ""}`,
+    ...(toHire ? [toHire] : []),
+    `${formatInt(state.ringsUntilHire)} ring${state.ringsUntilHire === 1 ? "" : "s"} until the next hire. ${rung}, and ${hired}. The contract counts every ring (rings()), and each ring's Rang log names who rang.${who ? ` ${who}` : ""}`,
     price,
     money,
     `Its orders pay on ${doorbellPaysOn(state.allowClaimed)} (fixed when it was launched).`,
   ];
   if (state.allowClaimed === true) {
     facts.push(
-      "With the claimed path on, everything it holds is open to delivery claims that nobody challenges: that is launch B's disclosed limit D2, on the judges page. Fund it with small amounts.",
+      `With the claimed path on, everything it holds is open to delivery claims that nobody challenges: that is launch B's disclosed limit D2, on the judges page. An untrue claim nobody challenges within 24 hours is paid from it. ${NO_WATCHER} Fund it with small amounts.`,
     );
   }
   if (state.lastOrderId !== null && state.lastOrderId > 0) {

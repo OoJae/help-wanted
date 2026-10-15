@@ -133,6 +133,31 @@ describe("the front door: README.md", () => {
   });
 });
 
+describe("the front door: SECURITY.md", () => {
+  const SECURITY = read("SECURITY.md");
+
+  it("names every contract of the book as in scope, at its address, and the bots", () => {
+    for (const key of LAUNCH_KEYS) {
+      for (const address of Object.values(DEPLOYMENT_BOOK[key].contracts)) {
+        if (address === null) continue;
+        expect([address, SECURITY.includes(checksumAddress(address))]).toEqual([
+          address,
+          true,
+        ]);
+      }
+    }
+    expect(SECURITY).toContain("`bots/keeper`");
+    expect(SECURITY).toContain("`bots/runner`");
+  });
+
+  it("says how to report privately, and that there is no bounty", () => {
+    expect(SECURITY).toContain("private vulnerability reporting");
+    expect(SECURITY).toContain("https://github.com/OoJae/help-wanted");
+    expect(SECURITY).toMatch(/^## No bounty$/m);
+    expect(SECURITY).toContain("There is no bounty.");
+  });
+});
+
 describe("the generated evidence in the working tree", () => {
   const jsonPath = join(ROOT, "evidence", "evidence.json");
   const markdownPath = join(ROOT, "EVIDENCE.md");
@@ -180,6 +205,7 @@ describe("everything written for the front door", () => {
   }
   const ours = [
     join(ROOT, "README.md"),
+    join(ROOT, "SECURITY.md"),
     join(ROOT, "LICENSE"),
     ...["EVIDENCE.md", "evidence/evidence.json"]
       .map((name) => join(ROOT, name))

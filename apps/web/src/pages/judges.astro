@@ -135,6 +135,18 @@ const parts = [
           <p class="small">{m.live.prove.note}</p>
         </>
       )}
+      {m.live.proveSecond && (
+        <>
+          <h3 class="sub">The same proof for a research report</h3>
+          <Commands commands={m.live.proveSecond.commands} />
+          <div class="cmd cmd--plain">
+            <div class="cmd__row">
+              <pre class="break">{m.live.proveSecond.answer}</pre>
+            </div>
+          </div>
+          <p class="small">{m.live.proveSecond.note}</p>
+        </>
+      )}
     </section>
   )}
 
@@ -593,6 +605,26 @@ const parts = [
       </div>
     </dl>
     <Commands commands={h.commands} />
+
+    {m.provenOnChain.length > 0 && (
+      <>
+        <h3 class="sub" id="proven-on-chain">
+          4. Our contracts and IdentityMD's, working together on mainnet
+        </h3>
+        {m.provenOnChain.map((p) => (
+          <>
+            <p>
+              <strong>{p.title}.</strong>{" "}
+              <a class="data break" href={p.txUrl} rel="noopener">
+                {p.tx}
+              </a>
+            </p>
+            <p>{p.words}</p>
+            <Commands commands={p.commands} />
+          </>
+        ))}
+      </>
+    )}
   </section>
 
   <section class="section" id="claims">

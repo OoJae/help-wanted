@@ -34,6 +34,7 @@ WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
+
 # Production dependencies of the site and of the one workspace package it imports, nothing else.
 RUN pnpm install --frozen-lockfile --prod --filter "@help-wanted/web..."
 
@@ -45,5 +46,10 @@ RUN pnpm --filter @help-wanted/web build
 USER node
 WORKDIR /app/apps/web
 EXPOSE 4321
+# Railway passes its service variables to the build as arguments. A deploy from GitHub carries the
+# commit, which /api/v1/status then reports; any other build leaves it empty, and the status says
+# "unknown". It comes after the install and the build, so a new commit does not redo them.
+ARG RAILWAY_GIT_COMMIT_SHA=""
+ENV GIT_COMMIT=${RAILWAY_GIT_COMMIT_SHA}
 # node stays PID 1, so SIGTERM stops the server cleanly.
 CMD ["node", "dist/server/entry.mjs"]

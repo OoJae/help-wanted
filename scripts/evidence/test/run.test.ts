@@ -840,8 +840,13 @@ describe("the command", () => {
   });
 
   it("reads its settings from the environment, with the defaults the documents give", () => {
+    // The launches are older than the public node's log window, so a second node that keeps
+    // history is part of the default: `pnpm evidence` works as the README gives it.
     expect(settingsFrom({}, "/repo")).toEqual({
-      rpcUrls: ["https://ethereum-rpc.publicnode.com"],
+      rpcUrls: [
+        "https://ethereum-rpc.publicnode.com",
+        "https://rpc.mevblocker.io",
+      ],
       chunkSize: 2000,
       block: null,
       api: true,

@@ -62,7 +62,7 @@ const { model: m, meta } = loaded;
         name="agent"
         type="text"
         inputmode="numeric"
-        placeholder="An ERC-8004 agent id, like 52211"
+        placeholder="An ERC-8004 agent id, like 51519"
         required
       />
       <button class="btn btn--ghost" type="submit">
@@ -196,9 +196,8 @@ const { model: m, meta } = loaded;
         <h3 class="sub sub--first">A worked example</h3>
         <p>
           Job <a href={`/verify/${m.example.job}`}>{m.example.job.slice(0, 8)}</a>'s work record names agent{" "}
-          {m.example.agent}. IdentityMD's Adapter binds that agent to{" "}
-          <a href={`/seats/${m.example.seat}`}>seat #{m.example.seat}</a>. Had the job been ordered through
-          our desk, that seat's owner would have been tipped.
+          {m.example.agent}. {m.example.words} See{" "}
+          <a href={`/seats/${m.example.seat}`}>seat #{m.example.seat}</a>.
         </p>
         <Commands
           commands={[

@@ -10,6 +10,7 @@ import {
 import { DEFAULT_RPC_URL, etherscanAddress } from "~/config/chain";
 import type { Live } from "~/data/house";
 import { callSignatureOf, signatureOf } from "~/lib/contracts";
+import { ethFor, plainDown, QUOTE_ETH, type ZapQuote } from "~/lib/zapQuote";
 import type { SourceNote } from "./types";
 
 export interface ContractStatus {
@@ -177,4 +178,37 @@ export function castWrite(
   const to = address ?? `$${placeholder}`;
   const tail = args.length ? ` ${args.join(" ")}` : "";
   return `cast send ${to} "${signatureOf(abi, functionName)}"${tail}${extra} --rpc-url ${PUBLIC_RPC} --account <your-keystore-account>`;
+}
+
+/**
+ * What 0.01 ETH buys through Zap now, read for a page so that its Zap forms start with a minimum
+ * that the swap can meet (99% of the quote). Null while Zap has no address, and when the RPC could
+ * not simulate the swap: a form then asks the visitor to run the quote command.
+ */
+export async function loadZapQuote(sources: {
+  deployments: Deployments;
+  chain: { zapQuote(zap: string, ethWei: bigint): Promise<{ value: bigint; fetchedAt: number }> };
+}): Promise<ZapQuote | null> {
+  const zap = sources.deployments.contracts.zap.address;
+  if (!zap) return null;
+  try {
+    const read = await sources.chain.zapQuote(zap, QUOTE_ETH);
+    if (read.value === 0n) return null;
+    return { ethWei: QUOTE_ETH, imdWei: read.value, readAt: new Date(read.fetchedAt).toISOString() };
+  } catch {
+    return null;
+  }
+}
+
+/** "about 0.0028 ETH" beside an IMD amount, at the quote read for the page; null without a quote. */
+export function ethBeside(imdWei: bigint, quote: ZapQuote | null): string | null {
+  const eth = ethFor(imdWei, quote);
+  return eth === null ? null : `about ${eth} ETH`;
+}
+
+/** Said once on a page that shows ETH beside IMD. */
+export function ethNote(quote: ZapQuote | null): string | null {
+  return quote
+    ? `ETH figures beside IMD amounts are at the price Zap quoted for ${plainDown(quote.ethWei, 18)} ETH when this page was made (${plainDown(quote.imdWei)} IMD). A much larger swap costs more per IMD.`
+    : null;
 }

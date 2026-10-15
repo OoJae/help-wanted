@@ -4,11 +4,15 @@
  * 1. Twins. A path ending in `.json` or `.md` is the JSON or Markdown form of the page at the same
  *    path without the ending. They are answered here, from the same model as the HTML page.
  * 2. Headers. Every HTML page says it is UTF-8, may be cached briefly by anyone, and names its
- *    twins in `Link` headers so a client that reads only headers can still find them.
+ *    twins in `Link` headers so a client that reads only headers can still find them. Every
+ *    response this middleware answers (pages, twins, the API) carries the security headers of
+ *    `lib/http.ts`: no framing by another site, HTTPS only, no sniffing. Static files are served by
+ *    the Node adapter before the middleware runs, and go without them.
  */
+import type { APIContext, MiddlewareNext } from "astro";
 import { defineMiddleware } from "astro:middleware";
 import { messageOf, UpstreamBusyError, UpstreamDownError } from "~/lib/cache";
-import { errorResponse, preflightResponse, textResponse } from "~/lib/http";
+import { errorResponse, preflightResponse, textResponse, withSecurityHeaders } from "~/lib/http";
 import { matchPage, parseTwinPath, twinPaths, type TwinFormat } from "~/models/registry";
 import { loadPath, requestContext, twinResponse } from "~/lib/twins";
 
@@ -25,7 +29,11 @@ function twinNotFound(twin: { path: string; format: TwinFormat }): Response {
       );
 }
 
-export const onRequest = defineMiddleware(async (context, next) => {
+export const onRequest = defineMiddleware(async (context, next) =>
+  withSecurityHeaders(await respond(context, next)),
+);
+
+async function respond(context: APIContext, next: MiddlewareNext): Promise<Response> {
   const { url, request } = context;
   const twin = parseTwinPath(url.pathname);
 
@@ -62,10 +70,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // A path that ends like a twin but names no page gets its "not found" in the form it asked for.
   if (twin && response.status === 404 && !url.pathname.startsWith("/api/")) return twinNotFound(twin);
   const type = response.headers.get("content-type") ?? "";
-  // Nothing here is meant to be sniffed into another type, and outbound links say only where
-  // the reader came from, not which page.
-  response.headers.set("x-content-type-options", "nosniff");
-  response.headers.set("referrer-policy", "strict-origin-when-cross-origin");
   if (type.startsWith("text/html")) {
     response.headers.set("content-type", "text/html; charset=utf-8");
     if (response.status >= 500) {
@@ -80,4 +84,4 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
   }
   return response;
-});
+}

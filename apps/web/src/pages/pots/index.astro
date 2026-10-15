@@ -89,6 +89,7 @@ const { model: m, meta } = loaded;
       <h2>The transactions</h2>
       <p>every wallet action, with its cast command</p>
     </div>
+    {m.flowsHidden && <p class="notice notice--quiet">{m.flowsHidden}</p>}
     {m.flows.map((flow, index) => (
       <FlowBlock flow={flow} exampleNote="pot 1" repeat={index > 0} />
     ))}
@@ -97,15 +98,32 @@ const { model: m, meta } = loaded;
       A pot names its job kind in text, as the first member of its terms, so that anyone can read what kind of
       work it will order. {m.openNote}
     </p>
-    <FlowBlock flow={m.openFlow} exampleNote="a research pot with a target of 2 IMD" repeat />
-    <h3 class="sub" id="zap">
-      Chip in with ETH
-    </h3>
-    <p>
-      Zap (launch C) is <strong>{m.zap.label}</strong>. It swaps ETH for IMD on the Uniswap v4 ETH/IMD pool
-      and chips into the pot in your name. You set the least IMD you accept and a deadline; the form sets the
-      deadline a few minutes ahead and shows it.
-    </p>
-    <FlowBlock flow={m.zapFlow} exampleNote="0.01 ETH into pot 1" repeat />
+    <ul>
+      {m.openTerms.map((t) => (
+        <li>
+          {t.label}: {t.imd} IMD{t.eth && <span class="muted"> ({t.eth})</span>}
+        </li>
+      ))}
+    </ul>
+    {m.ethNote && <p class="small">{m.ethNote}</p>}
+    <FlowBlock
+      flow={m.openFlow}
+      exampleNote="a receipt-only research pot with a target of 1.5 IMD"
+      repeat={m.flows.length > 0}
+    />
+    {m.zapFlow && (
+      <>
+        <h3 class="sub" id="zap">
+          Chip in with ETH
+        </h3>
+        <p>
+          Zap (launch C) is <strong>{m.zap.label}</strong>. It swaps ETH for IMD on the Uniswap v4 ETH/IMD
+          pool and chips into the pot in your name. The form fills in the least IMD you accept with 99% of a
+          quote for the ETH you type, refuses a minimum below 95% of it unless you tick "Accept any price",
+          and sets the deadline a few minutes ahead and shows it.
+        </p>
+        <FlowBlock flow={m.zapFlow} exampleNote="0.01 ETH into pot 1" repeat />
+      </>
+    )}
   </section>
 </Layout>

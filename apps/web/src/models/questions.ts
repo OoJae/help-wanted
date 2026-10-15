@@ -36,17 +36,19 @@ import { addressList, type Feed, type FeedRound } from "~/data/house";
 import type { KeeperRead } from "~/data/keeper";
 import { excerpt, formatDuration, formatImd, formatInt, formatUtc, shortAddress } from "~/lib/format";
 import { completionWords, type IntakeRequest } from "~/lib/intake";
-import { bullets, doc, fence, inline, link, quote, table } from "~/lib/md";
+import { bullets, doc, fence, inline, link, table, untrusted } from "~/lib/md";
 import {
   castCall,
   castView,
   castWrite,
   contractStatus,
   liveNote,
+  loadZapQuote,
   notLiveNotes,
   PUBLIC_RPC,
   type ContractStatus,
 } from "./common";
+import { zapPreset } from "~/lib/zapQuote";
 import { flowMarkdown, previewFlow, type FlowPreview } from "./flowPreview";
 import { sourceNote, type PageDef, type SourceNote } from "./types";
 
@@ -64,6 +66,8 @@ export interface RequestRow {
   house: boolean;
   /** Set when the answer was to be delivered to a contract. */
   callbackTarget: string | null;
+  /** What was bought, as the Intake logged it: `oracle.request@oracle-1`, `launch.open@launch-1`, … */
+  action: string;
   /** The question, shortened. Third-party text. */
   question: string | null;
   answerType: string | null;
@@ -239,11 +243,23 @@ const SETTLED = {
     "Settled by panel agreement. IdentityMD's oracle has no recipe that ranks senders among the transfers to one recipient, so the method is written out in the question itself and the oracle signs what at least five of the seven panel members agree on. IdentityMD does not recompute this answer, and nothing of value should depend on it.",
 } as const;
 
+/**
+ * How a Standing Question differs from IdentityMD's own schedules, in one sentence. Checked against
+ * IdentityMD's docs ("Schedule work", "How paying works", "Pay onchain") on 15 October 2026:
+ * schedules are quoted over HTTP (the quote may be paid on chain through `Intake.pay(quoteHash, …)`)
+ * and owned by the paying wallet; they are paid per run up front and unused runs are not refunded;
+ * owning gives no controls, as pausing and cancelling stay with IdentityMD's team; and a schedule
+ * can also pause itself ("paused itself after three failed runs").
+ */
+export const STANDING_VS_SCHEDULES =
+  "Unlike IdentityMD's own schedules (schedule.create: quoted over HTTP and owned by the paying wallet, paid up front for a number of runs that are not refunded, and their buyer cannot pause or cancel them, as that stays with IdentityMD's team), a Standing Question is a contract with no owner that buys each round through the Intake from a meter anyone can fund and its funders can draw back, on a cadence or when a line is crossed, and stores each checked answer on chain for any contract to read.";
+
 const EXPLANATION = [
   "A Standing Question is a question a contract keeps buying. It is written once, as a feed, in the Questions contract: the exact question, the answer type, the panel size and quorum, and how often to ask.",
   "When the time comes (EVERY so many blocks) or a line is crossed (WHEN a view call compares true), anyone may call request(feedId). The contract builds the question body itself from the stored text and the exact block window, and pays the Intake's price in IMD from the feed's meter. No owner decides anything, because there is no owner.",
   "The oracle is a panel of swarm agents. When the panel agrees, IdentityMD signs the answer and the Intake calls back. Questions accepts the answer only if the signature is the oracle's, the question hash is the one it built, the window is the one it asked about, the panel and quorum are what the feed demands, and the answer has not expired. Then it stores it, and any contract can read latest(feedId).",
   "A request that is refused or never answered still costs the price: the Intake never refunds. Questions closes such a round by the clock, returns its keeper tip to the meter, and waits longer before the next try. A feed's unspent meter is always redeemable by the people who funded it.",
+  STANDING_VS_SCHEDULES,
 ];
 
 const TIP_RULE = [
@@ -558,7 +574,7 @@ export const questionsPage: PageDef<QuestionsModel> = {
   pattern: "/questions",
   async load({ sources, now }) {
     const { chain, house, deployments, keeper } = sources;
-    const [history, feeds, head, keeperRead] = await Promise.all([
+    const [history, feeds, head, keeperRead, quote] = await Promise.all([
       chain.intake(),
       house.feeds(),
       chain.head().then(
@@ -566,6 +582,7 @@ export const questionsPage: PageDef<QuestionsModel> = {
         () => null,
       ),
       keeper.status(),
+      loadZapQuote(sources),
     ]);
     const ours = houseSet(deployments);
     const contractFlags = await Promise.all(
@@ -581,6 +598,7 @@ export const questionsPage: PageDef<QuestionsModel> = {
       payerIsContract: contractFlags[index] ?? null,
       house: ours.has(r.payer),
       callbackTarget: r.callbackTarget,
+      action: r.action,
       question: r.question ? excerpt(r.question.text, 280) : null,
       answerType: r.question?.answerType ?? null,
       panel:
@@ -662,13 +680,10 @@ export const questionsPage: PageDef<QuestionsModel> = {
       }),
       flows: [
         previewFlow("fund-feed", deployments, now, {}, example),
-        previewFlow(
-          "zap-fund-meter",
-          deployments,
-          now,
-          {},
-          { feed: "payrolls", eth: "0.01", minImdOut: "8" },
-        ),
+        previewFlow("zap-fund-meter", deployments, now, zapPreset(quote), {
+          feed: "payrolls",
+          ...zapPreset(quote),
+        }),
         previewFlow("request-feed", deployments, now, {}, { feed: "payrolls" }),
         previewFlow("collect-tips", deployments, now),
         previewFlow("defund-feed", deployments, now, {}, { feed: "payrolls" }),
@@ -733,8 +748,8 @@ export const questionsPage: PageDef<QuestionsModel> = {
   meta: (m) => ({
     title: "Questions",
     description: m.launched
-      ? `Standing Questions: three house feeds that buy their own oracle answers, with every round, its answer and who earned its tip. And ${m.intake.counts.listed} oracle requests bought on chain through the IdentityMD Intake.`
-      : `Standing Questions is ${NOT_LAUNCHED}. This page shows the three house feeds exactly as they will ask, each already answered once by the live oracle, and ${m.intake.counts.listed} oracle requests bought on chain through the IdentityMD Intake.`,
+      ? `Standing Questions: three house feeds that buy their own oracle answers, with every round, its answer and who earned its tip. And ${m.intake.counts.listed} requests of any kind bought on chain through the IdentityMD Intake.`
+      : `Standing Questions is ${NOT_LAUNCHED}. This page shows the three house feeds exactly as they will ask, each already answered once by the live oracle, and ${m.intake.counts.listed} requests of any kind bought on chain through the IdentityMD Intake.`,
   }),
   markdown(m) {
     const i = m.intake;
@@ -832,7 +847,7 @@ export const questionsPage: PageDef<QuestionsModel> = {
       fence(m.commands.map((c) => `# ${c.comment}\n${c.command}`).join("\n\n"), "sh"),
       ...m.flows.map(flowMarkdown),
       "## Requests bought on chain through the Intake",
-      `There are two Intake contracts on Ethereum. Version 2 (${link(i.current.address, i.current.url)}) is the one IdentityMD names for anything new and the one launch A is built on. Version 1 (${link(i.legacy.address, i.legacy.url)}) is legacy and holds the earlier history, including the three requests that proved the house feeds.`,
+      `There are two Intake contracts on Ethereum. Version 2 (${link(i.current.address, i.current.url)}) is the one IdentityMD names for anything new and the one launch A is built on. Version 1 (${link(i.legacy.address, i.legacy.url)}) is legacy and holds the earlier history, including the three requests that proved the house feeds. Each counts every request it takes in nonce(). Version 2 sells oracle questions, jobs, launches and workflows on Ethereum; version 1 sells oracle questions only (priceOf, read 15 October 2026). The action of each request is given below.`,
       bullets([`Version 2: ${i.current.words}`, `Version 1: ${i.legacy.words}`]),
       `Of the ${i.counts.listed} listed: ${i.counts.answered} answered, ${i.counts.failed} with no answer or refused, ${i.counts.open} not completed on chain, ${i.counts.toContracts} with the answer to be delivered to a contract, ${i.counts.ours} bought by HELP WANTED's own wallets or contracts.`,
       i.current.priceWei !== null
@@ -845,6 +860,7 @@ export const questionsPage: PageDef<QuestionsModel> = {
         doc(
           `### Request ${r.requestId.slice(0, 10)}, Intake version ${r.version}${r.when ? `, ${formatUtc(r.when)}` : ""}`,
           bullets([
+            `Action: ${inline(r.action)}`,
             `Status: ${r.status}`,
             `Paid by: ${inline(r.payer)}${r.payerIsContract === true ? " (a contract)" : r.payerIsContract === false ? " (a wallet)" : ""}${r.house ? " (HOUSE: one of ours)" : ""}, ${formatImd(r.priceWei)} IMD`,
             r.callbackTarget
@@ -854,8 +870,10 @@ export const questionsPage: PageDef<QuestionsModel> = {
             `Request: ${link("transaction", r.requestTxUrl)} (block ${formatInt(r.block)})${r.completionTxUrl ? ` · Completion: ${link("transaction", r.completionTxUrl)}` : ""}${r.resultUrl ? ` · ${link("oracle record", r.resultUrl)}` : ""} · ${link("what IdentityMD's service made of it", r.intakeReadUrl)}`,
           ]),
           r.question
-            ? quote(r.question)
-            : "The request body is not the JSON the oracle expects; no question could be read.",
+            ? untrusted(r.question, "the oracle question, written by whoever paid for the request")
+            : r.action.startsWith("oracle.request")
+              ? "The request body is not the JSON the oracle expects; no question could be read."
+              : "Not an oracle question, so no question is shown. Its body is the payer's and is not printed here.",
         ).trimEnd(),
       ),
     );

@@ -358,7 +358,7 @@ export const DESK_ADAPTATION: {
       raisedBy: "the audit the pipeline imported",
       finding: "CrowdPots never calls finalize, so an unchallenged claim leaves a pot Hiring",
       outcome: "left",
-      done: "Reproduced: after an unchallenged delivery claim the pot reads Hiring and claimRefund reverts until any address calls WorkOrders.finalize for its order. Not changed: it is the documented design (C5), finalize is open to anyone, and contributors lose nothing to it.",
+      done: "Reproduced: after an unchallenged delivery claim the pot reads Hiring and claimRefund reverts until any address calls WorkOrders.finalize for its order. Not changed: it is the documented design (C5), and finalize is open to anyone. It does not protect a pot from an untrue claim: a claim nobody challenges within 24 hours is paid from the pot (L1).",
     },
     {
       id: "157f2546",
@@ -375,7 +375,7 @@ export const DESK_ADAPTATION: {
       finding:
         "the SwarmFailed and wrong-kind endings of reportFailed return the whole bond and bar nobody, so a receipt-only pot can be held past its hire window and refunded with nothing forfeited",
       outcome: "words corrected",
-      done: "Reproduced, both cases, on the real desk, the real WorkProof and the real CrowdPots. What was done: the words were corrected, not the desk. The desk's rule is deliberate (taking a runner's bond for the swarm's failure would make honest runners avoid the desk), so the code was left, and what CrowdPots told contributors the bond sizes was corrected. The limit stands: a receipt-only pot can be ended in a refund with no bond forfeited, which costs the runner one swarm job and gas, and the contributors the time their IMD was locked. No IMD is lost (C2).",
+      done: "Reproduced, both cases, on the real desk, the real WorkProof and the real CrowdPots. What was done: the words were corrected, not the desk. The desk's rule is deliberate (taking a runner's bond for the swarm's failure would make honest runners avoid the desk), so the code was left, and what CrowdPots told contributors the bond sizes was corrected. The limit stands: a receipt-only pot can be ended in a refund with no bond forfeited, which costs the runner one swarm job and gas, and the contributors the time their IMD was locked; their chips are refunded (C2).",
     },
     {
       id: "bff72b72",
