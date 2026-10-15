@@ -119,6 +119,13 @@ export const PAYS_WHEN =
   "pays when the job's work record is proven on chain against IdentityMD's WorkRegistry or, only if the employer chose to allow it, when a bonded delivery claim goes unchallenged for 24 hours";
 
 /**
+ * Who may send `Payroll.claimTip`, in the one wording every page uses, as `_claimAllowed` in
+ * launches/a-payroll/src/payroll/Payroll.sol decides it. The tip always goes to the seat's owner.
+ */
+export const CLAIM_TIP_RULE =
+  "Anyone may call claimTip when the seat's owner is an address with no code (an ordinary wallet) or Payroll itself. When the owner is any other address with code (a contract, or a wallet that has delegated to code), only the owner may call it; anyone else's call reverts ContractOwnerMustClaim. Either way the tip is paid to the seat's owner, never to the caller.";
+
+/**
  * The RPC printed in commands a reader is meant to copy. Always the public endpoint, never the
  * server's own `RPC_URL`, which may carry a key.
  */

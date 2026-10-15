@@ -457,7 +457,7 @@ describe("/jobs-report after the server has been up for a while", () => {
     expect(later?.tally?.totalWei).toBe(2n * IMD);
     expect(later?.summary).toContain("2 IMD reached the swarm's fee address in 4 payments");
     // ...and the command printed for readers asks the public RPC for a range it serves (about the
-    // newest 9,000 blocks): the same range as the figures, never the grown one.
+    // newest 7,200 blocks): the same range as the figures, never the grown one.
     const command = later!.commands[0]!.command;
     expect(command).toContain(`--from-block ${head - 7199} --to-block ${head}`);
     expect(command).toContain("--rpc-url https://ethereum-rpc.publicnode.com");

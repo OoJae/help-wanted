@@ -667,7 +667,6 @@ function identityMdSection(doc: EvidenceDocument): string {
           "Source repository IdentityMD built from",
           "Commit",
           "Lists the book's addresses",
-          "Verification time on record",
         ],
         api.launches.map((l) => [
           `${l.launch.toUpperCase()} (no. ${l.launchNumber})`,
@@ -677,16 +676,31 @@ function identityMdSection(doc: EvidenceDocument): string {
           l.sourceRepoUrl ?? "",
           l.sourceCommit ? code(l.sourceCommit) : "",
           l.addressesMatchTheBook ? "yes" : "NO",
-          l.artifacts.every((a) => a.verifiedAt !== null)
-            ? "yes, for every contract"
-            : `none for ${l.artifacts
-                .filter((a) => a.verifiedAt === null)
-                .map((a) => a.name)
-                .join(", ")}`,
         ]),
       ),
       "",
-      'The last column is the `verifiedAt` field of IdentityMD\'s record for each contract: the time it records a source verification on a block explorer. "None" means the record holds no such time. `pnpm repro` compares the code at each address with a build of the source in this repository, whatever an explorer shows.',
+      "Each contract, as IdentityMD's record of its launch lists it:",
+      "",
+      table(
+        [
+          "Launch",
+          "Contract",
+          "Address",
+          "`verifiedAt` on record",
+          "`verifyFailure` on record",
+        ],
+        api.launches.flatMap((l) =>
+          l.artifacts.map((a) => [
+            l.launch.toUpperCase(),
+            code(a.name),
+            code(a.address),
+            a.verifiedAt ? utc(a.verifiedAt) : "none",
+            a.verifyFailure ?? "none",
+          ]),
+        ),
+      ),
+      "",
+      "The last two columns are the record's own fields, read from `GET /launches/<id>`; \"none\" means the record holds none. IdentityMD's public documentation does not say what they record. This file reads no block explorer: Etherscan's API needs a key. `pnpm repro` compares the code at each address with a build of the source in this repository, whatever an explorer shows.",
       "",
     );
   }

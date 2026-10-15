@@ -90,7 +90,7 @@ describe("the recorded record", () => {
     expect(hashed.keccak).not.toBe(RECEIPT);
   });
 
-  it("names its job, kind, state and the agent that worked", () => {
+  it("names its job, kind, state and the agent the record names", () => {
     const facts = readRecordFacts(RECORD);
     expect(facts).toMatchObject({
       schema: "identitymd-work-v1",
@@ -404,7 +404,7 @@ describe("the commands that repeat the check by hand", () => {
 });
 
 describe("/verify/:jobId, built from the data sources", () => {
-  it("proves the reference job and names the seat behind the agent that did it", async () => {
+  it("proves the reference job and names the seat behind the agent the record names", async () => {
     const world = testSources();
     const model = await verifyJobPage.load(ctxFor(world, `/verify/${JOB}`), { jobId: JOB });
     expect(model?.result.verdict).toBe("proven");
@@ -426,6 +426,9 @@ describe("/verify/:jobId, built from the data sources", () => {
       "| keccak256(record bytes) | 0x3db993254c94479c4bf74d1115c7db3bfb48e5859379a4e83467ab6c3338b2c5 |",
     );
     expect(markdown).toContain("#1998");
+    // A tip has followed this path (order 1's, on 15 October 2026): the twin no longer says it will.
+    expect(markdown).toContain("This is the path HELP WANTED's per-job tips follow.");
+    expect(markdown).not.toContain("tips will follow");
     expect(verifyJobPage.meta(model!).title).toBe("PROVEN ON CHAIN: job e9efec16");
   });
 

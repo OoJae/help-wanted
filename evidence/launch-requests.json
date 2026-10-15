@@ -1,4 +1,4 @@
 {
-  "description": "Launches of HELP WANTED that have been requested from IdentityMD's launch pipeline and are not in the deployments book yet. Each entry names the pipeline job; the evidence builder reads that job's state from IdentityMD's public API and prints it under the launch, which stays \"not launched\" until its addresses are in the book. A requested launch is not a launch. Once a launch is in the book its entry here is ignored and can be removed.",
+  "description": "Launches of HELP WANTED that have been requested from IdentityMD's launch pipeline and are not in the deployments book yet. Each entry names the pipeline job; the evidence builder reads that job's state from IdentityMD's public API and prints it under the launch, which stays \"not launched\" until its addresses are in the book. A requested launch is not a launch. The list is empty: since 15 October 2026 the deployments book holds all three launches, A (IdentityMD launch 1531), B (launch 1573) and C (launch 1845), so no launch is waiting for its addresses.",
   "requests": []
 }

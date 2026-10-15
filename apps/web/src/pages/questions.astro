@@ -247,25 +247,23 @@ const answeredOnChain = m.houseFeeds.filter((f) => f.live?.exists && f.live.roun
                         <>
                           {" "}
                           <a class="small" href={r.openedTxUrl} rel="noopener">
-                            tx
+                            opened, tx
                           </a>
                         </>
                       )}
                     </td>
                     <td class="break" data-label="Delivered by">
                       {r.delivered ?? ""}
-                    </td>
-                    <td data-label="Who earned the tip">
-                      {r.tip}
                       {r.settledTxUrl && (
                         <>
                           {" "}
                           <a class="small" href={r.settledTxUrl} rel="noopener">
-                            tx
+                            {r.status === "answered" ? "answered, tx" : "closed, tx"}
                           </a>
                         </>
                       )}
                     </td>
+                    <td data-label="Who earned the tip">{r.tip}</td>
                   </tr>
                 ))}
               </tbody>

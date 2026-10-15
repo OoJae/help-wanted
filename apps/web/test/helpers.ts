@@ -24,12 +24,14 @@ import {
   type LaunchKey,
 } from "@help-wanted/shared";
 import { MULTICALL3, REFERENCE_JOB, TOPIC } from "~/config/chain";
+import { LAUNCH_C_JOB } from "~/config/history";
 import {
   freshCheckLimiter,
   HEADER_JOB,
   headerJobPin,
   LAUNCH_A_JOB,
   LAUNCH_B_JOB,
+  OWN_JOBS,
   referencePin,
   type Sources,
 } from "~/data";
@@ -213,6 +215,9 @@ export function fakeApi(overrides: Record<string, () => Response> = {}): FakeApi
     // Launch B's job in the same pipeline, as the API described it on 13 October 2026, after the
     // launch: completed, nine steps accepted, the launch reported live.
     [`/jobs/${LAUNCH_B_JOB.jobId}`]: () => json(fixtureJson("job-eb0f6c65.json")),
+    // Launch C's job, as the API described it on 15 October 2026, after the launch: completed,
+    // nine steps accepted, launch 833dbd2c reported live.
+    [`/jobs/${LAUNCH_C_JOB.jobId}`]: () => json(fixtureJson("job-7f2023fc.json")),
     ...overrides,
   };
   const fake = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -463,7 +468,7 @@ export function testSources(
           { ...pin, bytes: null },
           { ...headerJobPin(), bytes: null },
         ],
-    ownJobs: [LAUNCH_A_JOB.jobId, LAUNCH_B_JOB.jobId],
+    ownJobs: OWN_JOBS,
   });
   const chainSource = new RpcChainSource({
     reader: chain.reader,

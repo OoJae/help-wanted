@@ -7,6 +7,7 @@ import { LAUNCH_KEYS, NOT_LAUNCHED, type ContractKey } from "~/config/deployment
 import { HOUSE_WALLETS, houseSet } from "~/config/house";
 import { HOUSE_FEED_NAMES, MAINNET } from "@help-wanted/shared";
 import { IMD_LINK, REFERENCE_JOB, etherscanTx } from "~/config/chain";
+import { LAUNCH_PRS } from "~/config/history";
 import { AUDITS, DESK_ADAPTATION, FEED_PROOFS, PUBLIC_SOURCE } from "~/config/proofs";
 import { HEADER_JOB } from "~/data";
 import { castCommand, castReadCommand, flowById, FLOWS, initialValues } from "~/flows";
@@ -313,6 +314,10 @@ async function evidence(ctx: LoadContext): Promise<Response> {
   const bell = doorbell.live ? doorbell.data : null;
   const rings = bell?.ringers ? ringsByOrigin(bell.ringers, ours) : null;
   const deskMedium = DESK_ADAPTATION.findings.filter((f) => f.severity === "medium");
+  // Launch C's review, once the book records launch C: what its pull request and IdentityMD's record say.
+  const launchCPr = launchRecorded(deployments, "C")
+    ? (LAUNCH_PRS.find((pr) => pr.launch === "C") ?? null)
+    : null;
   const l = ledger.live ? ledger.data : null;
   // Standing Questions: what the contract itself says of its feeds, and who opened the rounds whose
   // opening log this server could read. Our own wallets are HOUSE here as everywhere.
@@ -517,10 +522,30 @@ async function evidence(ctx: LoadContext): Promise<Response> {
           outcome: f.outcome,
         })),
         mediumFindings: deskMedium.length,
+        findingsOnRecord: DESK_ADAPTATION.onRecord.count,
+        findingsOnRecordUrl: DESK_ADAPTATION.onRecord.record,
+        findingsMergedByTheJudge: DESK_ADAPTATION.onRecord.merged,
+        // The judge's first round was not accepted; its last round restates these, so they are not in findingsOnRecord.
+        findingsInASubmissionNotAccepted: DESK_ADAPTATION.onRecord.notAccepted,
+        everyFindingDocument: DESK_ADAPTATION.onRecord.document,
         contractCodeChangedForAFinding: false,
         mediumFindingAnswer: deskMedium.map((f) => f.done).join(" "),
-        note: "From the launch project's own ADAPTATION.md, which IdentityMD's launch pipeline wrote before it deployed launch B. The medium finding was answered in words, not in code: the limit it describes stands and is disclosed (launch B's THREATS.md, C2). We bought no audit of launch B ourselves.",
+        note: `From the launch project's own ADAPTATION.md, which IdentityMD's launch pipeline wrote before it deployed launch B. It answers ${DESK_ADAPTATION.findings.length} of the ${DESK_ADAPTATION.onRecord.count} findings in the accepted submissions on IdentityMD's record of the job; the pipeline's judge merged the other ${DESK_ADAPTATION.onRecord.merged} into three of those, and ${DESK_ADAPTATION.onRecord.document} lists all ${DESK_ADAPTATION.onRecord.count}. The judge's first round, a submission that was not accepted, raised ${DESK_ADAPTATION.onRecord.notAccepted} more entries, which its last round restates. The medium finding was answered in words, not in code: the limit it describes stands and is disclosed (launch B's THREATS.md, C2). We bought no audit of launch B ourselves.`,
       },
+      launchC: launchCPr
+        ? {
+            launched: launchRecorded(deployments, "C"),
+            identitymdLaunchNumber: deployments.launches.C.launchNumber,
+            pullRequest: launchCPr.url,
+            pullRequestSays: launchCPr.reviewer,
+            findingsOnRecord: launchCPr.count,
+            findingsOnRecordUrl: launchCPr.record,
+            document: "launches/c-company/ADAPTATION.md",
+            sourceFileChangedForAFinding: false,
+            everyFindingDocument: launchCPr.document,
+            note: launchCPr.accounted,
+          }
+        : null,
     },
     // What has not been shown, in the judges page's own sentences: each is there only while it is true.
     notShown: judges.value ? judges.value.notLive : null,

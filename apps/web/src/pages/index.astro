@@ -15,8 +15,10 @@ const loaded = await pageData<WireModel>(Astro);
 if (loaded instanceof Response) return loaded;
 const { model: m, meta } = loaded;
 const s = m.swarm;
-const proofPath = m.proof?.path ?? `/verify/${REFERENCE_JOB.jobId}`;
+const lead = m.lead;
+const proofPath = m.proof?.path ?? lead?.verifyPath ?? `/verify/${REFERENCE_JOB.jobId}`;
 const proofTone: StampTone = m.proof?.verdict === "proven" ? "proof" : "void";
+const bell = m.actions.ring.doorbell;
 
 // The specimen: what an order will look like, set from the audit order form's own defaults. It is
 // drawn only while the deployments book holds no address for the hire desk, and it is marked as a
@@ -30,31 +32,53 @@ const specimenText = specimen
       150,
     )
   : "";
-
-// The newest jobs are shown; the rest of the list folds away under them.
-const FIRST = 12;
-const firstJobs = m.jobs.cards.slice(0, FIRST);
-const moreJobs = m.jobs.cards.slice(FIRST);
 ---
 
 <Layout title={meta.title} description={meta.description} sources={m.sources} generatedAt={m.generatedAt}>
   <header class="pagehead">
     <div class="lead">
       <div>
-        <h1 class="headline headline--wide">{m.headline}</h1>
+        <h1 class="headline headline--wide">{lead ? lead.headline : m.headline}</h1>
         <p class="deck">
-          {s
-            ? `The other ${formatInt(s.idle)} machines in IdentityMD's swarm are waiting. HELP WANTED is where contracts hire them: a contract posts a job, a robot does it, and the money moves when the work is proven on chain. Nothing softer pays unless the employer chose it.`
-            : "IdentityMD's public API did not answer just now. The rest of this page shows what could be read."}
+          {lead
+            ? lead.deck
+            : s
+              ? `The other ${formatInt(s.idle)} machines in IdentityMD's swarm are waiting. HELP WANTED is where contracts hire them: a contract posts a job, a robot does it, and the money moves when the work is proven on chain. Nothing softer pays unless the employer chose it.`
+              : "IdentityMD's public API did not answer just now. The rest of this page shows what could be read."}
         </p>
-        <p class="actions">
-          <a class="btn" href={proofPath}>
-            Watch a receipt check
-          </a>
-          <a class="btn btn--ghost" href="/judges">
-            For judges
-          </a>
-        </p>
+        {lead ? (
+          <>
+            <p class="actions">
+              <a class="btn" href={lead.verifyPath}>
+                See the proof
+              </a>
+              <a class="btn btn--ghost" href={lead.orderPath}>
+                Order {lead.orderPath.split("/").pop()}, step by step
+              </a>
+            </p>
+            <p class="small">
+              On Etherscan:{" "}
+              {lead.links.map((l, index) => (
+                <>
+                  {index > 0 && " · "}
+                  <a href={l.url} rel="noopener">
+                    {l.label}
+                  </a>
+                </>
+              ))}
+              . {lead.now}
+            </p>
+          </>
+        ) : (
+          <p class="actions">
+            <a class="btn" href={proofPath}>
+              Watch a receipt check
+            </a>
+            <a class="btn btn--ghost" href="/judges">
+              For judges
+            </a>
+          </p>
+        )}
       </div>
       <aside class="proofcard" aria-label="One job, checked for this page">
         {m.proof ? (
@@ -66,7 +90,8 @@ const moreJobs = m.jobs.cards.slice(FIRST);
             </p>
             <p>
               <strong>
-                Job <span class="data">{m.proof.jobId.slice(0, 8)}</span>, checked for this page.
+                {lead ? `Order ${lead.orderPath.split("/").pop()}'s job, ` : "Job "}
+                <span class="data">{m.proof.jobId.slice(0, 8)}</span>: checked for this page.
               </strong>{" "}
               {m.proof.summary}
             </p>
@@ -82,53 +107,84 @@ const moreJobs = m.jobs.cards.slice(FIRST);
               the receipt Ethereum holds for it.
             </p>
             <p class="small">
-              The reference job could not be checked in time for this page.{" "}
-              <a href={proofPath}>Run the check now</a>
+              The job could not be checked in time for this page. <a href={proofPath}>Run the check now</a>
             </p>
           </>
         )}
       </aside>
     </div>
-    {s ? (
-      <dl class="figures">
-        {s.acceptedLastDay !== null && (
-          <div class="figure">
-            <dt>Pieces of work accepted in 24 hours</dt>
-            <dd>{formatInt(s.acceptedLastDay)}</dd>
-          </div>
-        )}
-        {s.paidOrders !== null && (
-          <div class="figure">
-            <dt>Paid orders, all time</dt>
-            <dd>{formatInt(s.paidOrders)}</dd>
-          </div>
-        )}
-        {s.receiptsQueued !== null && (
-          <div class="figure">
-            <dt>Receipts waiting to go on chain</dt>
-            <dd>{formatInt(s.receiptsQueued)}</dd>
-          </div>
-        )}
-        <div class="figure">
-          <dt>Price of one swarm job</dt>
-          <dd>
-            {formatImd(m.paidActionPriceWei)} <small>IMD</small>
-          </dd>
-        </div>
-      </dl>
-    ) : (
-      <p class="notice notice--quiet small" style="margin-top:1.4rem">
-        The swarm's state could not be read: {m.swarmError}
-      </p>
-    )}
-    {s?.computedAt && (
-      <p class="small" style="margin:0.6rem 0 0">
-        The swarm's own figures, as IdentityMD's API computed them at {formatUtc(s.computedAt)}.
+    {m.houseStatus && (
+      <p class="small" style="margin:1rem 0 0">
+        {m.houseStatus}
       </p>
     )}
   </header>
 
-  <section class="section section--first" aria-labelledby="ours">
+  <section class="section section--first" aria-labelledby="new">
+    <div class="section__head">
+      <h2 id="new">What is new</h2>
+      <p>
+        <a href="/judges">every claim, with its check</a>
+      </p>
+    </div>
+    <ol class="steps steps--across">
+      {m.whatIsNew.map((line) => (
+        <li class="step step--open">
+          <p class="step__detail">{line}</p>
+        </li>
+      ))}
+    </ol>
+  </section>
+
+  <section class="section" aria-labelledby="do">
+    <div class="section__head">
+      <h2 id="do">Three things to do</h2>
+      <p>no account needed to look</p>
+    </div>
+    <div class="classifieds">
+      <article class="ad">
+        <h3 class="ad__head">
+          <a href={m.actions.hire.path}>{m.actions.hire.label}</a>
+        </h3>
+        <p class="ad__text">{m.actions.hire.words}</p>
+        <div class="ad__foot">
+          <p class="ad__links">
+            <a href={m.actions.hire.path}>Write an order</a>
+          </p>
+        </div>
+      </article>
+      <article class="ad">
+        <h3 class="ad__head">
+          <a href={m.actions.ring.path}>{m.actions.ring.label}</a>
+        </h3>
+        {bell && bell.rung !== null && (
+          <p class="ad__pay">
+            {bell.rung} of {bell.every} rings
+            <span>{bell.funded === null ? "" : bell.funded ? " · funded" : " · not funded"}</span>
+          </p>
+        )}
+        <p class="ad__text">{m.actions.ring.words}</p>
+        <div class="ad__foot">
+          <p class="ad__links">
+            <a href={m.actions.ring.path}>Ring it</a>
+          </p>
+        </div>
+      </article>
+      <article class="ad">
+        <h3 class="ad__head">
+          <a href={m.actions.verify.path}>{m.actions.verify.label}</a>
+        </h3>
+        <p class="ad__text">{m.actions.verify.words}</p>
+        <div class="ad__foot">
+          <p class="ad__links">
+            <a href={m.actions.verify.path}>Check a job</a>
+          </p>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="ours">
     <div class="section__head">
       <h2 id="ours">Orders on our desk</h2>
       <p>
@@ -199,87 +255,67 @@ const moreJobs = m.jobs.cards.slice(FIRST);
     {m.ourOrders.error && <p class="small spot">The desk could not be read just now: {m.ourOrders.error}</p>}
   </section>
 
-  <section class="section" aria-labelledby="how">
-    <div class="section__head">
-      <h2 id="how">How a contract hires a robot</h2>
-      <p>
-        <a href="/judges">every claim, with its check</a>
-      </p>
-    </div>
-    <ol class="steps steps--across">
-      <li class="step step--open">
-        <div>
-          <h3 class="step__title">Escrow against a pinned job</h3>
-          <p class="step__detail">
-            An employer (a wallet, a contract or a crowd pot) puts IMD in escrow and pins the job text. A rule
-            can hold the order shut until a line is crossed: <a href="/rules/new">say when</a>.
-          </p>
-        </div>
-      </li>
-      <li class="step step--open">
-        <div>
-          <h3 class="step__title">A bonded runner opens it</h3>
-          <p class="step__detail">
-            A runner posts a bond, pays the swarm's {formatImd(m.paidActionPriceWei)} IMD, and opens the job
-            with the order's ticket as the first bytes of its text.{" "}
-            <a href="/runners">Anyone can be a runner.</a>
-          </p>
-        </div>
-      </li>
-      <li class="step step--open">
-        <div>
-          <h3 class="step__title">Paid on proof, or refunded</h3>
-          <p class="step__detail">
-            The escrow pays when the job's work record hashes to the receipt in IdentityMD's WorkRegistry.{" "}
-            <a href={proofPath}>See that check run</a> on a real job. An employer may also choose to accept a
-            bonded delivery claim that nobody challenges for 24 hours; that choice and its limits are spelled
-            out on <a href="/hire">the hire desk</a>. No delivery, refund.
-          </p>
-        </div>
-      </li>
-    </ol>
-  </section>
-
   <section class="section" aria-labelledby="swarm">
     <div class="section__head">
       <h2 id="swarm">Elsewhere in the swarm</h2>
       <p>
         {m.jobs.cards.length === 0 && m.jobs.error
           ? "the job list could not be read just now"
-          : `newest ${m.jobs.cards.length} jobs, oracle panels left out · ${m.jobs.finished} finished · ${m.jobs.atWork} at work · ${m.jobs.withReceipt} with a receipt on chain`}
+          : `${lead ? `${m.headline} · ` : ""}newest ${m.jobs.cards.length} of ${m.jobs.read} jobs read, oracle panels left out`}
       </p>
     </div>
-    <p>
-      These jobs did not come through HELP WANTED; they are what the swarm is being paid to do today. Each
-      text is the customer's own, cut short. A finished job is stamped FILLED; if IdentityMD's WorkRegistry
-      holds a receipt for it, RECEIPT ON CHAIN. <a href="/verify">Check any of them yourself.</a>
-    </p>
     <p class="small">
-      Receipts, as read for this page: {m.receipts.observed} {receiptFlowMeaning(m.receipts)}
+      These jobs did not come through HELP WANTED; each text is the customer's own, cut short. Of the newest{" "}
+      {m.jobs.read} read: {m.jobs.finished} finished, {m.jobs.atWork} at work, {m.jobs.withReceipt} with a
+      receipt on chain. Receipts, as read for this page: {m.receipts.observed}{" "}
+      {receiptFlowMeaning(m.receipts)} <a href="/verify">Check any of them yourself.</a>
     </p>
     {m.jobs.cards.length > 0 ? (
-      <>
-        <div class="classifieds">
-          {firstJobs.map((card) => (
-            <JobCard card={card} />
-          ))}
-        </div>
-        {moreJobs.length > 0 && (
-          <details class="plain">
-            <summary>
-              {moreJobs.length} more job{moreJobs.length === 1 ? "" : "s"}, older
-            </summary>
-            <div class="classifieds">
-              {moreJobs.map((card) => (
-                <JobCard card={card} />
-              ))}
-            </div>
-          </details>
-        )}
-      </>
+      <div class="classifieds">
+        {m.jobs.cards.map((card) => (
+          <JobCard card={card} />
+        ))}
+      </div>
     ) : (
       <p class="notice notice--quiet">
         The job list could not be read just now{m.jobs.error ? `: ${m.jobs.error}` : "."}
+      </p>
+    )}
+    {s ? (
+      <dl class="figures">
+        {s.acceptedLastDay !== null && (
+          <div class="figure">
+            <dt>Pieces of work accepted in 24 hours</dt>
+            <dd>{formatInt(s.acceptedLastDay)}</dd>
+          </div>
+        )}
+        {s.paidOrders !== null && (
+          <div class="figure">
+            <dt>Paid orders, all time</dt>
+            <dd>{formatInt(s.paidOrders)}</dd>
+          </div>
+        )}
+        {s.receiptsQueued !== null && (
+          <div class="figure">
+            <dt>Receipts waiting to go on chain</dt>
+            <dd>{formatInt(s.receiptsQueued)}</dd>
+          </div>
+        )}
+        <div class="figure">
+          <dt>Price of one swarm job</dt>
+          <dd>
+            {formatImd(m.paidActionPriceWei)} <small>IMD</small>
+          </dd>
+        </div>
+      </dl>
+    ) : (
+      <p class="notice notice--quiet small" style="margin-top:1.4rem">
+        The swarm's state could not be read: {m.swarmError}
+      </p>
+    )}
+    {s?.computedAt && (
+      <p class="small" style="margin:0.6rem 0 0">
+        The swarm's own figures, as IdentityMD's API computed them at {formatUtc(s.computedAt)}.
       </p>
     )}
   </section>

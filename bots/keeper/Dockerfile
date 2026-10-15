@@ -15,7 +15,7 @@
 #
 # The state file is /data/keeper.json and the status file /data/keeper-status.json. The state file
 # must survive a restart (it holds the day's spending and any transaction in flight): on a hosting
-# platform attach a persistent volume at /data (the VOLUME line below does not do that by itself).
+# platform attach a persistent volume at /data (Railway refuses a Dockerfile that declares one itself).
 # A live keeper refuses to start when it cannot write its state.
 FROM node:22-slim
 
@@ -39,7 +39,6 @@ COPY bots/keeper bots/keeper
 
 RUN mkdir -p /data && chown node:node /data
 USER node
-VOLUME /data
 WORKDIR /app/bots/keeper
 
 # tsx runs the TypeScript sources directly; node stays PID 1 so SIGTERM stops the loop cleanly.

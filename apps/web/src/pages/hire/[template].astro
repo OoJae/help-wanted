@@ -54,6 +54,15 @@ const t = m.template;
     </aside>
   )}
 
+  {m.runnerTakes && (
+    <aside class="notice notice--quiet" aria-label="Who would take this order">
+      <span class="label">Who would take it</span>
+      <p>
+        {m.runnerTakes} <a href="/runners">Who takes orders today.</a>
+      </p>
+    </aside>
+  )}
+
   <section class="section section--first">
     <div class="section__head">
       <h2>Write the order</h2>
@@ -98,8 +107,8 @@ const t = m.template;
     <h3 class="sub">The job text the example carries</h3>
     <Theirs by="Example job text" text={m.exampleSpec} />
     <p class="small">
-      A runner sends exactly this text to the swarm after the order's 85-byte header. A work record settles
-      the order only if its objective is that header followed by this text, byte for byte.
+      A runner sends exactly this text to the swarm after the 85-byte order header. A work record settles the
+      order only if its objective is that header followed by this text, byte for byte.
     </p>
   </section>
 </Layout>

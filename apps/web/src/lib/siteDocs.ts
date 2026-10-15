@@ -2,23 +2,25 @@
  * The root files an agent looks for first: `/llms.txt`, `/llms-full.txt`, `/robots.txt` and
  * `/sitemap.xml`. All are built from the page registry and the same models as the pages.
  */
-import { HOUSE_FEEDS, HOUSE_FEED_NAMES, IMD_API_BASE, MAINNET } from "@help-wanted/shared";
-import { IMD_LINK, REFERENCE_JOB } from "~/config/chain";
-import { DEPLOYMENT_BOOK_PATH, type ContractKey } from "~/config/deployments";
+import { HOUSE_FEEDS, HOUSE_FEED_NAMES, IMD_API_BASE, MAINNET, workProofAbi } from "@help-wanted/shared";
+import { etherscanTx, IMD_LINK, REFERENCE_JOB } from "~/config/chain";
+import { DEPLOYMENT_BOOK_PATH } from "~/config/deployments";
+import { LAUNCH_PRS, pinnedOrder } from "~/config/history";
 import { houseSet } from "~/config/house";
 import { DISCLOSED_LIMITS } from "~/config/limits";
-import { AUDITS, DESK_ADAPTATION, FEED_PROOFS } from "~/config/proofs";
+import { AUDITS, DESK_ADAPTATION, deskGradingWords, deskOnRecordWords, FEED_PROOFS } from "~/config/proofs";
 import { TEMPLATES } from "~/config/templates";
 import { HEADER_JOB, LAUNCH_A_JOB } from "~/data";
-import { allContracts, launchRecorded, PAYS_WHEN, PUBLIC_RPC } from "~/models/common";
+import { allContracts, castView, launchRecorded, PAYS_WHEN, PUBLIC_RPC } from "~/models/common";
 import { releaseTally } from "~/models/jobsReport";
-import { ringersWords } from "~/models/money";
+import { endowmentCreator, ringersWords } from "~/models/money";
 import { launchSentence } from "~/models/judges";
 import { loadReceiptFlow, receiptFlowMeaning } from "~/models/receipts";
 import { isLivePath, STATIC_PATHS, twinPaths } from "~/models/registry";
 import type { LoadContext } from "~/models/types";
 import { messageOf } from "./cache";
 import { formatImd, formatInt, formatUtc, plural } from "./format";
+import { hashNo0x, jobIdToBytes16 } from "./ids";
 import { bullets, doc, fence, table } from "./md";
 import { loadPath, markdownTwin, SITE_NAME, SITE_TAGLINE } from "./twins";
 import { verifyCommands } from "./verify";
@@ -30,7 +32,10 @@ export const API_ROUTES: readonly { path: string; what: string }[] = [
     path: "/api/v1/status",
     what: "Whether the server's data sources answer, how old its data is, and its configuration.",
   },
-  { path: "/api/v1/deployments", what: "The addresses of our contracts; null means not launched yet." },
+  {
+    path: "/api/v1/deployments",
+    what: "The addresses of our contracts, as the deployments book holds them; null means not in the book yet (its note says which launches that covers).",
+  },
   {
     path: "/api/v1/integration",
     what: "One row per IdentityMD primitive: address or endpoint, what we do with it, status, where the proof is.",
@@ -92,21 +97,34 @@ function abs(ctx: LoadContext, path: string): string {
 
 export async function llmsTxt(ctx: LoadContext): Promise<string> {
   const { api, chain, house, deployments, env } = ctx.sources;
-  const [health, payments, intake, receipts, feeds, orders, pots, doorbell, headerReceipt] =
-    await Promise.all([
-      api.health().catch((error: unknown) => messageOf(error)),
-      chain.payments().catch((error: unknown) => messageOf(error)),
-      chain.intake().catch((error: unknown) => messageOf(error)),
-      loadReceiptFlow(ctx.sources),
-      house.feeds(),
-      house.orders(40),
-      house.pots(40),
-      house.doorbell(),
-      chain.receiptRead(HEADER_JOB.jobIdBytes16).then(
-        (read) => read.value.toLowerCase(),
-        () => null,
-      ),
-    ]);
+  const [
+    health,
+    payments,
+    intake,
+    receipts,
+    feeds,
+    orders,
+    pots,
+    doorbell,
+    endowments,
+    rules,
+    headerReceipt,
+  ] = await Promise.all([
+    api.health().catch((error: unknown) => messageOf(error)),
+    chain.payments().catch((error: unknown) => messageOf(error)),
+    chain.intake().catch((error: unknown) => messageOf(error)),
+    loadReceiptFlow(ctx.sources),
+    house.feeds(),
+    house.orders(40),
+    house.pots(40),
+    house.doorbell(),
+    house.endowments(20),
+    house.rules(20),
+    chain.receiptRead(HEADER_JOB.jobIdBytes16).then(
+      (read) => read.value.toLowerCase(),
+      () => null,
+    ),
+  ]);
   const headerReceiptWords =
     headerReceipt === null
       ? "The WorkRegistry could not be read just now, so nothing is said here about its receipt."
@@ -174,6 +192,58 @@ export async function llmsTxt(ctx: LoadContext): Promise<string> {
         : `The Doorbell is launched; it could not be read just now (${doorbell.error}).`,
     );
   }
+  // Launch C, once launched: what each counter answered, or that it did not.
+  if (endowments.live) {
+    const book = endowments.data;
+    const ours = houseSet(deployments);
+    const address = deployments.contracts.endowments.address;
+    const creators = book
+      ? book.endowments.map((e) => endowmentCreator(e, address)).filter((c): c is string => c !== null)
+      : [];
+    const byHouse = creators.filter((c) => ours.has(c)).length;
+    numbers.push(
+      book
+        ? book.count === 0
+          ? "No endowment has been created yet (Endowments.endowmentCount() read 0)."
+          : `${plural(book.count, "endowment has", "endowments have")} been created (Endowments.endowmentCount()).${creators.length > 0 ? ` Of the ${plural(creators.length, "endowment")} whose creator this server knows, ${formatInt(byHouse)} ${byHouse === 1 ? "was" : "were"} created by our own wallets (HOUSE) and ${formatInt(creators.length - byHouse)} by others (OUTSIDE).` : ""}`
+        : `Endowments is launched; it could not be read just now (${endowments.error}).`,
+    );
+  }
+  if (rules.live) {
+    numbers.push(
+      rules.data
+        ? rules.data.count === 0
+          ? "No standing rule has been created yet (Rules.ruleCount() read 0)."
+          : `${plural(rules.data.count, "standing rule has", "standing rules have")} been created (Rules.ruleCount()).`
+        : `Rules is launched; it could not be read just now (${rules.error}).`,
+    );
+  }
+
+  // Order 1, settled on proof. Its logs are older than the public RPC serves, so the transaction is
+  // the one kept with this site (config/history.ts), and only for the desk it was read from.
+  const firstOrder = pinnedOrder(deployments.contracts.workOrders.address, 1);
+  const firstSettled = firstOrder?.trail.find((step) => step.key === "settled") ?? null;
+  const workProof = deployments.contracts.workProof.address;
+  const firstOrderProof =
+    firstOrder && firstSettled && workProof
+      ? {
+          words: `Order ${firstOrder.id} on the hire desk, opened by the Doorbell, was settled on proof on ${formatUtc(firstSettled.tx.at)}: the desk had WorkProof check swarm job ${firstOrder.jobId}'s work record against its WorkRegistry receipt, then paid (${etherscanTx(firstSettled.tx.hash)}). The ringer, the runner and the Doorbell's IMD were the team's own. A proof shows what IdentityMD recorded, not that the work is good. The prove command is under "Check the central claim yourself".`,
+          commands: [
+            `# Order ${firstOrder.id}'s work record, exactly as IdentityMD serves it`,
+            `curl -s ${IMD_LINK.workRecord(hashNo0x(firstOrder.prove.recordHash))} -o record.json`,
+            "",
+            "# Ask the launched WorkProof; it reads WorkRegistry.latest itself",
+            castView(workProof, "WORK_PROOF", workProofAbi, "prove", [
+              jobIdToBytes16(firstOrder.jobId),
+              `"0x$(xxd -p record.json | tr -d '\\n')"`,
+              "85",
+            ]),
+          ],
+        }
+      : null;
+
+  // Launch C's pipeline findings, said once the book records launch C, as the judges page says them.
+  const launchCPr = LAUNCH_PRS.find((pr) => pr.launch === "C") ?? null;
 
   const commands = verifyCommands({
     jobId: REFERENCE_JOB.jobId,
@@ -202,7 +272,12 @@ export async function llmsTxt(ctx: LoadContext): Promise<string> {
       STATIC_PATHS.map((p) => {
         const t = twinPaths(p.path);
         const waiting = !isLivePath(p, deployments) && p.needs !== null;
-        return `[${p.label}](${abs(ctx, t.md)}): ${p.blurb}${waiting ? ` Not live until ${deployments.contracts[p.needs as ContractKey].name} is launched; the page is complete and shows every transaction and its cast command.` : ""}`;
+        const needs = p.needs === null ? null : deployments.contracts[p.needs];
+        return `[${p.label}](${abs(ctx, t.md)}): ${p.blurb}${
+          waiting && needs
+            ? ` Not live until ${needs.name} is launched; the page is complete and shows every transaction and its cast command.`
+            : ""
+        }`;
       }),
     ),
     bullets([
@@ -220,9 +295,18 @@ export async function llmsTxt(ctx: LoadContext): Promise<string> {
           `IdentityMD's audit of launch A, report ${index + 1} (${audit.findings.length} findings, each with its outcome on the judges page): ${IMD_LINK.jobReport(audit.jobId)}`,
       ),
       `A real job carried our 85-byte order header unchanged into its work record: job ${HEADER_JOB.jobId}, record ${IMD_LINK.workRecord(HEADER_JOB.recordHash.slice(2))}. ${headerReceiptWords}`,
+      ...(firstOrderProof ? [firstOrderProof.words] : []),
     ]),
     launchRecorded(deployments, "B")
-      ? `Not a proof, a disclosure: before it deployed launch B${deployments.launches.B.launchNumber !== null ? ` (IdentityMD launch ${deployments.launches.B.launchNumber})` : ""}, IdentityMD's launch pipeline audited the four contracts and reported ${plural(DESK_ADAPTATION.findings.filter((f) => f.severity === "medium").length, "medium finding")} and ${DESK_ADAPTATION.findings.filter((f) => f.severity === "info").length} at level info. No contract code was changed for any of them; the medium finding (a receipt-only pot can be ended in a refund with no bond forfeited) was answered in words, not in code, and stands as a disclosed limit. ${DESK_ADAPTATION.document} has every finding; the judges page lists them.`
+      ? `Not a proof, a disclosure: before it deployed launch B${deployments.launches.B.launchNumber !== null ? ` (IdentityMD launch ${deployments.launches.B.launchNumber})` : ""}, IdentityMD's launch pipeline audited the four contracts. Its record of the job, ${DESK_ADAPTATION.onRecord.record}, holds ${deskOnRecordWords()}. ${deskGradingWords()} No contract code was changed for any of them; ${DESK_ADAPTATION.findings
+          .filter((f) => f.severity === "medium")
+          .map((f) => f.id)
+          .join(
+            " and ",
+          )} (a receipt-only pot can be ended in a refund with no bond forfeited) was answered in words, not in code, and stands as a disclosed limit. ${DESK_ADAPTATION.onRecord.document} lists all ${DESK_ADAPTATION.onRecord.count}; the judges page gives the ${DESK_ADAPTATION.findings.length} that ${DESK_ADAPTATION.document} answers.`
+      : null,
+    launchRecorded(deployments, "C") && launchCPr
+      ? `Not a proof, a disclosure: before it deployed launch C${deployments.launches.C.launchNumber !== null ? ` (IdentityMD launch ${deployments.launches.C.launchNumber})` : ""}, IdentityMD's launch pipeline audited the three contracts. Its record of the job, ${launchCPr.record}, holds ${launchCPr.count} findings, all in accepted review submissions: 6 graded low and 7 info, none marked blocking. The pipeline changed no source file. launches/c-company/ADAPTATION.md answers the 3 raised by the audit it imported; no node of the job answered the other 10.${launchCPr.document ? ` ${launchCPr.document} lists all ${launchCPr.count}, each with what became of it.` : ""}`
       : null,
     `The three oracle answers were bought by a house wallet and named no callback; ${storedWords}`,
     "## Check the central claim yourself",
@@ -230,7 +314,7 @@ export async function llmsTxt(ctx: LoadContext): Promise<string> {
     fence(commands.map((c) => `# ${c.comment}\n${c.command}`).join("\n\n"), "sh"),
     fence(
       [
-        "# The seat behind the agent that did that job.",
+        "# The seat behind the agent that job's record names.",
         `cast call ${MAINNET.SEAT_ADAPTER} "bindingOf(uint256)((uint8,address,uint256))" 52211 --rpc-url ${PUBLIC_RPC}`,
         "",
         "# How many oracle requests the mainnet Intake has ever taken.",
@@ -238,6 +322,7 @@ export async function llmsTxt(ctx: LoadContext): Promise<string> {
       ].join("\n"),
       "sh",
     ),
+    firstOrderProof ? fence(firstOrderProof.commands.join("\n"), "sh") : null,
     "## Addresses",
     "IdentityMD's contracts on Ethereum mainnet:",
     table(

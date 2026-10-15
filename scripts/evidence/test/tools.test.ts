@@ -439,4 +439,37 @@ describe("the recording", () => {
     expect(job.objective.length).toBeLessThan(200);
     expect(job.nodes).toBeUndefined();
   });
+
+  it("keeps of a launch's own record the list row's fields and its contracts", () => {
+    const tape = emptyTape("t");
+    const artifacts = [
+      {
+        name: "Payroll",
+        address: "0x1",
+        verifiedAt: "2026-10-13T10:10:51.787Z",
+        verifyFailure: null,
+      },
+    ];
+    tape.api["/launches/92bb495f-f565-414a-9b0d-d4bc62e699ac"] = {
+      status: 200,
+      body: {
+        id: "92bb495f-f565-414a-9b0d-d4bc62e699ac",
+        launchNumber: 1531,
+        status: "live",
+        artifacts,
+        attestation: { contracts: [1, 2, 3] },
+        jobs: [{ objective: "x".repeat(500) }],
+        allocations: {},
+      },
+    };
+    const body = slimTape(tape).api[
+      "/launches/92bb495f-f565-414a-9b0d-d4bc62e699ac"
+    ]?.body as Record<string, unknown>;
+    expect(body).toEqual({
+      id: "92bb495f-f565-414a-9b0d-d4bc62e699ac",
+      launchNumber: 1531,
+      status: "live",
+      artifacts,
+    });
+  });
 });

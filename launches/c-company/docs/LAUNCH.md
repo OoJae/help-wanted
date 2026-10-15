@@ -4,10 +4,16 @@ This document is what the launch needs and nothing else: the launch request, the
 where every constructor argument comes from, every value that can never be changed afterwards, what
 to check before launching, and what to do on the first day and every day after.
 
-**Status (15 October 2026): not launched.** Nothing in this document has been sent to a chain by this
-launch. Every number below was produced by a test or a command that is named beside it. The three
-contracts of this launch do not exist yet; where a command needs one of their addresses, it reads it
-from a shell variable.
+**Status: launched.** IdentityMD launch 1845 created the three contracts on Ethereum mainnet on 15
+October 2026, in transaction `0x1806c02e5e38d4c8496476b3f3cf39f250a9d0c97ff5834c75a0475a12bd62fb`
+(block 26198165): `Rules` at `0xcbF0dddF07C00a78E2E7561a6F47C275B8c05D7E`, `Endowments` at
+`0xbE916A53b9Bbe634AF7E10E604E06b6069edEE76` and `Zap` at
+`0x51bF8c74bd9BD74Ad08cABDC90DaC7835C18B21A`. The rest of this document is kept as it was written
+before the launch. One correction: section 6, step 2, says IdentityMD's receipt writer has been
+writing again since 14 October; it wrote again from 13 October 2026, 17:26 UTC (block 26,185,055),
+and the desk's first order was paid on its job's receipt on 14 October. Every number below was
+produced by a test or a command that is named beside it, and where a command needs one of the three
+addresses it reads it from a shell variable: set those to the addresses above.
 
 **Every constructor argument is known.** `Rules` takes the address of `WorkOrders`, and `Endowments`
 and `Zap` take the addresses of `Questions` and `CrowdPots`. Those three contracts belong to the two

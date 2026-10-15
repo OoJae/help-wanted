@@ -20,9 +20,16 @@ The runner is paid 90% of the order's price and gets its bond back. Anyone can r
 
 > **Status.** The code is tested against fixtures, against the x402 libraries themselves, and, with
 > the keeper, against the real contracts of all three launches on a local node, where a stand-in
-> for IdentityMD checks both of its signatures. **No real payment has been made with it**: that
-> needs a funded wallet. Read [What can cost you money](#what-can-cost-you-money) and
-> [What is verified, and what is not](#what-is-verified-and-what-is-not) before going live.
+> for IdentityMD checks both of its signatures. **It runs live.** On 13 and 14 October 2026 the
+> team's runner took order 1 of the launched desk, paid IdentityMD 0.5 IMD for the job, and was
+> paid on the job's receipt
+> ([What is verified, and what is not](#what-is-verified-and-what-is-not) has the transactions).
+> Since 15 October 2026, 14:18 UTC, the team's runner has run around the clock on a hosted server
+> (Railway, [Docker and hosting](#docker-and-hosting)), signing as the team's wallet H1. It takes
+> orders from any employer, one order at a time, pays at most one 0.5 IMD swarm fee a day, posts
+> bonds of at most 0.25 IMD, and takes `skill:research-report` and `skill:create-image` jobs. By
+> block 26,198,957 (15 October 2026, 15:57 UTC) order 1 was still the one order it had taken. Read
+> [What can cost you money](#what-can-cost-you-money) before going live.
 
 ## Safe by default
 
@@ -111,12 +118,12 @@ The ways a registered order ends without a settling record, and what the runner 
 
 - **The job ends blocked.** With the job's receipt on chain the runner reports it
   (`reportFailed`) and gets its whole bond back. Without a receipt it cannot. IdentityMD's receipt
-  writer has been behind since 8 Oct 2026, so this is the case to plan for. The runner therefore
-  **does not register a job at once**: it watches the job and registers it when it has completed,
-  or fifteen minutes before the claim window ends. A job that ends blocked before that is given back
-  for a tenth of the bond. `REGISTER_AT_ONCE=1` turns this off. With `MAX_JOBS_PER_ORDER=2` (and an
-  `ORDER_CAP_IMD` that covers two fees) the runner instead buys one more job for a claim whose
-  first job blocked after registration.
+  writer stalled from about 8 to 14 October 2026, so this is the case to plan for. The runner
+  therefore **does not register a job at once**: it watches the job and registers it when it has
+  completed, or fifteen minutes before the claim window ends. A job that ends blocked before that
+  is given back for a tenth of the bond. `REGISTER_AT_ONCE=1` turns this off. With
+  `MAX_JOBS_PER_ORDER=2` (and an `ORDER_CAP_IMD` that covers two fees) the runner instead buys one
+  more job for a claim whose first job blocked after registration.
 - **The employer chooses the job.** The employer writes the spec and, for an audit, names the
   repository. An employer who expects the job to fail receives the runner's bond when it does.
   This is why the defaults are a bond of the desk's minimum, one kind of job
@@ -290,10 +297,11 @@ and cannot be configured.
 
 An order can be paid in two ways. The proven way needs the job's receipt in IdentityMD's
 WorkRegistry. The claimed way, which the employer has to allow (`FLAG_ALLOW_CLAIMED`), needs none.
-IdentityMD's receipt writer has been behind since about 8 October 2026: jobs finish, the API lists
-their record hashes as `queued`, and the receipts land hours or days later. A runner that takes an
-order which can _only_ be paid on a receipt has its bond at risk of the delivery deadline through
-no fault of its own.
+IdentityMD's receipt writer stalled from about 8 to 14 October 2026: jobs finished, the API listed
+their record hashes as `queued`, and the receipts landed days later. It writes again since
+13 October (53 receipts in the 1,800 blocks up to block 26,198,141, on 15 October), and it can
+stall again. A runner that takes an order which can _only_ be paid on a receipt has its bond at
+risk of the delivery deadline through no fault of its own.
 
 `RECEIPT_ONLY_ORDERS` decides what the runner does with such an order:
 
@@ -495,13 +503,46 @@ docker run -d --name hw-runner --restart unless-stopped \
 `-e RUNNER_PRIVATE_KEY` with no value passes the variable through from your shell, so the key never
 appears in the command line. The image contains no key.
 
-The store lives at `/data/runner.json`. The `VOLUME` line in the Dockerfile does not make that
-persistent on a hosting platform: attach the platform's own persistent volume at `/data` (on
-Railway, a volume mounted at `/data`). A live runner refuses to start if it cannot write its store.
+The store lives at `/data/runner.json`. Attach a persistent volume at `/data` (with Docker,
+`-v hw-runner:/data`; on Railway, a volume mounted at `/data`; Railway refuses a Dockerfile that
+declares a `VOLUME` itself, so this one declares none). A live runner refuses to start if it cannot
+write its store.
+
+The team's own runner has been hosted on Railway since 15 October 2026, 14:18 UTC.
+`scripts/deploy-runner.sh` at the repository root deploys the runner to Railway: it uploads only
+what this Dockerfile copies, leaves out `.env` and `.env.*` files and the store, and refuses to
+upload anything when a file sets `RUNNER_PRIVATE_KEY` or `KEEPER_PRIVATE_KEY` to a key. A key kept
+in a file any other way is not caught, so keep keys out of the folder. The upload holds no
+`railway.toml`, and the script sets none of the Dockerfile path, the volume at `/data`, the key or
+`LIVE=1`: each is a setting of the service, in Railway. When the script creates the service, it
+prints a reminder to set the first two.
 
 ## What is verified, and what is not
 
-Verified on the live system (13 October 2026):
+Verified on the live system, with order 1 of the launched desk (13 and 14 October 2026). The
+order was the Doorbell's, a picture job that allows the bonded claim; the runner's wallet is the
+team's H1:
+
+- `claim(1)`: transaction `0x64fa9f0ab43cd79f3e0a6ea1ba4829afae68ec882ba8a99dd9b692b579f4cb8b`,
+  block 26,185,009, 114,328 gas.
+- **A real payment.** IdentityMD accepted the runner's paid request and settled it on chain
+  (transaction `0xc92c4731e996540cbe68d2e62bc820d67e6bf4d7ec9adc6464b4b0be90e66bc5`, block
+  26,185,015): 0.5 IMD moved from the runner's wallet to IdentityMD's fee address through the x402
+  contract. IdentityMD opened job `f7bd80ba-3e8b-483f-ad02-6ffbd16fef92`, a `skill:create-image`
+  job whose objective begins with the order's 85-byte header, and names the runner's wallet as its
+  payer.
+- `register(1, jobId)` once the job had completed: transaction
+  `0x868c21f2ce636a1b14c98e78595c051f9d6787e774eb24603e6408a287e10904`, 41,748 gas.
+- `claimDelivered` on the record hash the API listed, before the job's receipt was written:
+  transaction `0xb1e9061678862f6b2049d7941b0a28e020dac681370dd3b6d8f564bd82c88a25`, 13 October,
+  17:37 UTC, 81,113 gas.
+- `settle` on the job's receipt, one minute after IdentityMD's writer wrote it on 14 October and
+  before the claim's 24 hours were over: transaction
+  `0xa3f5b783fe194c35f348e411a10f0a199589ea89b668a16d1597794931217628`, block 26,190,223. The desk
+  proved the record, marked the order proven, and paid the runner 0.9 IMD and its bond. The
+  settlement used 636,569 gas of the 1,904,420 it was sent with.
+
+Verified on the live system before that (13 October 2026):
 
 - **The header survives.** Job `e70c56ce-60f0-4c2c-b413-67e5ae37ddce` was sent an objective of our
   85-byte header followed by a question; IdentityMD stored it byte for byte, and its work record
@@ -543,24 +584,27 @@ Verified by tests that run offline (`pnpm --filter @help-wanted/runner test`):
 
 Verified only against documentation or source, **not against the live protocol**:
 
-- **The whole paid flow end to end.** No paid request has been made. The quote, challenge and
-  status fixtures in `test/fixtures` are built by hand from IdentityMD's OpenAPI document and API
-  guide; they are not recordings.
-- **A quote for a header-carrying job.** That the header survives is verified (above), through a
-  job a person paid for in a browser. The prepared input of a quote made through this code has not
-  been seen. The runner checks it before it claims: if the prepared input differs by one byte the
-  order is not claimed, so being wrong costs nothing. It checks once more that the job IdentityMD
-  opened carries the objective before it registers it.
-- **`maxTimeoutSeconds`.** The fixtures assume 300 seconds against the 600 second quote. If the real
-  value leaves no room before the quote expires, no payment can be signed; the runner finds that out
-  before it claims as well, and says so at `error`.
-- **What IdentityMD adds to a prepared input.** Unknown until a real quote is seen. A default with
-  a value stops the order before the claim, with the field named in the log; list it in
+- **The paid flow, beyond one job.** One paid request has been made (order 1, above), for a
+  `skill:create-image` job. The quote, status and most challenge fixtures in `test/fixtures` are
+  built by hand from IdentityMD's OpenAPI document and API guide; one real challenge, saved by a
+  `LOOK_ONLY=1` run for order 1 on 13 October 2026, is in `test/fixtures/live`.
+- **A quote for a header-carrying job of another kind.** Order 1's quote, made through this code,
+  carried the header and passed the byte-for-byte check before the claim. No other kind has been
+  quoted through this code. The runner checks every quote before it claims: if the prepared input
+  differs by one byte the order is not claimed, so being wrong costs nothing. It checks once more
+  that the job IdentityMD opened carries the objective before it registers it.
+- **`maxTimeoutSeconds`.** The fixtures assume 300 seconds against the 600 second quote, and the
+  live challenge of 13 October 2026 said 300. If a later value leaves no room before the quote
+  expires, no payment can be signed; the runner finds that out before it claims as well, and says
+  so at `error`.
+- **What IdentityMD adds to a prepared input, beyond one kind.** For the `skill:create-image` job of
+  order 1 it added one field, `contracts`, empty, which the check lets through. A default with a
+  value stops the order before the claim, with the field named in the log; list it in
   `PREPARED_INPUT_EXTRA_KEYS` once you have looked at it.
-- **The job bodies.** `audit` and one-skill bodies follow the examples in the guide. The free
-  preflight says whether a body is accepted; that call has not been made from this code. The
-  `kind` the live preflight returned for a research-report job was `report`, not a work record's
-  kind: the runner acts on that field only when it is spelled like one.
+- **The job bodies.** The `skill:create-image` body was accepted and bought (order 1). `audit` and
+  the other one-skill bodies follow the examples in the guide and have not been bought through
+  this code. The `kind` the live preflight returned for a research-report job was `report`, not a
+  work record's kind: the runner acts on that field only when it is spelled like one.
 - **How promptly the API lists a record.** Delivery is claimed with the hash
   `GET /jobs/:id/records` lists, after it has stood for `CLAIM_SETTLE_SECONDS`. A keeper that
   checks the claim reads the same route; if the route served another list a few minutes later, a
@@ -568,17 +612,20 @@ Verified only against documentation or source, **not against the live protocol**
 - **The x402 client and IMD.** At 2.28.0 the stock `x402Client` refuses IMD unless it is listed in
   `spendControls.allowedAssets` (a test shows this). The runner lists it, with the order cap as the
   per-payment maximum.
-- **The deployed desk.** The ABI is generated from the launch project's build output, and the
-  runner has run against that bytecode on a local node. It has not run against the desk on
-  mainnet: the desk is not launched.
+- **The desk on mainnet, beyond order 1.** The ABI is generated from the launch project's build
+  output, and the runner has run against that bytecode on a local node and, for order 1, against
+  the launched desk (above). `finalize`, `stamp`, `reportFailed`, `release`, `timeout`, a dispute
+  and the chunked proof have not been used on mainnet.
 - **The receipts-flow test against mainnet's registry.** `WorkRecorded` is read from the registry
   over the last 1,800 blocks; a public node serves logs for about 9,000, so the query fits. The
   event's shape is the one in `packages/shared` (`workRegistryAbi`); the registry's source is not
   published.
 - **Replacing a transaction that is not mined.** Tested against a stand-in for the node, not
   against a real mempool.
-- **The Docker image** has not been built here (no Docker daemon). Its install step was reproduced
-  outside Docker.
+- **The Docker image on a machine of your own.** It has not been built on the development machine
+  (no Docker daemon); its install step was reproduced outside Docker. The team's runner has run on
+  Railway since 15 October 2026, 14:18 UTC. Which Dockerfile Railway builds it from is a setting of
+  the service, and that setting was not read for this document.
 
 First live run: one free `POST /requests/check` with a header objective (`DRY_RUN_PREFLIGHT=1`),
 then `LOOK_ONLY=1` with `LIVE=1` to see the real quote and payment challenge pass every check
@@ -588,18 +635,19 @@ small order of your own with the kill switch at hand.
 The first live look, on 13 October 2026, found one difference from the hand-built fixtures: the
 challenge's `resourceUrl` names the order itself (`<api>/requests/<id>`), not its submit route. The
 runner refused it before claiming, as it is meant to; both forms are accepted since, and the paying
-request is sent to the submit route whatever the challenge names.
+request is sent to the submit route whatever the challenge names. The first live payment followed
+the same day, for that order, order 1 (above).
 
 ### For launch B
 
 - The Doorbell orders a picture: its kind is `skill:create-image`. The default `TEMPLATES` is
   `skill:research-report` alone, so a runner meant to serve the Doorbell needs
   `TEMPLATES=skill:research-report,skill:create-image`.
-- The Doorbell, if it is launched with the claimed path on as its manifest proposes, and a pot
-  whose terms say so allow the bonded claim, so their orders are taken while receipts are stalled.
-  An order without it is taken only while receipts flow (`RECEIPT_ONLY_ORDERS`). The first pot and
-  the first rule proposed in the launch documents are both receipt-only: while receipts are
-  stalled this runner leaves their orders alone, and says why.
+- The Doorbell was launched with the claimed path on (`ALLOW_CLAIMED()` reads true), and a pot
+  whose terms say so allows it too, so their orders are taken while receipts are stalled. An order
+  without it is taken only while receipts flow (`RECEIPT_ONLY_ORDERS`). The first pot proposed in
+  launch B's documents allows the claimed path; the first rule proposed in launch C's is
+  receipt-only, and while receipts are stalled this runner leaves its orders alone, and says why.
 - A pot's bond is its opener's choice (the first pot proposed in launch B's documents asks 0.5
   IMD): raise `MAX_BOND_IMD` to take such an order, and `MAX_BONDS_AT_RISK_IMD` with it.
 - If you also run the keeper, name this runner's address in the keeper's `DESK_OWN_RUNNERS`, or it

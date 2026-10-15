@@ -11,9 +11,10 @@
 # The image holds no key. A live run takes LIVE=1, START_BLOCK and RUNNER_PRIVATE_KEY from the
 # environment at start, through your platform's secret store.
 #
-# The store is /data/runner.json. It must survive a restart: on a hosting platform attach a
-# persistent volume at /data (the VOLUME line below does not do that by itself). A live runner
-# refuses to start when it cannot write its store.
+# The store is /data/runner.json. It must survive a restart: attach a persistent volume at /data
+# (`docker run -v hw-runner:/data`, or the hosting platform's own volume; Railway refuses a
+# Dockerfile that declares one itself). A live runner refuses to start when it cannot write its
+# store.
 FROM node:22-slim
 
 ENV NODE_ENV=production \
@@ -35,7 +36,6 @@ COPY bots/runner bots/runner
 
 RUN mkdir -p /data && chown node:node /data
 USER node
-VOLUME /data
 WORKDIR /app/bots/runner
 
 # tsx runs the TypeScript sources directly; node stays PID 1 so SIGTERM stops the loop cleanly.

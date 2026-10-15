@@ -259,7 +259,7 @@ describe("with the hire desk launched", () => {
       "Sent back to the employer": "1",
       "Price fixed by the runner's claim": "2",
       "of which fee (to Payroll)": "0.1",
-      "of which tip (to the seats that worked)": "0.1",
+      "of which tip (to the seats of the agents the record names)": "0.1",
       "of which to the runner": "1.8",
     });
     // The ticket is recomputed from public facts: chain, desk, order, claim number, runner.

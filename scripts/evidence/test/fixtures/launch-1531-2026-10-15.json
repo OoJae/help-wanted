@@ -1,0 +1,53 @@
+{
+  "note": "IdentityMD's answer to GET /launches/92bb495f-f565-414a-9b0d-d4bc62e699ac (launch A, no. 1531) at 2026-10-15T13:15:55Z, slimmed as slimTape slims it. The recording of 13 October 2026 holds no answer to this path: the builder read only the list of launches then.",
+  "api": {
+    "/launches/92bb495f-f565-414a-9b0d-d4bc62e699ac": {
+      "status": 200,
+      "body": {
+        "id": "92bb495f-f565-414a-9b0d-d4bc62e699ac",
+        "launchNumber": 1531,
+        "kind": "evm_contracts",
+        "status": "live",
+        "chainId": 1,
+        "sourceRepoUrl": "https://github.com/identity-md-launches/launch-1531-please-deploy-repository-contracts",
+        "sourceCommit": "3507c0e002c14ce8cde713bd7c62e6e6e522db4b",
+        "parkedReason": null,
+        "artifactCount": 3,
+        "artifacts": [
+          {
+            "role": "other",
+            "name": "JobsReport",
+            "address": "0x58963b57e179f7fe4e95090c21e8e9d75353bce4",
+            "creationCodeHash": "4d11b892cb8ae86aa1661c4c616d5fe85feec34b0011f919c8f20b8b69ce96aa",
+            "txHash": "0x9ce6111c9f454373ac208cc9b54ebd0a4b09e58706f20e568f0f9e8bbb392c58",
+            "blockNumber": 26182869,
+            "verifiedAt": "2026-10-13T10:10:46.438Z",
+            "verifyFailure": null
+          },
+          {
+            "role": "other",
+            "name": "Payroll",
+            "address": "0x6e4362a5cec59eb3f611af6b2d81915cf5b45f1f",
+            "creationCodeHash": "4bfb38e03a46dc662f07ca895ec1cab338c74dd8af5e9d8ffa8995f95b6352a0",
+            "txHash": "0x9ce6111c9f454373ac208cc9b54ebd0a4b09e58706f20e568f0f9e8bbb392c58",
+            "blockNumber": 26182869,
+            "verifiedAt": "2026-10-13T10:10:51.787Z",
+            "verifyFailure": null
+          },
+          {
+            "role": "other",
+            "name": "Questions",
+            "address": "0xeece4628ceb091c13393fc64056be8b8501fd3f6",
+            "creationCodeHash": "0333be1a397b5d4e9e5c8860d29782d7c3b91444fec83b10563c66c31bd79e8e",
+            "txHash": "0x9ce6111c9f454373ac208cc9b54ebd0a4b09e58706f20e568f0f9e8bbb392c58",
+            "blockNumber": 26182869,
+            "verifiedAt": "2026-10-13T10:10:41.073Z",
+            "verifyFailure": null
+          }
+        ],
+        "createdAt": "2026-10-13T10:00:35.968Z",
+        "updatedAt": "2026-10-13T10:08:15.892Z"
+      }
+    }
+  }
+}

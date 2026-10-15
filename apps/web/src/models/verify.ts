@@ -341,7 +341,7 @@ export const verifyJobPage: PageDef<VerifyJobModel> = {
                 ["jobId", facts.jobId],
                 ["kind", facts.kind],
                 ["state", facts.state],
-                ["agents that worked (ERC-8004 ids)", facts.agentIds.join(", ")],
+                ["agents the record names (ERC-8004 ids)", facts.agentIds.join(", ")],
                 ...(facts.previousHash
                   ? [["previousHash (the receipt this one replaced)", facts.previousHash]]
                   : []),
@@ -355,8 +355,8 @@ export const verifyJobPage: PageDef<VerifyJobModel> = {
         : null,
       m.seats.length > 0
         ? doc(
-            "## The seats that did the work",
-            "Each agent id in the record is looked up in IdentityMD's seat Adapter, then the seat's owner in the seat contract. This is the path HELP WANTED's per-job tips will follow.",
+            "## The seats of the agents the record names",
+            "Each agent id in the record is looked up in IdentityMD's seat Adapter, then the seat's owner in the seat contract. This is the path HELP WANTED's per-job tips follow.",
             table(
               ["Agent", "Seat", "Owner now"],
               m.seats.map((s) => [

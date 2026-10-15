@@ -944,10 +944,16 @@ describe("a feed's meter and the keeper tip", () => {
     expect(seat.calls[0]).toMatchObject({ signature: "claimSeat(uint256)", to: ALL_LAUNCHED.payroll });
     const seatSaid = seat.summary.join(" ");
     expect(seatSaid).toMatch(/owner/);
-    // As launched: anyone may claim for an ordinary wallet; a contract owner must claim itself.
-    expect(seatSaid).toContain("For a seat held by an ordinary wallet, anyone may send the claim.");
-    expect(seatSaid).toContain("must be claimed by that contract itself");
-    expect(seatSaid).toContain("ContractOwnerMustClaim");
+    // As launched (Payroll._claimAllowed): anyone may claim for an owner with no code or for Payroll
+    // itself; any other owner with code must claim itself.
+    expect(seatSaid).toContain(
+      "Anyone may send the claim when the seat's owner is an address with no code (an ordinary wallet) or Payroll itself.",
+    );
+    expect(seatSaid).toContain("When the owner is any other address with code");
+    expect(seatSaid).toContain(
+      "only the owner may send it; anyone else's call reverts ContractOwnerMustClaim.",
+    );
+    expect(seatSaid).not.toContain("must be claimed by that contract itself");
     expect(seatSaid).not.toMatch(/Anyone may call this\./);
     const tip = ok(flowById("claim-tip")!.plan({ agentId: "52211" }, ctx(ALL_LAUNCHED)));
     expect(tip.calls[0]).toMatchObject({ signature: "claimTip(uint256)", args: [52211n] });
@@ -1026,6 +1032,35 @@ describe("rules and endowments (launch C)", () => {
     // A pot endowment's harvest is sent with the gas limit launch C's document asks for.
     const potHarvest = ok(flowById("endow-harvest")!.plan({ id: "1", pot: "true" }, ctx()));
     expect(potHarvest.calls[0]?.gas).toBe(850_000n);
+  });
+
+  it("says Zap is accepted as a payee but should not be named (launch C's THREATS.md, Z4)", () => {
+    const recipient = ok(
+      flowById("endow-create-recipient")!.plan({ recipient: ADDRESS_1 }, ctx(ALL_LAUNCHED)),
+    );
+    const said = recipient.summary.join(" ");
+    expect(said).toContain("IMD, sIMD, Questions and CrowdPots are refused as recipients");
+    expect(said).toContain(
+      `Zap (${ALL_LAUNCHED.zap}) is accepted as a recipient but should not be named: each call to Zap ends by sending its caller all the IMD Zap holds, so whoever calls harvest can take the yield in the same transaction (launch C's docs/THREATS.md, Z4).`,
+    );
+    const pot = ok(
+      flowById("endow-create-pot")!.plan({ potId: "4", beneficiary: ADDRESS_1 }, ctx(ALL_LAUNCHED)),
+    );
+    expect(pot.summary.join(" ")).toContain(
+      "is accepted as the fallback beneficiary but should not be named",
+    );
+    const pay = ok(
+      flowById("create-rule")!.plan(
+        { ...FILLED["create-rule"]!, action: "pay", payRecipient: ADDRESS_1, payAmount: "1" },
+        ctx(ALL_LAUNCHED),
+      ),
+    );
+    expect(pay.summary.join(" ")).toContain(
+      "so whoever calls fire can take the payment in the same transaction",
+    );
+    // A HIRE rule pays no recipient, so it says nothing of Zap.
+    const hire = ok(flowById("create-rule")!.plan(FILLED["create-rule"]!, ctx(ALL_LAUNCHED)));
+    expect(hire.summary.join(" ")).not.toContain("Zap");
   });
 });
 

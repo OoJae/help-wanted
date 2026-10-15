@@ -80,7 +80,8 @@ const pick = (value: unknown, keys: readonly string[]): unknown => {
  * The tape with only what the builder reads. A block is served with every transaction hash in it
  * and a launch transaction with 48,000 bytes of calldata; the builder looks at three fields of
  * the one and four of the other. A pipeline job is served with its whole request text, twice; a
- * short beginning is kept. Logs, code and call results are kept whole.
+ * short beginning is kept. A launch's record keeps the fields of its list row and its contracts.
+ * Logs, code and call results are kept whole.
  */
 export function slimTape(tape: Tape): Tape {
   const rpc: Tape["rpc"] = {};
@@ -128,6 +129,27 @@ export function slimTape(tape: Tape): Tape {
         job.objective = `${job.objective.slice(0, 120)} [the rest is left out of this recording]`;
       }
       body = job;
+    } else if (
+      /^\/launches\/[0-9a-f-]{36}$/.test(key) &&
+      typeof body === "object" &&
+      body !== null
+    ) {
+      // A launch's own record also holds its attestation, its pipeline job and its allocations;
+      // the builder reads the fields of the list row and each contract's verification fields.
+      body = pick(body, [
+        "id",
+        "launchNumber",
+        "kind",
+        "status",
+        "chainId",
+        "sourceRepoUrl",
+        "sourceCommit",
+        "parkedReason",
+        "artifactCount",
+        "artifacts",
+        "createdAt",
+        "updatedAt",
+      ]);
     } else if (
       key.startsWith("/oracle/requests/") &&
       typeof body === "object" &&

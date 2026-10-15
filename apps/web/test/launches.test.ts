@@ -38,10 +38,12 @@ import {
   type DeploymentBook,
   type HouseFeedName,
 } from "@help-wanted/shared";
+import { HOUSE_X402 } from "~/config/history";
 import { HOUSE_WALLETS } from "~/config/house";
 import { LAUNCH_A_JOB } from "~/data";
 import { keeperSource, parseKeeperStatus } from "~/data/keeper";
 import { handleApi } from "~/lib/api";
+import { formatUtcLongDay } from "~/lib/format";
 import type { RawLog } from "~/lib/jsonrpc";
 import { llmsTxt } from "~/lib/siteDocs";
 import { loadPath, markdownTwin } from "~/lib/twins";
@@ -590,7 +592,13 @@ describe("launch A switched on: the Jobs Report", () => {
     const model = loaded!.model as JobsReportModel;
     expect(loaded!.meta.title).toBe("The Robot Jobs Report");
     expect(model.official).toMatchObject({ launched: true, printed: true, error: null });
-    expect(model.releaseNumber).toBe("HW-RJR-2026-10-10-O");
+    // A release is dated by its print: here, by when the payrolls round it copies was answered
+    // (no print transaction is kept for a test book's JobsReport).
+    expect(model.releaseNumber).toBe("HW-RJR-2026-10-11-O");
+    expect(model.schedule?.lastPrintWords).toContain(
+      "The last print, no. 2, copies the payrolls round answered on",
+    );
+    expect(model.releaseDay).toBe(formatUtcLongDay(model.schedule?.lastPrintAt ?? ""));
     expect(model.headline).toBe(
       `Official print no. 2: 121 IMD was paid to the swarm in blocks ${TRANSFERS.fromBlock.toLocaleString("en-US")} to ${TRANSFERS.toBlock.toLocaleString("en-US")}, in 99 payments, as answered by IdentityMD's oracle and stored on chain.`,
     );
@@ -922,7 +930,9 @@ describe("launch A switched on: the company page and the seats", () => {
     expect(seat!.model).toMatchObject({ claimableImd: "0.015", paidImd: "0.0005" });
     const markdown = markdownTwin(seat!);
     expect(markdown).toContain("| Claimable from the seat pool | 0.015 IMD |");
-    expect(markdown).toContain("| Paid to this seat so far | 0.0005 IMD |");
+    // seatPaid counts the seat pool only; a tip paid to the seat's owner is not in it.
+    expect(markdown).toContain("| Paid from the seat pool so far | 0.0005 IMD |");
+    expect(markdown).not.toContain("Paid to this seat");
     expect(markdown).toContain(`cast send ${P.replace("a3", "A3")} "claimSeat(uint256)" 1998`);
   });
 });
@@ -956,7 +966,7 @@ describe("launch A switched on: the judges page, llms.txt and the navigation fol
     expect(said).toContain("Since launch A the keeper has feeds to keep; the runner has no desk");
     // The reads of launch A have run against a chain; only B's and C's are said to be untried.
     expect(said).toContain(
-      "This site's reads of the contracts that are not launched (launch B, launch C) have run only against stand-ins",
+      "This site's reads of the contracts that are not in its deployments book (launch B, launch C) have run only against stand-ins",
     );
     expect(said).not.toContain("because no contract of ours exists to read");
     expect(said).toContain(
@@ -1368,7 +1378,12 @@ describe("the day launch A went live: three feeds asking, nothing answered, noth
     expect(markdown).not.toContain("Nothing can be claimed yet: Payroll (launch A) is not launched yet");
     expect(markdown).toContain("The seat pool so far: 0 IMD booked for seats, 0 IMD claimed");
     expect(markdown).toContain(`${NOT_LIVE_B} The seat pool is filled from the hire desk's fees`);
-    expect(markdown).toContain("must send its own claim; anyone else's call reverts ContractOwnerMustClaim");
+    expect(markdown).toContain(
+      "When the seat's owner is an address with no code (an ordinary wallet) or Payroll itself, nothing needs the owner's signature",
+    );
+    expect(markdown).toContain(
+      "only the owner may send it; anyone else's call reverts ContractOwnerMustClaim",
+    );
     expect(markdown).not.toContain("Nothing needs the owner's signature. Anyone can send the claim");
 
     const seat = await loadPath("/seats/1998", ctxFor(world, "/seats/1998"));
@@ -1376,8 +1391,12 @@ describe("the day launch A went live: three feeds asking, nothing answered, noth
     const seatMarkdown = markdownTwin(seat!);
     expect(seatMarkdown).toContain("| Claimable from the seat pool | 0 IMD |");
     expect(seatMarkdown).toContain(
-      "A seat held by a contract must be claimed by that contract itself: sent by anyone else, the call reverts ContractOwnerMustClaim.",
+      "Anyone may call claimSeat when the seat's owner is an address with no code (an ordinary wallet) or Payroll itself.",
     );
+    expect(seatMarkdown).toContain(
+      "only the owner may call it; anyone else's call reverts ContractOwnerMustClaim.",
+    );
+    expect(seatMarkdown).not.toContain("must be claimed by that contract itself");
     expect(seatMarkdown).not.toContain("Claim before moving a seat into another contract");
     expect(seatMarkdown).toContain(NOT_LIVE_B);
   });
@@ -1435,8 +1454,12 @@ describe("the day launch A went live: three feeds asking, nothing answered, noth
       count: null,
       reason: "WorkOrders is not launched yet",
     });
-    // Our contract's three payments to the fee address are HOUSE payments.
-    expect(row("Paid swarm jobs")?.usage.count).toBe("3");
+    // The x402 count is the house wallets' own history, kept with its source: the same in every book.
+    expect(row("Paid swarm jobs")?.usage.count).toBe(String(HOUSE_X402.payments.length));
+    // Our contract's three payments to the fee address are HOUSE payments in the newest day's tally.
+    expect(row("Paid swarm jobs")?.proofNote).toContain(
+      "In the newest day of blocks the tally counts 3 payments to the fee address from house wallets and contracts",
+    );
     expect(model.feedProofs.limit).toContain("none has been answered yet (read for this page)");
 
     const markdown = markdownTwin(loaded!);
@@ -1457,7 +1480,12 @@ describe("the day launch A went live: three feeds asking, nothing answered, noth
     );
     expect(text).not.toContain("is in IdentityMD's launch pipeline");
     expect(text).toContain("Not live until WorkOrders is launched");
-    expect(text).toContain("Not live until Rules is launched");
+    // Say When is a conditional order on the desk: it waits for WorkOrders, and Endowments for itself.
+    expect(text).toContain(
+      "[Say When](https://help-wanted.test/rules/new.md): WHEN a view call crosses a line",
+    );
+    expect(text).toContain("Not live until Endowments is launched");
+    expect(text).not.toContain("Not live until Rules is launched");
     expect(text).not.toContain("Not live until Payroll is launched");
 
     const get = async <T>(path: string) =>

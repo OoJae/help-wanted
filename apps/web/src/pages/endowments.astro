@@ -3,7 +3,7 @@ import Commands from "~/components/Commands.astro";
 import FlowBlock from "~/components/FlowBlock.astro";
 import NotLaunched from "~/components/NotLaunched.astro";
 import Layout from "~/layouts/Layout.astro";
-import { formatImd, formatUnits } from "~/lib/format";
+import { formatImd, formatUnits, formatUtc } from "~/lib/format";
 import { pageData } from "~/lib/page";
 import type { EndowmentsModel } from "~/models/money";
 
@@ -38,6 +38,7 @@ const { model: m, meta } = loaded;
             <thead>
               <tr>
                 <th>Endowment</th>
+                <th>Who created it</th>
                 <th>Yield goes to</th>
                 <th class="num">Principal, IMD</th>
                 <th class="num">Waiting to be staked, IMD</th>
@@ -49,6 +50,12 @@ const { model: m, meta } = loaded;
               {m.rows.map((row) => (
                 <tr>
                   <th scope="row">#{row.id}</th>
+                  <td class="break" data-label="Who created it">
+                    {row.origin && (
+                      <span class:list={["tag", row.origin === "HOUSE" && "tag--solid"]}>{row.origin}</span>
+                    )}{" "}
+                    <span class="small">{row.originWords}</span>
+                  </td>
                   <td class="break" data-label="Yield goes to">
                     {row.target}
                   </td>
@@ -71,6 +78,39 @@ const { model: m, meta } = loaded;
         <p class="notice notice--quiet">No endowment has been created yet.</p>
       )}
       {m.stakingNote && <p class="small">{m.stakingNote}</p>}
+      {m.rows
+        .filter((row) => row.trail.length > 0)
+        .map((row) => (
+          <>
+            <h3 class="sub">Endowment {row.id}: its transactions</h3>
+            <div class="tablewrap">
+              <table class="wide stack">
+                <thead>
+                  <tr>
+                    <th style="width:14%">Step</th>
+                    <th style="width:16%">When (UTC)</th>
+                    <th style="width:24%">Transaction</th>
+                    <th>What it did</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {row.trail.map((step) => (
+                    <tr>
+                      <th scope="row">{step.label}</th>
+                      <td data-label="When (UTC)">{formatUtc(step.at)}</td>
+                      <td class="code" data-label="Transaction">
+                        <a class="break" href={step.txUrl} rel="noopener">
+                          {step.tx}
+                        </a>
+                      </td>
+                      <td data-label="What it did">{step.what}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ))}
     </section>
   )}
 

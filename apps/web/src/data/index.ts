@@ -11,6 +11,7 @@
 import { resolveDeployments, type Deployments } from "~/config/deployments";
 import { hostOf, readEnv, type AppEnv } from "~/config/env";
 import { REFERENCE_JOB } from "~/config/chain";
+import { LAUNCH_C_JOB, ORDER_HISTORY } from "~/config/history";
 import { SlidingWindowLimiter, TtlCache } from "~/lib/cache";
 import { createEthReader } from "~/lib/jsonrpc";
 import { HttpApiSource, type ApiSource, type PinnedRecord } from "./api";
@@ -89,6 +90,17 @@ export const LAUNCH_A_JOB = { jobId: "d8bb3d81-820d-42f4-ad7c-1d3ed96b1da8" } as
  */
 export const LAUNCH_B_JOB = { jobId: "eb0f6c65-174a-45e8-9fe5-9312c66d4880" } as const;
 
+/**
+ * Every job this server reads in full on its own account: the three launch jobs, and the swarm job
+ * of each order whose history `config/history.ts` keeps (its media CID is shown on the order page).
+ */
+export const OWN_JOBS: readonly string[] = [
+  LAUNCH_A_JOB.jobId,
+  LAUNCH_B_JOB.jobId,
+  LAUNCH_C_JOB.jobId,
+  ...ORDER_HISTORY.orders.map((order) => order.jobId),
+];
+
 export function headerJobPin(): PinnedRecord {
   return {
     jobId: HEADER_JOB.jobId,
@@ -107,7 +119,7 @@ export function buildSources(
     maxPerMinute: env.apiMaxPerMinute,
     cache,
     pinned: [referencePin(), headerJobPin()],
-    ownJobs: [LAUNCH_A_JOB.jobId, LAUNCH_B_JOB.jobId],
+    ownJobs: OWN_JOBS,
   });
   const chain = new RpcChainSource({
     reader: createEthReader(env.rpcUrl),

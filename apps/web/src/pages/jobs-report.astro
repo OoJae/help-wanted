@@ -107,6 +107,24 @@ const maxShare = t?.topPayers[0]?.totalWei ?? 0n;
         </p>
       </div>
       <p class="release__lede">{m.headline}</p>
+      {m.schedule && (
+        <aside class="notice" aria-label="The last print and the next">
+          <span class="label">The last print, and the next</span>
+          <p>
+            {m.schedule.lastPrintWords}
+            {m.schedule.lastPrintTxUrl && (
+              <>
+                {" "}
+                <a href={m.schedule.lastPrintTxUrl} rel="noopener">
+                  The print's transaction.
+                </a>
+              </>
+            )}{" "}
+            {m.schedule.nextWords}{" "}
+            {m.schedule.meter?.shortImd && <a href="/questions#fund">Fund the meter.</a>}
+          </p>
+        </aside>
+      )}
       {o.summary && (
         <dl class="figures">
           <div class="figure">

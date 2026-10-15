@@ -83,7 +83,7 @@ export function specInputsProblem(kind: string, spec: string): string | null {
   // IdentityMD caps the objective of its plain `research` template at 4,000 characters, 85 of
   // which are the order's header.
   if (kind === "research" && new TextEncoder().encode(spec).length > RESEARCH_SPEC_MAX_BYTES) {
-    return `A job of kind research takes an objective of at most 4,000 characters, 85 of which are the order's header, so its job text can be at most ${RESEARCH_SPEC_MAX_BYTES.toLocaleString("en-US")} bytes. A longer one is accepted by the desk and can never be opened as a job.`;
+    return `A job of kind research takes an objective of at most 4,000 characters, 85 bytes of which are the order header, so its job text can be at most ${RESEARCH_SPEC_MAX_BYTES.toLocaleString("en-US")} bytes. A longer one is accepted by the desk and can never be opened as a job.`;
   }
   const template = SHARED_TEMPLATES[kind];
   if (!template) return null;

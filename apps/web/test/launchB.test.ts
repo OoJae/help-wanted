@@ -309,10 +309,18 @@ describe("launch B on the day of its launch: live, and nothing has been called o
     expect(b.status).toContain(
       `Launched as IdentityMD launch ${TEST_LAUNCH.b.launchNumber}, in block 26,151,000.`,
     );
-    // One medium finding, answered in words and not in code: said in the launch's own line.
-    expect(b.status).toContain("1 medium finding and 6 at level info");
+    // The count is of the accepted submissions, with the judge's first round named beside it, and
+    // each grading is said with whose it is.
     expect(b.status).toContain(
-      "No contract code was changed for any of them; the medium finding was answered in words, not in code",
+      "Its record of the job holds 11 findings in its accepted submissions (the judge's first round, not accepted, raised 3 that its last round restates), the number its pull request gives.",
+    );
+    expect(b.status).toContain(
+      "launches/b-desk/ADAPTATION.md answers 7 of them. It grades a96c4f58 medium, as the judge's first round did (its last round, the one accepted, grades it info), and the other 6 info. The pipeline's judge merged the remaining 4, among them audit_permissions' medium finding, into three of those.",
+    );
+    expect(b.status).not.toContain("1 medium finding and 6 at level info");
+    // One finding answered in words and not in code: said in the launch's own line.
+    expect(b.status).toContain(
+      "No contract code was changed for any of them; a96c4f58 was answered in words, not in code",
     );
     expect(b.status).toContain("launches/b-desk/ADAPTATION.md");
     expect(model.launches.find((launch) => launch.key === "C")).toMatchObject({ launched: false });
@@ -325,7 +333,7 @@ describe("launch B on the day of its launch: live, and nothing has been called o
       "IdentityMD's receipts are stalled: its WorkRegistry recorded none in the last six hours of blocks",
       "only an order whose employer allowed the bonded-claim path can be paid",
       "The header job's receipt is not on chain.",
-      "Launch B was audited by that pipeline before it was deployed, and by nobody else: we bought no audit of it",
+      "Launch B was audited by that pipeline before it was deployed, and by nobody outside IdentityMD's network: we bought no audit of it",
       "Launch C has not been audited by a third party.",
       "its handlers are still stubs, so it holds no table of orders, claims or pots",
     ]) {
@@ -362,14 +370,14 @@ describe("launch B on the day of its launch: live, and nothing has been called o
     );
     expect(c2.text).toContain("No IMD is lost.");
 
-    // Launch B in its README's words: live, audited by the pipeline and nobody else.
+    // Launch B in its README's words: live, audited by the pipeline and by nobody outside IdentityMD's network.
     expect(model.desk.head).toContain("launched");
     expect(model.desk.status[0]).toContain("Live on Ethereum mainnet since 13 October 2026.");
     expect(model.desk.status.join(" ")).toContain(
       "The desk's first order was settled by a real job, on proof.",
     );
     expect(model.desk.status.join(" ")).toContain(
-      "Audited by IdentityMD's launch pipeline, and by nobody else.",
+      "Audited by IdentityMD's launch pipeline, and by nobody outside IdentityMD's network.",
     );
 
     // The integration table counts zero as a reading, and says where the launch stands.
@@ -571,13 +579,20 @@ describe("launch B on the day of its launch: live, and nothing has been called o
     expect(text).toContain(`| B | WorkOrders | ${DESK} |`);
     expect(text).toContain(`| C | Rules | ${NOT_LAUNCHED} |`);
     expect(text).toContain(
-      "No contract code was changed for any of them; the medium finding (a receipt-only pot can be ended in a refund with no bond forfeited) was answered in words, not in code, and stands as a disclosed limit.",
+      "No contract code was changed for any of them; a96c4f58 (a receipt-only pot can be ended in a refund with no bond forfeited) was answered in words, not in code, and stands as a disclosed limit.",
     );
-    // The pages of launch B are no longer listed as waiting; the two of launch C still are.
+    // The count is of the accepted submissions, and each grading is said with whose it is.
+    expect(text).toContain(
+      "Its record of the job, https://api.imd.fun/jobs/eb0f6c65-174a-45e8-9fe5-9312c66d4880/submissions, holds 11 findings in its accepted submissions (the judge's first round, not accepted, raised 3 that its last round restates).",
+    );
+    expect(text).toContain("It grades a96c4f58 medium, as the judge's first round did");
+    expect(text).not.toContain("1 medium finding and 6 at level info");
+    // The pages of launch B are no longer listed as waiting, Say When among them (a conditional
+    // order is the desk's); the one page that is launch C's alone still is.
     const pages = text.slice(text.indexOf("## Pages"), text.indexOf("## Proven on the live system"));
-    expect(pages.match(/Not live until/g)).toHaveLength(2);
-    expect(pages).toContain("Not live until Rules is launched");
+    expect(pages.match(/Not live until/g)).toHaveLength(1);
     expect(pages).toContain("Not live until Endowments is launched");
+    expect(pages).not.toContain("Not live until WorkOrders is launched");
   });
 });
 

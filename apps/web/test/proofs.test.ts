@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import { decodeAbiParameters, keccak256, stringToHex } from "viem";
 import { describe, expect, it } from "vitest";
 import {
+  DEPLOYMENT_BOOK,
   feedBody,
   feedQuestionHash,
   HOUSE_FEED_NAMES,
@@ -25,6 +26,7 @@ import {
   WORK_RECORD_COMPLETED_HASH,
 } from "@help-wanted/shared";
 import { IMD_LINK, REFERENCE_JOB } from "~/config/chain";
+import { LAUNCH_PRS } from "~/config/history";
 import {
   AUDITED_COMMIT,
   AUDITS,
@@ -39,12 +41,23 @@ import {
 import { HEADER_JOB, headerJobPin, LAUNCH_A_JOB, LAUNCH_B_JOB, referencePin } from "~/data";
 import { addressList } from "~/data/house";
 import { DESK_FROM_ITS_DOCUMENTS, SUITES } from "~/models/judges";
-import { OPEN_POT_EXAMPLE, OPEN_POT_EXAMPLE_NOTE } from "~/models/money";
+import { CLAIM_TIP_RULE } from "~/models/common";
+import { OPEN_POT_EXAMPLE, OPEN_POT_EXAMPLE_NOTE, SEAT_CLAIM_RULE } from "~/models/money";
 import { BANNED, fixtureJson, HEADER_RECORD, RECORD } from "./helpers";
 
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 const read = (path: string) => readFileSync(`${ROOT}${path}`, "utf8");
 const oneLine = (text: string) => text.replace(/`/g, "").replace(/\*\*/g, "").replace(/\s+/g, " ");
+
+/**
+ * Whether a test of a launch's document must run. It is skipped only when the launch project is not
+ * beside this app, or when the book does not record the launch and the document is not there yet.
+ * Once the book records the launch and its project is here, a missing document fails the test: the
+ * site names it, so a commit that leaves it out must not pass quietly.
+ */
+const mustHold = (project: string, launch: "a" | "b" | "c", document: string) =>
+  existsSync(`${ROOT}${project}`) &&
+  (DEPLOYMENT_BOOK[launch].transaction !== null || existsSync(`${ROOT}${document}`));
 
 describe("the three house feed questions, answered by the live oracle", () => {
   it("each record's two hashes are the ones this feed's own text gives", () => {
@@ -264,6 +277,11 @@ describe("what IdentityMD's launch pipeline changed in launch A before it launch
         "return msg.sender == owner || owner == address(this) || owner.code.length == 0;",
       );
       expect(source).toContain("if (!_claimAllowed(owner)) revert ContractOwnerMustClaim(owner);");
+      // The site says both exceptions of that rule, for seats and for tips alike.
+      for (const rule of [SEAT_CLAIM_RULE, CLAIM_TIP_RULE]) {
+        expect(rule).toContain("is an address with no code (an ordinary wallet) or Payroll itself.");
+        expect(rule).toContain("When the owner is any other address with code");
+      }
     },
   );
 });
@@ -297,6 +315,33 @@ describe("what IdentityMD's launch pipeline found in launch B before it launched
     }
     expect(DESK_ADAPTATION.corrected).not.toMatch(BANNED);
   });
+
+  it("is seven of the eleven findings on IdentityMD's record: the judge merged the other four", () => {
+    const { onRecord } = DESK_ADAPTATION;
+    expect(onRecord.count - onRecord.merged).toBe(DESK_ADAPTATION.findings.length);
+    // The count is the one launch B's pull request gives, and the record is the same job's.
+    const pr = LAUNCH_PRS.find((p) => p.launch === "B")!;
+    expect(pr.reviewer).toContain(`raised ${onRecord.count} finding(s)`);
+    expect(pr.record).toBe(onRecord.record);
+    expect(pr.document).toBe(onRecord.document);
+    expect(onRecord.record).toBe(`https://api.imd.fun/jobs/${LAUNCH_B_JOB.jobId}/submissions`);
+  });
+
+  const audits = "launches/b-desk/docs/AUDITS.md";
+  it.skipIf(!mustHold("launches/b-desk", "b", audits))(
+    "is what launch B's AUDITS.md lists, every finding on record",
+    () => {
+      expect(DESK_ADAPTATION.onRecord.document).toBe(audits);
+      expect(existsSync(`${ROOT}${audits}`), `${audits}, which the site names, is missing`).toBe(true);
+      const text = read(audits);
+      expect(oneLine(text)).toContain("Eleven findings are on record, the number the pull request gives.");
+      // One row per finding, numbered 1 to 11, and every finding ADAPTATION.md answers is among them.
+      // A formatter pads the cells of a Markdown table, so the spaces around them may be many.
+      const rows = [...text.matchAll(/^\|\s+(\d+)\s+\|\s+`audit_[a-z_]+`/gm)].map((m) => Number(m[1]));
+      expect(rows).toEqual(Array.from({ length: DESK_ADAPTATION.onRecord.count }, (_, i) => i + 1));
+      for (const finding of DESK_ADAPTATION.findings) expect(text, finding.id).toContain(finding.id);
+    },
+  );
 
   const adaptation = "launches/b-desk/ADAPTATION.md";
   it.skipIf(!existsSync(`${ROOT}${adaptation}`))("is what ADAPTATION.md records, finding by finding", () => {
@@ -354,6 +399,46 @@ describe("what IdentityMD's launch pipeline found in launch B before it launched
       );
       expect(flat).toContain("No IMD is lost.");
       expect(flat).toContain("Audited by IdentityMD's launch pipeline before it was deployed");
+    },
+  );
+});
+
+describe("what IdentityMD's launch pipeline found in launch C before it launched it", () => {
+  const launchCAudits = "launches/c-company/docs/AUDITS.md";
+  it.skipIf(!mustHold("launches/c-company", "c", launchCAudits))(
+    "is what launch C's AUDITS.md lists, every finding on record",
+    () => {
+      const pr = LAUNCH_PRS.find((p) => p.launch === "C")!;
+      expect(pr.document).toBe(launchCAudits);
+      expect(
+        existsSync(`${ROOT}${launchCAudits}`),
+        `${launchCAudits}, which the site names, is missing`,
+      ).toBe(true);
+      const text = read(launchCAudits);
+      const flat = oneLine(text);
+      expect(flat).toContain("Thirteen findings are on record, the number the pull request gives");
+      // What the site says of the ten found after the adaptation is what the document says.
+      expect(flat).toContain("no node of the job answered them");
+      // One row per finding, numbered 1 to 13, each with its node and grade: the site's 6 low and
+      // 7 info, and its 3, 2, 1, 1, 1 and 5 by node.
+      const rows = [...text.matchAll(/^\|\s+(\d+)\s+\|\s+`(audit_[a-z_]+)`,\s+(low|info|medium)\b/gm)].map(
+        (m) => ({ n: Number(m[1]), node: m[2]!, grade: m[3]! }),
+      );
+      expect(rows.map((r) => r.n)).toEqual(Array.from({ length: pr.count }, (_, i) => i + 1));
+      expect(rows.filter((r) => r.grade === "low")).toHaveLength(6);
+      expect(rows.filter((r) => r.grade === "info")).toHaveLength(7);
+      const byNode = (node: string) => rows.filter((r) => r.node === node).length;
+      for (const [node, count] of [
+        ["audit_imported_code", 3],
+        ["audit_permissions", 2],
+        ["audit_flow", 1],
+        ["audit_math", 1],
+        ["audit_economics", 1],
+        ["audit_judge", 5],
+      ] as const) {
+        expect(byNode(node), node).toBe(count);
+        expect(pr.accounted).toContain(`${count} from ${node}`);
+      }
     },
   );
 });
@@ -542,7 +627,9 @@ describe("what the judges page says of the launch projects is what their READMEs
     expect(status).toContain("Live on Ethereum mainnet since 13 October 2026.");
     expect(status).toContain("The desk's first order was settled by a real job, on proof.");
     expect(status).toContain("IdentityMD's receipts stalled from about 8 to 14 October 2026.");
-    expect(status).toContain("Audited by IdentityMD's launch pipeline, and by nobody else.");
+    expect(status).toContain(
+      "Audited by IdentityMD's launch pipeline, and by nobody outside IdentityMD's network.",
+    );
     // The medium finding is named in the README's own words, with where it is disclosed.
     expect(status).toContain(
       "the medium one (a receipt-only pot can be ended in a refund with no bond forfeited) is now stated as a limit in docs/THREATS.md, C2.",

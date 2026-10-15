@@ -267,7 +267,7 @@ export const LAUNCH_ADAPTATION: {
       id: "4e16393fe68cb7416e2ffc990c13676dedd8c9ddc6eb564df32006fcbf83378f",
       title: "escrow claims",
       outcome: "changed",
-      done: "Reproduced with a contract that cannot release ERC-20 funds: claimSeat, claimSeats and claimTip each paid it at an observer's request. Changed in Payroll: a seat held by a contract must be claimed by that contract itself. A single claim sent by anyone else reverts ContractOwnerMustClaim; a batch skips that seat and pays the others.",
+      done: "Reproduced with a contract that cannot release ERC-20 funds: claimSeat, claimSeats and claimTip each paid it at an observer's request. Changed in Payroll: a seat held by a contract other than Payroll must be claimed by that contract itself. A single claim sent by anyone else reverts ContractOwnerMustClaim; a batch skips that seat and pays the others.",
     },
   ],
 };
@@ -301,6 +301,12 @@ export interface DeskAdaptationFinding {
  * more than the code gives, and by two tests. The limit it describes stands and is disclosed
  * (launch B's THREATS.md, C2, with W2, W3 and W5).
  *
+ * Those seven are not every finding on record. IdentityMD's record of the pipeline job holds eleven
+ * in its accepted review submissions, the number launch B's pull request gives (`onRecord`): the
+ * judge merged the four that ADAPTATION.md does not name (from the economics, flow and permissions
+ * steps) into its own three. `launches/b-desk/docs/AUDITS.md` lists all eleven with the answer that
+ * covers each. Read on 15 October 2026.
+ *
  * `test/proofs.test.ts` holds every entry against the document when the launch project is in the
  * repository beside this app.
  */
@@ -309,10 +315,24 @@ export const DESK_ADAPTATION: {
   launchNumber: number;
   /** What the document says was changed for the medium finding, and what was not. */
   corrected: string;
+  /**
+   * Every finding in the accepted submissions on IdentityMD's record of the job (`record`), how many
+   * of them the judge merged into its own, and our document that lists them all. `notAccepted`
+   * counts the findings of the judge's first round, a submission that was not accepted: its last
+   * round restates them, so they are not counted again.
+   */
+  onRecord: { count: number; merged: number; notAccepted: number; record: string; document: string };
   findings: readonly DeskAdaptationFinding[];
 } = {
   document: "launches/b-desk/ADAPTATION.md",
   launchNumber: 1573,
+  onRecord: {
+    count: 11,
+    merged: 4,
+    notAccepted: 3,
+    record: "https://api.imd.fun/jobs/eb0f6c65-174a-45e8-9fe5-9312c66d4880/submissions",
+    document: "launches/b-desk/docs/AUDITS.md",
+  },
   corrected:
     "Changed for the medium finding, all of it comments and documents: three notes in src/pots/CrowdPots.sol on what a runner's bond does and does not size, entries W2, W3, W5 and C2 of docs/THREATS.md, and one row of docs/LAUNCH.md. Two tests were added that run the reviewer's two cases on the real desk. The compiled bytecode of all four contracts is the same as before.",
   findings: [
@@ -379,6 +399,30 @@ export const DESK_ADAPTATION: {
 };
 
 /**
+ * How many findings IdentityMD's record of launch B's job holds, after "holds", in the words every
+ * page uses. The count is of the accepted submissions; the judge's first round, which was not
+ * accepted, is named beside it, so that a reader who counts every entry on the record finds the
+ * same total.
+ */
+export function deskOnRecordWords(): string {
+  const r = DESK_ADAPTATION.onRecord;
+  return `${r.count} findings in its accepted submissions (the judge's first round, not accepted, raised ${r.notAccepted} that its last round restates)`;
+}
+
+/**
+ * Which of those findings ADAPTATION.md answers, graded as it grades them, and what became of the
+ * rest. ADAPTATION.md and the judge's first round grade a96c4f58 medium; the judge's last round,
+ * the accepted one, grades it info. The one medium finding among the accepted submissions is
+ * audit_permissions', which the judge merged into a96c4f58.
+ */
+export function deskGradingWords(): string {
+  const { findings, onRecord, document } = DESK_ADAPTATION;
+  const medium = findings.filter((f) => f.severity === "medium").map((f) => f.id);
+  const info = findings.filter((f) => f.severity === "info").length;
+  return `${document} answers ${findings.length} of them. It grades ${medium.join(" and ")} medium, as the judge's first round did (its last round, the one accepted, grades it info), and the other ${info} info. The pipeline's judge merged the remaining ${onRecord.merged}, among them audit_permissions' medium finding, into three of those.`;
+}
+
+/**
  * Where a launch project's source can be read by anyone, or null while it cannot. Each entry was
  * checked against the public repository on the day it names: the branch exists there and its root
  * is the launch project. Change an entry here when a branch is published; every sentence on the
@@ -389,7 +433,7 @@ export const PUBLIC_SOURCE: Readonly<
 > = {
   A: { repository: "https://github.com/OoJae/help-wanted", branch: "launch-a", checked: "13 October 2026" },
   B: { repository: "https://github.com/OoJae/help-wanted", branch: "launch-b", checked: "13 October 2026" },
-  C: null,
+  C: { repository: "https://github.com/OoJae/help-wanted", branch: "launch-c", checked: "15 October 2026" },
 };
 
 /** Whether a launch's source is public, as one sentence that follows `PUBLIC_SOURCE`. */

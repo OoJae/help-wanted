@@ -7,14 +7,14 @@
  *
  * Launch B (WorkOrders, CrowdPots, Doorbell) has been on mainnet since 13 October 2026 (IdentityMD
  * launch 1573, block 26,184,581), so its events are final too and its three modules can now be
- * finished the same way; their handlers are simply not written yet. Launch C is not launched and
- * its events can still change.
+ * finished the same way; their handlers are simply not written yet. So can launch C's (Rules,
+ * Endowments, Zap), on mainnet since 15 October 2026 (IdentityMD launch 1845, block 26,198,165).
  *
  * What works for a stub: its tables exist, it has a cursor, and from the moment its address is in
  * the deployments book (or the environment) every log of the contract is stored in `events` (raw
  * topics and data included), from the launch block on. What does not exist yet is the fold from
- * those events into the tables. For a contract that is not launched that is on purpose: guessing
- * at signatures that can still move would write wrong rows later.
+ * those events into the tables. That was on purpose while a contract was not launched: guessing at
+ * signatures that could still move would have written wrong rows.
  *
  * Finishing one module is three steps and no migration of data:
  *   1. set `abi` to the contract's events (from the compiled artifact or `@help-wanted/shared`);

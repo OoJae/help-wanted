@@ -369,6 +369,33 @@ describe("a real run, replayed from its recording (13 October 2026, block 26,184
         addressesMatchTheBook: true,
       }),
     ]);
+    // Each contract with the verification fields of the launch's own record, which the list of
+    // launches leaves out.
+    expect(doc.identitymd.launches[0]?.artifacts).toEqual([
+      {
+        name: "JobsReport",
+        address: "0x58963B57E179f7fE4E95090C21E8e9D75353BCE4",
+        verifiedAt: "2026-10-13T10:10:46.438Z",
+        verifyFailure: null,
+      },
+      {
+        name: "Payroll",
+        address: "0x6e4362a5cEc59Eb3F611af6b2d81915CF5b45f1F",
+        verifiedAt: "2026-10-13T10:10:51.787Z",
+        verifyFailure: null,
+      },
+      {
+        name: "Questions",
+        address: "0xEECE4628ceb091C13393fc64056Be8b8501fD3F6",
+        verifiedAt: "2026-10-13T10:10:41.073Z",
+        verifyFailure: null,
+      },
+    ]);
+    const markdown = render(doc);
+    expect(markdown).toContain(
+      "| A | `Questions` | `0xEECE4628ceb091C13393fc64056Be8b8501fD3F6` | 13 Oct 2026, 10:10:41 UTC | none |",
+    );
+    expect(markdown).not.toContain("Verification time on record");
     expect(doc.identitymd.pendingRounds).toEqual([
       {
         feedId:
@@ -394,8 +421,15 @@ describe("a real run, replayed from its recording (13 October 2026, block 26,184
         launchStatus: null,
       },
     ]);
-    // Four reads: the launch record, the pending round's Intake entry and oracle request, the job.
-    expect(seen.api).toHaveLength(4);
+    // Five reads: the list of launches and launch A's own record, the pending round's Intake
+    // entry and oracle request, the job.
+    expect(seen.api).toEqual([
+      "/launches?limit=1&before=1532",
+      "/launches/92bb495f-f565-414a-9b0d-d4bc62e699ac",
+      "/intake/1/0x4ef3313d793940eca2847b7d01969ea76c56f92fab92aa7601e863dd92660204",
+      "/oracle/requests/4831e033-1ddd-4308-9d26-396a8d340e82?members=0",
+      "/jobs/eb0f6c65-174a-45e8-9fe5-9312c66d4880",
+    ]);
     expect(seen.rpc.length).toBeGreaterThan(40);
     expect(new Set(seen.rpc.map((key) => key.split(" ")[0]))).toEqual(
       new Set([
@@ -472,6 +506,17 @@ describe("a run that must not write", () => {
     const recorded = tape();
     delete recorded.api["/launches?limit=1&before=1532"];
     await expect(run(recorded)).rejects.toThrow(/failed after 3 tries/);
+    // The launch's own record too: the list alone does not give the contracts' verification fields.
+    const withoutRecord = tape();
+    delete withoutRecord.api["/launches/92bb495f-f565-414a-9b0d-d4bc62e699ac"];
+    await expect(run(withoutRecord)).rejects.toThrow(/failed after 3 tries/);
+  });
+
+  it("fails when the launch's own record is another launch", async () => {
+    const recorded = tape();
+    const held = recorded.api["/launches/92bb495f-f565-414a-9b0d-d4bc62e699ac"];
+    (held?.body as { launchNumber: number }).launchNumber = 1532;
+    await expect(run(recorded)).rejects.toThrow(/is not launch 1531/);
   });
 
   it("fails when the logs disagree with a contract's own counter", async () => {

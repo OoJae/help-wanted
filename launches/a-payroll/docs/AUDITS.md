@@ -3,19 +3,21 @@
 This file records the two historical audits. The additional four findings supplied with the
 launch adaptation, their reproductions, fixes and retained design dependency are recorded in
 [`ADAPTATION.md`](../ADAPTATION.md). In particular, the earlier tip and silence rules described
-below have been superseded; current behavior is in `docs/LAUNCH.md`, section 4.
+below have been superseded; current behavior is in `docs/LAUNCH.md`, section 4. The last section
+lists every finding IdentityMD's launch pipeline reported before it deployed this launch, those
+four included.
 
 Two audit jobs were bought from the IdentityMD network on this repository as it stood at commit
 `5c049e0f703bde97f0255368bc124254161b637e`. Each job is four specialist agents (math, permissions,
 economics, control flow) and a judge that reproduces, merges and ranks what they found. Both
 reports were judged on 13 October 2026.
 
-| | Report one | Report two |
-|---|---|---|
-| Job | `be91e8ae-9f45-495f-a318-60fab672a92e` | `22624be0-d2da-400e-91c4-51dac0a9a7f5` |
-| Asked for | The oracle paths and meter accounting of `Questions`; the split, the stream and the claims of `Payroll` | "Audit the contracts as they are" |
-| Judged | 13 October 2026, 00:51 UTC | 13 October 2026, 01:30 UTC |
-| Findings | 1 medium, 2 low, 1 info | 1 medium, 2 low, 2 info |
+|           | Report one                                                                                              | Report two                             |
+| --------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| Job       | `be91e8ae-9f45-495f-a318-60fab672a92e`                                                                  | `22624be0-d2da-400e-91c4-51dac0a9a7f5` |
+| Asked for | The oracle paths and meter accounting of `Questions`; the split, the stream and the claims of `Payroll` | "Audit the contracts as they are"      |
+| Judged    | 13 October 2026, 00:51 UTC                                                                              | 13 October 2026, 01:30 UTC             |
+| Findings  | 1 medium, 2 low, 1 info                                                                                 | 1 medium, 2 low, 2 info                |
 
 All nine findings are in `Payroll` or `JobsReport`. Neither report has a finding in `Questions`,
 and no fix for a finding touched it. Two of its constants were changed afterwards, for a reason no
@@ -28,17 +30,17 @@ fixed it. Two are left as they are, with the reason below: one of them is report
 finding, which the project lead decided to acknowledge and not to close. One info finding is left.
 Every finding has a test that starts from the auditors' own proof or reproduction.
 
-| # | Severity | Finding | Outcome |
-|---|---|---|---|
-| 1.1 | Medium | A booking that crosses a fortnight boundary releases the old feed tranche to stakers before the meters are served | **Fixed** in `Payroll` |
-| 1.2 | Low | Payroll sizes a meter's shortfall from the pooled meter balance, so IMD parked by a stranger turns the old tranche into staker stream | **Fixed** in `Payroll` |
-| 1.3 | Low | Stream re-levelling delays money already vesting, contrary to the contract notice, the `drip` NatSpec and THREATS P3 | **Left** in the code (the rule is a decision of the build brief); the three statements **corrected** |
-| 1.4 | Info | `stream().dueNow` reports an amount `drip()` refuses to send while sIMD is not ready | **Fixed** in `Payroll` |
-| 2.1 | Medium | Deposits into sIMD just before each drip take the same share of the stream as stakers who stay | **Acknowledged and left**, by the lead's decision; the false claim removed, sIMD's own hold tested and written down |
-| 2.2 | Low | Anyone can make `fundFeeds` place nothing by funding and defunding the house meters around it | **Fixed** by the change for 1.2 |
-| 2.3 | Low | Stream re-levelling delays money that was already vesting; NatSpec and THREATS P3 claim it cannot | The same as 1.3 |
-| 2.4 | Info | `stream().dueNow` reports an amount `drip()` refuses to send while sIMD is not a ready vault | **Fixed** by the change for 1.4 |
-| 2.5 | Info | `JobsReport`'s `BadWindow` skip is unreachable from the pinned `Questions` and would drop a round for good if it ever fired | **Left**; the NatSpec made exact and the unreachability tested |
+| #   | Severity | Finding                                                                                                                               | Outcome                                                                                                             |
+| --- | -------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| 1.1 | Medium   | A booking that crosses a fortnight boundary releases the old feed tranche to stakers before the meters are served                     | **Fixed** in `Payroll`                                                                                              |
+| 1.2 | Low      | Payroll sizes a meter's shortfall from the pooled meter balance, so IMD parked by a stranger turns the old tranche into staker stream | **Fixed** in `Payroll`                                                                                              |
+| 1.3 | Low      | Stream re-levelling delays money already vesting, contrary to the contract notice, the `drip` NatSpec and THREATS P3                  | **Left** in the code (the rule is a decision of the build brief); the three statements **corrected**                |
+| 1.4 | Info     | `stream().dueNow` reports an amount `drip()` refuses to send while sIMD is not ready                                                  | **Fixed** in `Payroll`                                                                                              |
+| 2.1 | Medium   | Deposits into sIMD just before each drip take the same share of the stream as stakers who stay                                        | **Acknowledged and left**, by the lead's decision; the false claim removed, sIMD's own hold tested and written down |
+| 2.2 | Low      | Anyone can make `fundFeeds` place nothing by funding and defunding the house meters around it                                         | **Fixed** by the change for 1.2                                                                                     |
+| 2.3 | Low      | Stream re-levelling delays money that was already vesting; NatSpec and THREATS P3 claim it cannot                                     | The same as 1.3                                                                                                     |
+| 2.4 | Info     | `stream().dueNow` reports an amount `drip()` refuses to send while sIMD is not a ready vault                                          | **Fixed** by the change for 1.4                                                                                     |
+| 2.5 | Info     | `JobsReport`'s `BadWindow` skip is unreachable from the pinned `Questions` and would drop a round for good if it ever fired           | **Left**; the NatSpec made exact and the unreachability tested                                                      |
 
 The tests named below are in `test/payroll/audit/AuditReports.t.sol` unless another file is given.
 
@@ -296,3 +298,46 @@ against the house feeds: `test_theWaitsFitTheHouseFeeds`,
 `test_employersDependsOnTheWriterDeliveringWithinTwelveHours`.
 
 **Not audited.** This change was made after both audits and has been read by no auditor.
+
+## IdentityMD's launch pipeline: what its reviewers reported
+
+Read on 15 October 2026 from IdentityMD's record of the pipeline job,
+`GET /jobs/d8bb3d81-820d-42f4-ad7c-1d3ed96b1da8/submissions` on `https://api.imd.fun`, and from
+pull request 1 of the launch repository,
+<https://github.com/identity-md-launches/launch-1531-please-deploy-repository-contracts>. The job
+was paid by the team's wallet W1 and created on 13 October 2026 at 06:46 UTC. Its pull request was
+merged at 10:00 UTC, and the three contracts were created at 10:07 UTC in block 26,182,869.
+`ADAPTATION.md` in this folder is the same, byte for byte, as the launch repository's; so is this
+file, apart from this section and the sentence at its top that points here, both added on
+15 October 2026.
+
+The pull request says: "An independent reviewer raised 8 finding(s)." The job's review
+submissions, all accepted, hold eight findings: four from `audit_imported_code`, which are the four
+of the audit supplied with the launch and are answered in `ADAPTATION.md`; one from `audit_math`;
+one from `audit_economics`; and two from `audit_judge`, which says it merged them from those two.
+`audit_flow` and `audit_permissions` reported nothing. None of the eight was marked blocking. The
+pull request also says of its own checks: "**This is not an audit.**"
+
+| #   | Node and severity           | The finding, in short                                                                                                                                                    | What became of it                                                                                                                                                                                                                                                                                     |
+| --- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `audit_imported_code`, low  | `submit` let any caller take the opener's keeper tip thirty minutes after a request, with the oracle's public signature                                                  | Fixed by the pipeline before launch: the tip always goes to the round's opener (`ADAPTATION.md`, `2ab3a604`; `docs/THREATS.md`, Q4)                                                                                                                                                                   |
+| 2   | `audit_imported_code`, low  | Anyone could close a round twelve hours after its request while the Intake's delivery was still on its way                                                               | Fixed by the pipeline: the silence deadline adds the answer's validity, 36 h 5 min 1 s for the house feeds (`ADAPTATION.md`, `a89a3581`; Q8)                                                                                                                                                          |
+| 3   | `audit_imported_code`, info | The oracle signer is fixed for good; a new key or code at its address stops every answer                                                                                 | Kept, as the ownerless design asks (`ADAPTATION.md`, `a7e63b8c`; T1 and `docs/DEVIATIONS.md`)                                                                                                                                                                                                         |
+| 4   | `audit_imported_code`, info | Anyone could have a seat's IMD paid to a contract holding the seat that cannot pass it on                                                                                | Fixed by the pipeline: a seat held by a contract must claim for itself (`ADAPTATION.md`, `4e16393f`; P1)                                                                                                                                                                                              |
+| 5   | `audit_math`, info          | `defund(feedId, 0)` called by a holder reverts `NothingToDefund`, where the comment above it says it reverts only for a caller who holds no shares                       | Not changed in the code, which behaves so (`test_defund_withNoShares_reverts` asserts it). No value is at risk: the call reverts and changes nothing. The comment in `src/questions/Questions.sol` still says otherwise; the table of functions in `README.md` gives both cases since 15 October 2026 |
+| 6   | `audit_economics`, low      | A tip returned to a meter when a round is closed is shared by whoever holds the meter's shares then, so a funder who arrives while the round is pending takes most of it | Disclosed before the launch and left open: `docs/THREATS.md`, Q5                                                                                                                                                                                                                                      |
+| 7   | `audit_judge`, low          | Finding 6, merged                                                                                                                                                        | As 6                                                                                                                                                                                                                                                                                                  |
+| 8   | `audit_judge`, info         | Finding 5, merged                                                                                                                                                        | As 5                                                                                                                                                                                                                                                                                                  |
+
+Row 2 is about one of the two waits that the section above, "Changed after the audits", says no
+auditor had read. That was true when it was written, before the launch. `audit_imported_code` read
+the code at the commit the job was given, `4124672e`, in which `SUBMIT_AFTER_SILENCE` is thirty
+minutes and `ABANDON_AFTER_SILENCE` twelve hours, and the four specialists and the judge then read
+the code as the pipeline had adapted it.
+
+The judge's summary also says what it did not do: the full test suite could not be built on its
+machine, so it did not run the project's suites. It traced every entry point and ran scratch tests
+of its own. Its findings file, `.imd-findings.json`, and its scratch tests are not in the launch
+repository; the findings are in IdentityMD's record of the job. IdentityMD records no outside audit
+or bounty for this launch: `GET /launches/92bb495f-f565-414a-9b0d-d4bc62e699ac/assurances`
+answers with a count of 0.

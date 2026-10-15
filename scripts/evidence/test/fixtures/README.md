@@ -6,6 +6,7 @@ Real data, recorded once so that the tests run with no network. Do not edit thes
 |---|---|
 | `run-2026-10-13.json` | Every answer one real run of `pnpm evidence` got on 13 October 2026: the JSON-RPC results from `ethereum-rpc.publicnode.com`, by method and parameters, and four answers of IdentityMD's public API, by path. The run pinned block 26,184,132, the node's finalized block at the time. |
 | `house-wallets.json` | `evidence/house-wallets.json` as it was published on that day. |
+| `launch-1531-2026-10-15.json` | IdentityMD's answer to `GET /launches/92bb495f-f565-414a-9b0d-d4bc62e699ac`, launch A's own record, as served on 15 October 2026 and slimmed as below. The builder of 13 October read only the list of launches, which leaves out each contract's `verifiedAt` and `verifyFailure`; the tests serve this answer beside the recording (`tape()` in `../helpers.ts`). |
 
 The recording was written by the builder itself:
 

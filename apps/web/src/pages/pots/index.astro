@@ -98,7 +98,9 @@ const { model: m, meta } = loaded;
       work it will order. {m.openNote}
     </p>
     <FlowBlock flow={m.openFlow} exampleNote="a research pot with a target of 2 IMD" repeat />
-    <h3 class="sub">Chip in with ETH</h3>
+    <h3 class="sub" id="zap">
+      Chip in with ETH
+    </h3>
     <p>
       Zap (launch C) is <strong>{m.zap.label}</strong>. It swaps ETH for IMD on the Uniswap v4 ETH/IMD pool
       and chips into the pot in your name. You set the least IMD you accept and a deadline; the form sets the

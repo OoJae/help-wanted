@@ -27,6 +27,36 @@ const { model: m, meta } = loaded;
     <p class="small spot">The desk's last read came with an error: {m.error}</p>
   )}
 
+  <div class="cols cols--ruled">
+    <aside class="notice" aria-label="Who takes orders today">
+      <span class="label">Who takes orders today</span>
+      <p>
+        {m.runnerStatement && <strong>What the chain shows: </strong>}
+        {m.whoTakes}
+      </p>
+      {m.runnerStatement && (
+        <>
+          <p class="small">
+            <strong>{m.runnerStatement.heading}.</strong> A statement, not a reading:
+          </p>
+          <ul class="small">
+            {m.runnerStatement.lines.map((line) => (
+              <li>{line}</li>
+            ))}
+          </ul>
+        </>
+      )}
+    </aside>
+    <aside class="notice notice--quiet" aria-label="Who this is for">
+      <span class="label">Who this is for</span>
+      <ul>
+        {m.whoFor.map((line) => (
+          <li>{line}</li>
+        ))}
+      </ul>
+    </aside>
+  </div>
+
   {m.open.length > 0 && (
     <section class="section section--first">
       <div class="section__head">
@@ -71,12 +101,12 @@ const { model: m, meta } = loaded;
 
   <section class="section">
     <div class="section__head">
-      <h2>The header</h2>
+      <h2>The 85-byte order header</h2>
       <p>{m.headerExample.bytes} bytes, the last a space</p>
     </div>
     <p>
-      The job a runner opens must begin with a header built from the order's ticket, then the order's job
-      text. For ticket <code class="break">{m.headerExample.ticket}</code>:
+      The job a runner opens must begin with the 85-byte order header, built from the order's ticket, then the
+      order's job text. For ticket <code class="break">{m.headerExample.ticket}</code>:
     </p>
     <div class="cmd cmd--plain">
       <div class="cmd__row">

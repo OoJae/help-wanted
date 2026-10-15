@@ -7,31 +7,38 @@
  * answered: a desk that has opened no order is "live, no order yet", in those words, and a desk
  * that did not answer is "could not be read", never an empty list.
  */
+import { keccak256, stringToHex, toHex, type Hex } from "viem";
 import { NOT_LAUNCHED } from "~/config/deployments";
-import { houseSet } from "~/config/house";
+import { HISTORY_READ_ON, ORDER_HISTORY, pinnedOrder, type TrailKey } from "~/config/history";
+import { HOUSE_WALLETS, houseSet } from "~/config/house";
 import {
   CHAIN_ID,
   DESK,
+  HEADER_LENGTH,
   MAINNET,
+  orderHeadHash,
   orderHeader,
   orderTicket,
   PAID_ACTION_PRICE,
   priceAt,
   splitPrice,
   workOrdersAbi,
+  workProofAbi,
 } from "@help-wanted/shared";
-import { etherscanAddress, explorerJob, IMD_LINK } from "~/config/chain";
+import { etherscanAddress, etherscanTx, explorerJob, IMD_LINK } from "~/config/chain";
 import { NOT_OFFERED, TEMPLATES, templateBySlug, type JobTemplate } from "~/config/templates";
 import type { Live, Order, OrderBook } from "~/data/house";
 import { GAS_LIMIT } from "~/lib/contracts";
 import { formatDuration, formatImd, formatUtc, plural } from "~/lib/format";
-import { parseIndex } from "~/lib/ids";
+import { hashNo0x, jobIdToBytes16, parseIndex } from "~/lib/ids";
+import { hashServedRecord } from "~/lib/verify";
 import { bullets, doc, fence, inline, link, numbered, quote, table } from "~/lib/md";
 import { orderCard, orderStatusWords, templateForKindHash, type OrderCard } from "./cards";
 import {
   castCall,
   castView,
   castWrite,
+  CLAIM_TIP_RULE,
   contractStatus,
   launchWords,
   liveNote,
@@ -63,6 +70,109 @@ export function ordersOpenedWords(read: Live<OrderBook>): string | null {
     ? "No order has been opened on it yet: its own counter, orderCount(), read 0 for this page."
     : `${plural(read.data.count, "order has", "orders have")} been opened on it so far.`;
 }
+
+/**
+ * Who takes orders today, in a few sentences: the runners of the orders read from the desk, HOUSE
+ * or OUTSIDE, and what the team says of its own runner. Never more than what was read.
+ */
+export function whoTakesOrders(read: Live<OrderBook>, house: ReadonlySet<string>): string {
+  if (!read.live) return `Nobody yet: the hire desk is ${NOT_LAUNCHED}.`;
+  if ("sample" in read && read.sample)
+    return "SAMPLE DATA mode is on, so nothing is said here about real runners.";
+  if (!read.data) return "Who has taken orders could not be read just now.";
+  const taken = read.data.orders.filter((o) => o.claim !== null);
+  if (taken.length === 0)
+    return "No runner has taken an order yet. Anyone may run one: the runner is open source (bots/runner), and none has any privilege.";
+  const runners = [...new Set(taken.map((o) => (o.claim as NonNullable<Order["claim"]>).runner))];
+  const outside = runners.filter((r) => !house.has(r));
+  const ours = runners.filter((r) => house.has(r)).map((r) => houseLabelOf(r) ?? r);
+  const scope =
+    read.data.orders.length === read.data.count
+      ? read.data.count === 1
+        ? "the one order opened on the desk"
+        : `${taken.length} of the ${read.data.count} orders opened on the desk`
+      : `${taken.length} of the newest ${read.data.orders.length} orders on the desk`;
+  if (outside.length === 0) {
+    return `Only the team's own runner (house wallet ${ours.join(" and ")}) has taken orders so far: ${scope}, read for this page. No runner is bound to take an order, so an order can wait for one. Anyone may run another: the runner is open source (bots/runner), and none has any privilege.`;
+  }
+  return `${runners.length === 1 ? "One runner has" : `${runners.length} runners have`} taken ${scope}, read for this page: ${outside.length} from outside the team (OUTSIDE)${ours.length > 0 ? ` and the team's own (${ours.join(" and ")}, HOUSE)` : ""}.`;
+}
+
+/**
+ * What the team says of its own runner, as the team's dated statement. It is not read from anywhere:
+ * the page prints it beside what the chain shows (`whoTakesOrders`), and never in its place.
+ */
+export const RUNNER_STATEMENT = {
+  asOf: "15 October 2026",
+  lines: [
+    "HELP WANTED's runner bot runs on a hosted server (Railway), around the clock. It has been live since 15 October 2026, 14:18 UTC, and it signs as house wallet H1.",
+    "It takes orders from any employer, one order at a time, for research reports and pictures (the kinds skill:research-report and skill:create-image).",
+    "It pays at most one 0.5 IMD swarm fee a day, and posts bonds of at most 0.25 IMD.",
+  ],
+  /** The other bot, said where runners are: it is not hosted. */
+  keeper: "The keeper (bots/keeper) is not hosted: it is run by hand.",
+  /** The same in one sentence, for a page that names it in passing. */
+  short:
+    "The team says its runner runs on a hosted server around the clock, signing as house wallet H1, since 15 October 2026, 14:18 UTC; the keeper is run by hand.",
+} as const;
+
+/** The swarm kinds the team says its runner takes, as the job templates name them. */
+const RUNNER_TAKES: readonly string[] = ["skill:research-report", "skill:create-image"];
+
+/** The team's statement as a page shows it: dated, and said to be the team's. */
+export interface RunnerStatementView {
+  asOf: string;
+  /** "What the team says, 15 October 2026". */
+  heading: string;
+  lines: string[];
+}
+
+/**
+ * The team's statement about its runner, for a book whose desk is mainnet's: the statement is about
+ * that desk and that wallet. Null on any other book (a fork, a rehearsal, a test).
+ */
+export function runnerStatement(deskAddress: string | null, withKeeper = false): RunnerStatementView | null {
+  if (!deskAddress || deskAddress.toLowerCase() !== ORDER_HISTORY.workOrders.toLowerCase()) return null;
+  return {
+    asOf: RUNNER_STATEMENT.asOf,
+    heading: `What the team says, ${RUNNER_STATEMENT.asOf}`,
+    lines: [...RUNNER_STATEMENT.lines, ...(withKeeper ? [RUNNER_STATEMENT.keeper] : [])],
+  };
+}
+
+/** "Who takes orders today" in a twin: what the chain shows, then the team's dated statement. */
+function whoTakesMarkdown(whoTakes: string, statement: RunnerStatementView | null): string[] {
+  if (!statement) return [whoTakes];
+  return [
+    `What the chain shows: ${whoTakes}`,
+    doc(`${statement.heading}. A statement, not a reading:`, bullets(statement.lines)).trimEnd(),
+  ];
+}
+
+/**
+ * Whether the team says its runner takes a template's kind, in one sentence, or null on a book whose
+ * desk is not mainnet's.
+ */
+export function runnerTakesWords(deskAddress: string | null, kind: string): string | null {
+  if (!runnerStatement(deskAddress)) return null;
+  return RUNNER_TAKES.includes(kind)
+    ? `The team says its runner takes this kind of order when the order's bond is at most 0.25 IMD, one order at a time, and that it pays at most one 0.5 IMD swarm fee a day (${RUNNER_STATEMENT.asOf}). Any other runner may take it too.`
+    : `The team says its runner does not take this kind of order: it takes research reports and pictures (${RUNNER_STATEMENT.asOf}). An order of this kind waits for another runner.`;
+}
+
+/** Who the hire desk is for, and who it is not for. */
+export const HIRE_IS_FOR = [
+  "A contract, a DAO or a wallet that wants swarm work paid from escrow: the IMD is paid out on the job's receipt on chain or, only if the employer opted in when posting, on a bonded delivery claim nobody challenges for 24 hours. Otherwise it comes back.",
+  "An employer that should not have to be there when the moment comes: a conditional order starts closed to runners. It does not open by itself: once its condition holds, anyone, a runner for instance, may open it with trigger(id) (Say When).",
+  "Not for work only a person can judge: a proof shows what IdentityMD recorded for the job, not that the work is good.",
+] as const;
+
+/** Who running is for. */
+export const RUNNING_IS_FOR = [
+  "Anyone with a wallet and some IMD who wants a margin for carrying orders to the swarm: 90% of an order's price, for the swarm's 0.5 IMD and the gas.",
+  "Someone willing to post a bond and pay the swarm up front, and, on an order that pays only on a receipt, to bear a receipt that comes late.",
+  "Not for a contract: buying a swarm job needs an ordinary wallet's signatures, which is why runners exist.",
+] as const;
 
 // ---------------------------------------------------------------------------------------------
 // /hire
@@ -98,6 +208,11 @@ export interface HireIndexModel {
   receipts: ReceiptFlow;
   /** How the order form's claim box starts today, and why. */
   claim: ClaimDefault;
+  /** Who takes orders today, from the orders read. */
+  whoTakes: string;
+  /** What the team says of its own runner, dated; null where the book's desk is not mainnet's. */
+  runnerStatement: RunnerStatementView | null;
+  whoFor: readonly string[];
 }
 
 function templateCard(t: JobTemplate): TemplateCard {
@@ -117,7 +232,7 @@ function templateCard(t: JobTemplate): TemplateCard {
 
 const HOW_AN_ORDER_WORKS = [
   "You post an order: the desk escrows your IMD and pins the job text. That is the most the order can cost you.",
-  "A runner takes it. The runner posts a bond, pays the swarm's fee from its own pocket, and opens the job with the order's ticket as the first bytes of the job text.",
+  "A runner takes it. The runner posts a bond, pays the swarm's fee from its own pocket, and opens the job with the 85-byte order header, made from the order's ticket, as the first bytes of the job text.",
   "The swarm does the work and IdentityMD writes the work record's hash to its WorkRegistry on Ethereum.",
   "Anyone submits the record. The desk checks that it hashes to the registry's receipt, that it is the job you ordered and that it finished, and pays the runner. You get back what the price left.",
   "If none of that happens in time, the escrow goes back to you.",
@@ -133,7 +248,7 @@ export const CLAIM_PATH_LIMITS = [
 
 const ORDER_TERMS = [
   `Fee: 5% of the fixed price, sent to Payroll and split by code (half to sIMD stakers, 30% to seat owners, 20% to the feeds).`,
-  "Tip: another 5% of the fixed price, to the seats whose agents did the work.",
+  "Tip: another 5% of the fixed price, to the seats of the agents the job's work record names.",
   `Runner's bond: at least ${formatImd(DESK.MIN_BOND)} IMD. A runner has one hour after taking an order to register a swarm job.`,
   "Delivery: three days from the moment the job is registered on an order from this form; the desk allows up to ninety.",
   "The job text is one line of plain ASCII, without double quotes or backslashes, at most 7,900 bytes. That rule is what lets a contract compare your text with the work record byte for byte.",
@@ -161,6 +276,9 @@ export const hireIndexPage: PageDef<HireIndexModel> = {
       claimLimits: CLAIM_PATH_LIMITS,
       receipts,
       claim: claimDefault(writer, PUBLIC_RPC),
+      whoTakes: whoTakesOrders(orders, houseSet(sources.deployments)),
+      runnerStatement: runnerStatement(sources.deployments.contracts.workOrders.address),
+      whoFor: HIRE_IS_FOR,
     };
   },
   meta: () => ({
@@ -173,6 +291,10 @@ export const hireIndexPage: PageDef<HireIndexModel> = {
       m.desk.address
         ? `The hire desk is live at ${link(m.desk.address, etherscanAddress(m.desk.address))} (WorkOrders${m.deskLaunch ? `, ${m.deskLaunch}` : ""}). ${m.ordersOpened ?? ""}`.trim()
         : `**The hire desk is ${NOT_LAUNCHED}** (WorkOrders, launch B). Nothing can be ordered today. This page shows what an order is and each job page shows the exact transactions.`,
+      "## Who takes orders today",
+      ...whoTakesMarkdown(m.whoTakes, m.runnerStatement),
+      "## Who this is for",
+      bullets([...m.whoFor]),
       "## Jobs on offer",
       table(
         ["Job", "Who turns up", "What comes back", "Measured turnaround", "Suggested pay", "Page"],
@@ -217,6 +339,8 @@ export interface HireTemplateModel {
   receipts: ReceiptFlow;
   /** How the form's claim box starts today, and why. */
   claim: ClaimDefault;
+  /** Whether the team says its runner takes this kind, dated; null where the book's desk is not mainnet's. */
+  runnerTakes: string | null;
 }
 
 const EXAMPLES: Record<string, Record<string, string>> = {
@@ -258,6 +382,7 @@ export const hireTemplatePage: PageDef<HireTemplateModel> = {
       claimLimits: CLAIM_PATH_LIMITS,
       receipts,
       claim,
+      runnerTakes: runnerTakesWords(sources.deployments.contracts.workOrders.address, template.kind),
     };
   },
   meta: (m) => ({
@@ -277,6 +402,7 @@ export const hireTemplatePage: PageDef<HireTemplateModel> = {
         ].filter(Boolean),
       ),
       m.template.recordNote,
+      m.runnerTakes,
       "## Before you choose how it pays",
       `An order pays on an on-chain receipt. It may also accept a bonded delivery claim, and the form decides how that box starts by one rule: it is ticked only while IdentityMD's receipts are stalled. Today: ${m.claim.why}`,
       fence(
@@ -380,6 +506,49 @@ export interface TimelineStep {
   detail: string;
 }
 
+/** One transaction of an order's history, oldest first. */
+export interface TrailRow {
+  key: TrailKey;
+  label: string;
+  what: string;
+  at: string;
+  block: number;
+  tx: string;
+  txUrl: string;
+}
+
+/** What `WorkProof.prove(jobId, record, 85)` answers for a delivered order's job. */
+export interface OrderProof {
+  /** The two commands: fetch the record as IdentityMD serves it, then ask the launched WorkProof. */
+  commands: { comment: string; command: string }[];
+  answer: {
+    recordHash: string;
+    kindHash: string;
+    headHash: string;
+    specHash: string;
+    stateHash: string;
+    agentIds: string[];
+  } | null;
+  /** `live`: called for this page. `pinned`: the answer read on the day `config/history.ts` names. */
+  source: "live" | "pinned" | null;
+  /** The answer as cast prints it. */
+  printed: string | null;
+  /** What the answer shows, held against the order's own terms, in sentences. */
+  words: string;
+}
+
+/** A tip the settlement credited in Payroll, and where it stands now. */
+export interface OrderTip {
+  agentId: string;
+  /** The seat the Adapter binds the agent to, and that seat's owner now. Null when unread or unbound. */
+  seat: string | null;
+  owner: string | null;
+  /** `Payroll.tipOwed(agentId)`, read for this page. Null when unread. */
+  owedImd: string | null;
+  claimed: { at: string; amountImd: string; paidTo: string; from: string; txUrl: string } | null;
+  words: string;
+}
+
 export interface OrderModel {
   generatedAt: string;
   id: number;
@@ -402,9 +571,28 @@ export interface OrderModel {
   ticket: string | null;
   jobUrl: string | null;
   verifyPath: string | null;
+  /**
+   * True once the order is Delivered. Its expiry and the actions anyone could take on it are then
+   * left out of every form of the page: nothing can be done to a delivered order.
+   */
+  delivered: boolean;
+  /** The order's transactions, from `config/history.ts`. Empty for an order no history is kept for. */
+  trail: TrailRow[];
+  /** Where the trail comes from, in one sentence. Null with no trail. */
+  trailNote: string | null;
+  /** For a delivered order with a job and a record: the proof through the launched WorkProof. */
+  proof: OrderProof | null;
+  tips: OrderTip[];
+  /** The IPFS CID IdentityMD's API gives for the job's media, as text. Null when it gives none. */
+  mediaCid: string | null;
   commands: { comment: string; command: string }[];
   flows: FlowPreview[];
   sources: SourceNote[];
+}
+
+/** The prove answer as cast prints it, each hash in full. */
+function printProof(a: NonNullable<OrderProof["answer"]>): string {
+  return `(${[a.recordHash, a.kindHash, a.headHash, a.specHash, a.stateHash].join(", ")}, [${a.agentIds.join(", ")}])`;
 }
 
 function timeline(order: Order): TimelineStep[] {
@@ -475,11 +663,23 @@ export const orderPage: PageDef<OrderModel> = {
   async load({ sources, now }, params) {
     const id = parseIndex(params.id);
     if (id === null || id < 1) return null;
-    const { house, chain, deployments } = sources;
+    const { house, chain, deployments, api } = sources;
     const read = await house.order(id);
     const desk = contractStatus(deployments, "workOrders");
-    const order = read.live ? read.data : null;
+    const pinned = pinnedOrder(desk.address, id);
+    const readOrder = read.live ? read.data : null;
+    // The job text is published once, in the order's opening log. Once the RPC no longer serves that
+    // log, the copy kept in config/history.ts is shown instead, and only when it hashes to the
+    // specHash the desk holds for the order.
+    const order: Order | null =
+      readOrder &&
+      !readOrder.spec &&
+      pinned &&
+      readOrder.terms?.specHash === keccak256(stringToHex(pinned.spec))
+        ? { ...readOrder, spec: pinned.spec }
+        : readOrder;
     if (read.live && read.data === null && !read.error) return null;
+    const delivered = order?.state === "Delivered";
     const card = order
       ? orderCard(
           order,
@@ -515,7 +715,10 @@ export const orderPage: PageDef<OrderModel> = {
         const split = splitPrice(c.priceWei);
         money.push({ label: "Price fixed by the runner's claim", imd: formatImd(c.priceWei) });
         money.push({ label: "of which fee (to Payroll)", imd: formatImd(split.fee) });
-        money.push({ label: "of which tip (to the seats that worked)", imd: formatImd(split.tip) });
+        money.push({
+          label: "of which tip (to the seats of the agents the record names)",
+          imd: formatImd(split.tip),
+        });
         money.push({ label: "of which to the runner", imd: formatImd(split.runnerPay) });
       }
     }
@@ -535,6 +738,195 @@ export const orderPage: PageDef<OrderModel> = {
         ticket = null;
       }
     }
+    // ---- A delivered order: the proof through the launched WorkProof, the tips, the picture. ----
+    const workProof = deployments.contracts.workProof.address;
+    let proof: OrderProof | null = null;
+    let tips: OrderTip[] = [];
+    let mediaCid: string | null = null;
+    const proofSources: SourceNote[] = [];
+    if (order && delivered && c?.jobId && c.recordHash) {
+      const jobHex = jobIdToBytes16(c.jobId);
+      const recordHash = c.recordHash;
+      // The job itself is read only for an order whose history this site keeps: the server reads in
+      // full only the jobs it names itself.
+      const readJob = async (jobId: string) => {
+        try {
+          return (await api.job(jobId)).value;
+        } catch {
+          return null;
+        }
+      };
+      const [served, job] = await Promise.all([
+        api.workRecord(recordHash).catch(() => null),
+        pinned?.jobId === c.jobId ? readJob(c.jobId) : Promise.resolve(null),
+      ]);
+      mediaCid = job?.mediaCid ?? null;
+      // The bytes whose hash is the record hash, exactly: the call is made with nothing else.
+      let bytes: Uint8Array | null = null;
+      if (served) {
+        const hashed = hashServedRecord(served.bytes, recordHash);
+        if (hashed.matches)
+          bytes = hashed.strippedNewline ? served.bytes.subarray(0, served.bytes.length - 1) : served.bytes;
+      }
+      let answer: OrderProof["answer"] = null;
+      let source: OrderProof["source"] = null;
+      if (bytes && workProof) {
+        try {
+          const called = await chain.views(
+            `prove:${jobHex}:${recordHash}`,
+            [
+              {
+                to: workProof,
+                abi: workProofAbi,
+                functionName: "prove",
+                args: [jobHex, toHex(bytes), BigInt(HEADER_LENGTH)],
+              },
+            ],
+            10 * 60_000,
+          );
+          const r = called.value[0];
+          const p = r?.ok ? (r.value as Record<string, unknown>) : null;
+          if (p) {
+            answer = {
+              recordHash: String(p.recordHash).toLowerCase(),
+              kindHash: String(p.kindHash).toLowerCase(),
+              headHash: String(p.headHash).toLowerCase(),
+              specHash: String(p.specHash).toLowerCase(),
+              stateHash: String(p.stateHash).toLowerCase(),
+              agentIds: (p.agentIds as readonly bigint[]).map((a) => a.toString()),
+            };
+            source = "live";
+            proofSources.push({
+              name: "WorkProof.prove",
+              detail: `eth_call to ${workProof} with the job's record as IdentityMD serves it`,
+              fetchedAt: new Date(called.fetchedAt).toISOString(),
+              stale: called.stale,
+              error: called.error,
+            });
+          }
+        } catch {
+          answer = null;
+        }
+      }
+      if (!answer && pinned && pinned.prove.recordHash === recordHash) {
+        const p = pinned.prove;
+        answer = {
+          recordHash: p.recordHash,
+          kindHash: p.kindHash,
+          headHash: p.headHash,
+          specHash: p.specHash,
+          stateHash: p.stateHash,
+          agentIds: [...p.agentIds],
+        };
+        source = "pinned";
+      }
+      const checks: string[] = [];
+      if (answer) {
+        const same = (a: string, b: string | null | undefined) => !!b && a.toLowerCase() === b.toLowerCase();
+        checks.push(
+          same(answer.recordHash, recordHash)
+            ? "The first hash is the record's, which is the receipt WorkRegistry.latest holds for the job: prove reads the registry itself and reverts for any other bytes."
+            : "The first hash is not the record hash the desk holds for the order.",
+        );
+        if (t) {
+          checks.push(
+            same(answer.kindHash, t.kindHash) ? "The kind is the order's." : "The kind is NOT the order's.",
+            same(answer.specHash, t.specHash)
+              ? "The job text after the 85-byte order header hashes to the order's job text."
+              : "The job text after the 85-byte order header is NOT the order's.",
+          );
+        }
+        if (ticket) {
+          checks.push(
+            same(answer.headHash, orderHeadHash(ticket as Hex))
+              ? "The objective begins with this claim's 85-byte order header."
+              : "The objective does NOT begin with this claim's 85-byte order header.",
+          );
+        }
+        checks.push(
+          answer.agentIds.length === 0
+            ? "The record names no agent, so the tip went to the seat pool."
+            : `${answer.agentIds.length === 1 ? "The agent the record names" : "The agents the record names"}: ${answer.agentIds.join(", ")}.`,
+        );
+      }
+      proof = {
+        commands: [
+          {
+            comment: "The work record, exactly as IdentityMD serves it.",
+            command: `curl -s ${IMD_LINK.workRecord(hashNo0x(recordHash))} -o record.json`,
+          },
+          {
+            comment:
+              "Ask the launched WorkProof. It reads WorkRegistry.latest itself, walks the record and answers (recordHash, kindHash, headHash, specHash, stateHash, agentIds); change one byte and it reverts.",
+            command: castView(workProof, "WORK_PROOF", workProofAbi, "prove", [
+              jobHex,
+              `"0x$(xxd -p record.json | tr -d '\\n')"`,
+              String(HEADER_LENGTH),
+            ]),
+          },
+        ],
+        answer,
+        source,
+        printed: answer ? printProof(answer) : null,
+        words: answer
+          ? `${source === "live" ? "Called for this page." : `As called on ${pinned?.prove.read ?? "the day it was pinned"}; the call could not be made for this page.`} ${checks.join(" ")} A proof shows what IdentityMD recorded, not that the work is good.`
+          : "The call could not be made for this page; the commands make it.",
+      };
+
+      // The tips: each agent, its seat and that seat's owner now, and what Payroll still owes for it.
+      const agents = (answer?.agentIds ?? []).slice(0, 16);
+      if (agents.length > 0) {
+        const [bindings, owed] = await Promise.all([
+          chain.bindings(agents).catch(() => [] as Awaited<ReturnType<typeof chain.bindings>>),
+          Promise.all(agents.map((agent) => house.tipOwed(agent))),
+        ]);
+        tips = agents.map((agentId, index) => {
+          const binding = bindings.find((b) => b.agentId === agentId) ?? null;
+          const owedRead = owed[index];
+          const owedWei = owedRead?.live && owedRead.data !== null ? owedRead.data : null;
+          const claim = pinned?.tipClaims.find((tc) => tc.agentId === agentId) ?? null;
+          const seat = binding?.bound ? binding.tokenId : null;
+          const seatWords = seat !== null ? `seat #${seat}` : "its seat";
+          const claimed = claim
+            ? {
+                at: claim.tx.at,
+                amountImd: formatImd(claim.amountWei),
+                paidTo: claim.paidTo,
+                from: claim.tx.from,
+                txUrl: etherscanTx(claim.tx.hash),
+              }
+            : null;
+          const caller = claim ? (houseLabelOf(claim.tx.from) ?? claim.tx.from) : null;
+          const words =
+            owedWei === null
+              ? `What Payroll owes for agent ${agentId} could not be read just now.`
+              : owedWei > 0n
+                ? `Unclaimed: ${formatImd(owedWei)} IMD waits in Payroll for ${seatWords}'s owner (Payroll.tipOwed, read for this page). ${CLAIM_TIP_RULE.replace("claimTip", `claimTip(${agentId})`)} The call also fails, and the tip stays owed, while the agent is bound to no seat or to a seat that is not one of Payroll's.`
+                : claim
+                  ? `Claimed: on ${formatUtc(claim.tx.at)} ${caller === "W1" || caller === "H1" ? `house wallet ${caller}` : caller} called claimTip(${agentId}), and Payroll paid the ${formatImd(claim.amountWei)} IMD tip credited for agent ${agentId}, the agent IdentityMD's work record names, to the owner of seat #${claim.tokenId}, ${claim.paidTo}. ${claim.paidToHasCode ? `That owner's address had code when read on ${HISTORY_READ_ON}, so only the owner could send the call.` : `That owner's address had no code when read on ${HISTORY_READ_ON}, so anyone could send the call.`} Payroll.tipOwed reads 0 for this page.`
+                  : `Payroll.tipOwed reads 0 for agent ${agentId} for this page: nothing is waiting for it.`;
+          return {
+            agentId,
+            seat,
+            owner: binding?.owner ?? null,
+            owedImd: owedWei === null ? null : formatImd(owedWei),
+            claimed,
+            words,
+          };
+        });
+      }
+    }
+
+    const trail: TrailRow[] = (pinned?.trail ?? []).map((step) => ({
+      key: step.key,
+      label: step.label,
+      what: step.what,
+      at: step.tx.at,
+      block: step.tx.block,
+      tx: step.tx.hash,
+      txUrl: etherscanTx(step.tx.hash),
+    }));
+
     return {
       generatedAt: now.toISOString(),
       id,
@@ -555,28 +947,55 @@ export const orderPage: PageDef<OrderModel> = {
       ticket,
       jobUrl: c?.jobId ? explorerJob(c.jobId) : null,
       verifyPath: c?.jobId ? `/verify/${c.jobId}` : null,
+      delivered,
+      trail,
+      trailNote:
+        trail.length > 0
+          ? `Every transaction of the order, oldest first. The public RPC no longer serves their logs, so their hashes were read from the chain on ${HISTORY_READ_ON} and are kept with this site (config/history.ts); the order's state and money above are read live.`
+          : null,
+      proof,
+      tips,
+      mediaCid,
       commands: [
         {
           comment: "The order's state and money: (state, employer, escrow, spent, returned).",
           command: castView(desk.address, "WORK_ORDERS", workOrdersAbi, "accountOf", [String(id)]),
         },
-        {
-          comment: "What a runner would be paid if it took the order in this block.",
-          command: castView(desk.address, "WORK_ORDERS", workOrdersAbi, "priceNow", [String(id)]),
-        },
+        ...(delivered
+          ? []
+          : [
+              {
+                comment: "What a runner would be paid if it took the order in this block.",
+                command: castView(desk.address, "WORK_ORDERS", workOrdersAbi, "priceNow", [String(id)]),
+              },
+            ]),
         {
           comment:
-            "The 85 bytes the swarm job's text must begin with, for the order's current claim (it reverts unless a runner holds the order or it was delivered).",
+            "The 85-byte order header the swarm job's text must begin with, for the order's current claim (it reverts unless a runner holds the order or it was delivered).",
           command: `${castView(desk.address, "WORK_ORDERS", workOrdersAbi, "headerOf", [String(id)])} | xargs cast to-utf8`,
         },
+        ...(c?.jobId
+          ? [
+              {
+                comment:
+                  "The receipt IdentityMD's WorkRegistry holds for the order's swarm job (zero means none).",
+                command: castCall(MAINNET.WORK_REGISTRY, "WORK_REGISTRY", "latest(bytes16)(bytes32)", [
+                  jobIdToBytes16(c.jobId),
+                ]),
+              },
+            ]
+          : []),
       ],
-      flows: [
-        previewFlow("order-refund", deployments, now, { id: String(id) }),
-        previewFlow("order-cancel", deployments, now, { id: String(id) }),
-        previewFlow("order-timeout", deployments, now, { id: String(id) }),
-        previewFlow("order-challenge", deployments, now, { id: String(id) }),
-      ],
-      sources: [liveNote(`Order ${id}`, read)],
+      // Nothing can be done to a delivered order: refund, cancel, timeout and challenge all revert.
+      flows: delivered
+        ? []
+        : [
+            previewFlow("order-refund", deployments, now, { id: String(id) }),
+            previewFlow("order-cancel", deployments, now, { id: String(id) }),
+            previewFlow("order-timeout", deployments, now, { id: String(id) }),
+            previewFlow("order-challenge", deployments, now, { id: String(id) }),
+          ],
+      sources: [liveNote(`Order ${id}`, read), ...proofSources],
     };
   },
   meta: (m) => ({
@@ -613,7 +1032,7 @@ export const orderPage: PageDef<OrderModel> = {
                         : "an on-chain receipt only"
                     }`
                   : "",
-                o.terms?.expiresAt ? `Expires: ${formatUtc(o.terms.expiresAt * 1000)}` : "",
+                o.terms?.expiresAt && !m.delivered ? `Expires: ${formatUtc(o.terms.expiresAt * 1000)}` : "",
                 o.terms ? `Delivery window: ${formatDuration(o.terms.deliverySecs * 1000)}` : "",
               ].filter(Boolean),
             ),
@@ -630,13 +1049,61 @@ export const orderPage: PageDef<OrderModel> = {
             ),
           ).trimEnd()
         : null,
+      m.trail.length > 0
+        ? doc(
+            "## The transaction trail",
+            m.trailNote,
+            table(
+              ["Step", "When (UTC)", "Transaction", "What it did"],
+              m.trail.map((s) => [
+                s.label,
+                formatUtc(s.at),
+                `${link(s.tx, s.txUrl)} (block ${s.block})`,
+                s.what,
+              ]),
+            ),
+          ).trimEnd()
+        : null,
+      m.proof ? orderProofMarkdown(m.proof) : null,
+      m.tips.length > 0
+        ? doc(
+            "## The tip",
+            bullets(
+              m.tips.map(
+                (tip) =>
+                  `Agent ${tip.agentId} → ${tip.seat !== null ? `seat #${tip.seat}` : "no seat read"} → ${tip.owner ? `owner ${inline(tip.owner)}` : "owner unread"} (the seat Adapter's bindingOf, then the seat token's ownerOf, read for this page). ${tip.words}${tip.claimed ? ` ${link("The claim", tip.claimed.txUrl)}.` : ""}`,
+              ),
+            ),
+          ).trimEnd()
+        : null,
+      m.mediaCid
+        ? doc(
+            "## The work",
+            `IdentityMD's API gives the job's media the IPFS CID ${inline(m.mediaCid)} (GET /jobs/${m.order?.claim?.jobId ?? "<job id>"}, media.cid). It is printed as text; this site serves and links no copy.`,
+          ).trimEnd()
+        : null,
       "## Check it yourself",
       fence(m.commands.map((c) => `# ${c.comment}\n${c.command}`).join("\n\n"), "sh"),
-      "## What anyone can do",
+      m.flows.length > 0 ? "## What anyone can do" : null,
       ...m.flows.map(flowMarkdown),
     );
   },
 };
+
+/** The proof block of a delivered order, as Markdown. */
+function orderProofMarkdown(p: OrderProof): string {
+  return doc(
+    "## The proof",
+    "Through the launched WorkProof, with no key and no account:",
+    fence(p.commands.map((c) => `# ${c.comment}\n${c.command}`).join("\n\n"), "sh"),
+    p.printed ? `It answers:\n\n${fence(p.printed)}` : null,
+    p.words,
+  ).trimEnd();
+}
+
+function houseLabelOf(address: string): string | null {
+  return HOUSE_WALLETS.find((w) => w.address.toLowerCase() === address.toLowerCase())?.label ?? null;
+}
 
 // ---------------------------------------------------------------------------------------------
 // /runners
@@ -664,15 +1131,20 @@ export interface RunnersModel {
   flows: FlowPreview[];
   /** Being paid on a receipt: commands, because the record itself is the transaction's argument. */
   settleCommands: { comment: string; command: string }[];
+  /** Who takes orders today, from the orders read. */
+  whoTakes: string;
+  /** What the team says of its own runner, and of its keeper, dated; null where the book's desk is not mainnet's. */
+  runnerStatement: RunnerStatementView | null;
+  whoFor: readonly string[];
   sources: SourceNote[];
 }
 
 const RUNNER_STEPS = [
   "Find an open order. Read its job text, its kind, its price now (priceNow) and how it pays. Ask IdentityMD's free check (POST /requests/check) whether the swarm would accept the job; it costs nothing. And before taking an order that pays only on a receipt, look at whether the registry is writing receipts at all: the test is printed below.",
-  "Take the order: approve the bond and call claim(id). You now hold it alone for one hour, at the price of that moment. headerOf(id) returns the 85 bytes your job must begin with.",
-  "Buy the swarm job with your own wallet (0.5 IMD, an x402 payment), with the template for the order's kind and an objective that is exactly those 85 bytes followed by the order's job text.",
+  "Take the order: approve the bond and call claim(id). You now hold it alone for one hour, at the price of that moment. headerOf(id) returns the 85-byte order header your job must begin with.",
+  "Buy the swarm job with your own wallet (0.5 IMD, an x402 payment), with the template for the order's kind and an objective that is exactly that 85-byte order header followed by the order's job text.",
   "Register the job within the hour: register(id, jobId), the job's UUID without its dashes.",
-  "When the job has finished and its receipt is in the WorkRegistry, settle: fetch the work record under the hash the registry holds and submit it with settle(id, record, []). Anyone may send that. The desk checks the record against the receipt, the kind, your header and the job text, and pays you the price less the fee and the tip, with your bond.",
+  "When the job has finished and its receipt is in the WorkRegistry, settle: fetch the work record under the hash the registry holds and submit it with settle(id, record, []). Anyone may send that. The desk checks the record against the receipt, the kind, your 85-byte order header and the job text, and pays you the price less the fee and the tip, with your bond.",
   "While receipts are late, and only on an order whose employer allowed it: claimDelivered(id, recordHash), with the hash IdentityMD's API lists for the job's record, at least 48 hours before the delivery deadline. After 24 hours without a challenge, finalize(id) pays you. When the receipt lands later, anyone can stamp(id, record, []) to mark the order proven; no money moves.",
   "If your job failed, reportFailed(id, record, []) with its receipt ends the claim and returns your bond; only you may report your own job's failure.",
 ];
@@ -714,7 +1186,7 @@ export const runnersPage: PageDef<RunnersModel> = {
       desk,
       launched: read.live,
       whoRuns: read.live
-        ? "The team's own runner (bots/runner in the repository) signs with house wallet H1 when it runs; anyone can run another, and none has any privilege."
+        ? "The team's own runner (bots/runner in the repository) signs with house wallet H1; what the team says of where and how it runs is below, beside what the desk shows. Anyone can run another, and none has any privilege."
         : "The team will run one from house wallet H1 once the desk is launched; anyone will be able to run another, and none will have any privilege.",
       count: opened,
       openWords: !read.live
@@ -803,6 +1275,9 @@ export const runnersPage: PageDef<RunnersModel> = {
           ]),
         },
       ],
+      whoTakes: whoTakesOrders(read, houseAddresses),
+      runnerStatement: runnerStatement(desk.address, true),
+      whoFor: RUNNING_IS_FOR,
       sources: [liveNote("Open orders", read)],
     };
   },
@@ -815,6 +1290,10 @@ export const runnersPage: PageDef<RunnersModel> = {
     return doc(
       `A contract cannot buy a swarm job itself: payment needs an ordinary wallet's signatures. A runner is the wallet that does it, under bond, for a margin. ${m.whoRuns}`,
       m.openWords,
+      "## Who takes orders today",
+      ...whoTakesMarkdown(m.whoTakes, m.runnerStatement),
+      "## Who this is for",
+      bullets([...m.whoFor]),
       m.open.length > 0
         ? table(
             ["Order", "Card", "Employer", "Origin"],
@@ -827,7 +1306,7 @@ export const runnersPage: PageDef<RunnersModel> = {
       bullets(m.economics),
       "## What it risks",
       bullets(m.risks),
-      "## The header",
+      "## The 85-byte order header",
       `For ticket ${inline(m.headerExample.ticket)} the job's objective must begin with these ${m.headerExample.bytes} bytes (the last one is a space), then the order's job text:`,
       fence(m.headerExample.header),
       "ticket = keccak256(abi.encode(chainId, workOrders, orderId, claimSeq, runner)), where claimSeq counts claims of that order from 1.",

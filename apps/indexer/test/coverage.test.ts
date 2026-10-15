@@ -311,8 +311,8 @@ describe("an interrupted backfill", () => {
 });
 
 describe("a lookup outside the indexed range", () => {
-  // With the default look-back and the receipt writer stalled since 8 October, the receipts
-  // table is empty. The route used to answer `latest: null` for a job whose receipt is on chain,
+  // With the default look-back, a receipt older than the range is not in the receipts table (as
+  // happened while the receipt writer was stalled, 8 to 13 October 2026). The route used to answer `latest: null` for a job whose receipt is on chain,
   // with no word about which blocks had been looked at.
   it("says which blocks were searched, so that no receipt is not read as none on chain", async () => {
     const fixture = loadLogFixture("work-recorded");

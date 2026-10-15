@@ -155,16 +155,17 @@ export const STATIC_PATHS: readonly StaticPath[] = [
   {
     path: "/pots",
     label: "Pots",
-    blurb: "Chip in to commission swarm work together.",
+    blurb: "Chip in to commission swarm work together, with IMD, or with ETH through Zap (launch C).",
     live: false,
     needs: "crowdPots",
   },
   {
     path: "/rules/new",
     label: "Say When",
-    blurb: "WHEN a view call or a feed crosses a line, THEN hire or pay.",
+    blurb:
+      "WHEN a view call crosses a line, THEN hire or pay: a conditional order on launch B's desk, which anyone may open once its condition holds, or a standing rule that fires again and again (Rules, launch C).",
     live: false,
-    needs: "rules",
+    needs: "workOrders",
   },
   {
     path: "/company",
@@ -195,6 +196,17 @@ export const STATIC_PATHS: readonly StaticPath[] = [
     live: false,
     needs: "workOrders",
   },
+];
+
+/**
+ * What launch C adds, as the navigation names it. Each is shown apart, under "Coming", for as long as
+ * its contract has no address in the deployments book; the pages behind them are complete. Once it
+ * has one, Endowments is a page of the main row, and Rules and Zap are sections of Say When and Pots.
+ */
+export const LAUNCH_C_LINKS: readonly { path: string; label: string; needs: ContractKey }[] = [
+  { path: "/rules/new#standing", label: "Rules", needs: "rules" },
+  { path: "/endowments", label: "Endowments", needs: "endowments" },
+  { path: "/pots#zap", label: "Zap", needs: "zap" },
 ];
 
 /** Whether a page has what it needs today: it needs nothing of ours, or its contract has an address. */

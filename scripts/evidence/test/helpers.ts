@@ -39,7 +39,20 @@ export const fixture = <T = unknown>(name: string): T =>
 
 /** The recording of a real run on 13 October 2026 (see fixtures/README.md). */
 export const TAPE_FILE = "run-2026-10-13.json";
-export const tape = (): Tape => structuredClone(fixture<Tape>(TAPE_FILE));
+/** Launch A's own record, as IdentityMD served it on 15 October 2026 (see fixtures/README.md). */
+export const LAUNCH_RECORD_FILE = "launch-1531-2026-10-15.json";
+/**
+ * The recording, with launch A's own record beside it: the builder of 13 October read only the
+ * list of launches, and the builder now also reads the launch's record for its contracts.
+ */
+export const tape = (): Tape => {
+  const recorded = structuredClone(fixture<Tape>(TAPE_FILE));
+  const record = fixture<Pick<Tape, "api">>(LAUNCH_RECORD_FILE);
+  return {
+    ...recorded,
+    api: { ...recorded.api, ...structuredClone(record.api) },
+  };
+};
 
 /** The house list as it was published on the day of the recording. */
 export const HOUSE_FILE = fixture("house-wallets.json");

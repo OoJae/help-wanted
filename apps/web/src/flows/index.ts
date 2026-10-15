@@ -492,7 +492,7 @@ function planOrder(input: OrderInput, ctx: FlowContext): FlowPlan {
       minPay === maxPay
         ? `The price is fixed at ${formatImd(maxPay)} IMD.`
         : `The price starts at ${formatImd(minPay)} IMD and rises to ${formatImd(maxPay)} IMD over ${formatDuration(rampSecs * 1000)}. The first runner to take the order fixes the price at that moment; the rest of your escrow comes back.`,
-      `Of the fixed price, 5% is the fee (at most ${formatImd(atMost.fee)} IMD: half to sIMD stakers, 30% to seat owners, 20% to the feeds), 5% is a tip to the seats whose agents do the work, and the runner keeps the rest, out of which it pays the swarm's 0.5 IMD.`,
+      `Of the fixed price, 5% is the fee (at most ${formatImd(atMost.fee)} IMD: half to sIMD stakers, 30% to seat owners, 20% to the feeds), 5% is a tip to the seats of the agents the job's work record names, and the runner keeps the rest, out of which it pays the swarm's 0.5 IMD.`,
       `A runner must post a bond of ${formatImd(DESK.MIN_BOND)} IMD to take the order, and then has three days for the job's receipt to exist.`,
       ...claimLines,
       `If nobody has taken the order after ${formatDuration(openSecs * 1000)}, anyone can send the whole escrow back to you. Until a runner takes it you can withdraw it yourself.`,
@@ -1667,8 +1667,8 @@ const claimSeat = simple({
         ),
       ],
       summary: [
-        "The IMD goes to the seat's current owner, never to the caller. For a seat held by an ordinary wallet, anyone may send the claim.",
-        "A seat held by a contract (an escrow, a marketplace, a loan, a contract wallet, or a wallet that has delegated to code) must be claimed by that contract itself: sent by anyone else, the call reverts ContractOwnerMustClaim. Nobody can push IMD into a contract that did not ask for it.",
+        "The IMD goes to the seat's current owner, never to the caller. Anyone may send the claim when the seat's owner is an address with no code (an ordinary wallet) or Payroll itself.",
+        "When the owner is any other address with code (an escrow, a marketplace, a loan, a contract wallet, or a wallet that has delegated to code), only the owner may send it; anyone else's call reverts ContractOwnerMustClaim. Nobody can push IMD into a contract that did not ask for it.",
         "What a seat has not claimed follows the seat: it keeps accruing, and it is paid to whoever owns the seat when the claim is made.",
       ],
     };
@@ -1707,7 +1707,7 @@ const claimTip = simple({
         ),
       ],
       summary: [
-        "The agent's seat is looked up in IdentityMD's Adapter at that moment and the tips go to the seat's owner. For a seat held by an ordinary wallet, anyone may send the claim; a seat held by a contract must be claimed by that contract itself (otherwise the call reverts ContractOwnerMustClaim).",
+        "The agent's seat is looked up in IdentityMD's Adapter at that moment and the tips go to the seat's owner, never to the caller. Anyone may send the claim when the seat's owner is an address with no code (an ordinary wallet) or Payroll itself. When the owner is any other address with code (a contract, or a wallet that has delegated to code), only the owner may send it; anyone else's call reverts ContractOwnerMustClaim.",
         "It reverts while the agent is bound to no seat. A tip that cannot be claimed waits 180 to 360 days and can then be moved to the seat pool by anyone.",
       ],
     };
@@ -2049,6 +2049,7 @@ const createRule: FlowDef = {
             ? "Each order the rule opens accepts the desk's bonded delivery claim: an untrue claim nobody challenges within 24 hours is paid, and a challenge nothing decides refunds the order. Rules never challenges and never arbitrates."
             : "Each order the rule opens pays only on an on-chain receipt. While IdentityMD's receipts are late such an order is not paid and ends in a refund, which returns to the rule; the tip of the fire that opened it is spent."
           : "The payment moves in the transaction that fires the rule. A condition a caller can make true for the length of one transaction (a spot balance, a pool price) lets that caller fire it.",
+        ...(hireAction ? [] : [zapPayeeLine(ctx, "the recipient", "the payment", "fire")]),
         "You, and only you, can cancel the rule at any time and take back what it has not spent. Nobody else has any power over it.",
       ],
     };
@@ -2175,6 +2176,16 @@ const SEED_LINE = `Creating an endowment costs a seed of ${formatUnits(ENDOWMENT
 const NEW_ID_LINE =
   "Read the new endowment's number from the Created event of that transaction, not from a guess: numbers are handed out in order, and somebody else's may have been created in between.";
 
+/**
+ * Why nobody should name launch C's Zap as a payee, though Endowments and Rules accept it: each
+ * call to Zap ends by sending its caller all the IMD Zap holds (launch C's THREATS.md, Z4, and row 5
+ * of its docs/AUDITS.md).
+ */
+function zapPayeeLine(ctx: FlowContext, as: string, what: string, by: string): string {
+  const zap = ctx.addresses.zap;
+  return `Zap${zap ? ` (${zap})` : ""} is accepted as ${as} but should not be named: each call to Zap ends by sending its caller all the IMD Zap holds, so whoever calls ${by} can take ${what} in the same transaction (launch C's docs/THREATS.md, Z4).`;
+}
+
 const endowCreateMeter = simple({
   id: "endow-create-meter",
   title: "Endow a feed's meter",
@@ -2259,6 +2270,7 @@ const endowCreatePot = simple({
       summary: [
         `The endowment's target is fixed for good: pot or series ${potId}. Its yield is chipped in for what the pot still needs, in the beneficiary's name.`,
         "The beneficiary is a party to trust: it is paid directly whenever the pot takes no chips (it is full, launched, out of time or cannot be read). For a single pot that is the normal end. Depositors should read who it is before depositing.",
+        zapPayeeLine(ctx, "the fallback beneficiary", "what the harvest pays it", "harvest"),
         SEED_LINE,
         NEW_ID_LINE,
       ],
@@ -2292,6 +2304,7 @@ const endowCreateRecipient = simple({
       summary: [
         `The endowment's target is fixed for good: every harvest sends all the yield to ${getAddress(who)}.`,
         "The zero address, the contract itself, IMD, sIMD, Questions and CrowdPots are refused as recipients, because IMD sent there by plain transfer would be lost or shared with whoever staked a block earlier.",
+        zapPayeeLine(ctx, "a recipient", "the yield", "harvest"),
         SEED_LINE,
         NEW_ID_LINE,
       ],

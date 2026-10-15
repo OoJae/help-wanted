@@ -13,12 +13,17 @@ import { BANNED } from "./helpers";
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 const LAUNCHES: LimitLaunch[] = ["A", "B", "C"];
 
-/** A document's text as the list words it: one line, test names left out, no Markdown marks. */
+/**
+ * A document's text as the list words it: one line, test names left out, no Markdown marks. Emphasis
+ * is either `*word*` or, as prettier writes it, `_word_`; an underscore inside a name such as
+ * `FLAG_ALLOW_CLAIMED` is not emphasis and stays.
+ */
 function plain(text: string): string {
   return text
     .replace(/\s+/g, " ")
     .replace(/\s*\((?:[^()]*`(?:integration\/`: )?`?(?:test|invariant|testFuzz)[^()]*)\)/g, "")
     .replace(/\s*\(`(?:test|invariant|testFuzz)_[^)]*\)/g, "")
+    .replace(/(^|[\s(])_([^_\s`](?:[^_`]*[^_\s`])?)_(?=[\s.,;:)]|$)/g, "$1$2")
     .replace(/`/g, "")
     .replace(/\*/g, "")
     .replace(/ - /g, " ")
@@ -47,7 +52,8 @@ function entriesOf(text: string): Entry[] {
     if (/static analysis/i.test(title)) continue;
     if (/trust roots/i.test(title)) {
       for (const line of body.split("\n")) {
-        if (!/^\| T\d+ \|/.test(line)) continue;
+        // A formatted table pads the id's cell: "| T1  |" as well as "| T10 |".
+        if (!/^\| T\d+ +\|/.test(line)) continue;
         const cells = line
           .trim()
           .replace(/^\||\|$/g, "")
@@ -167,11 +173,13 @@ describe("the list of disclosed limits", () => {
 
   it("a row that later events overtook keeps the document's words and adds what happened since", () => {
     const since = DISCLOSED_LIMITS.filter((row) => row.since);
-    // Launch A's document was written before its launch: the rows its launch overtook say so.
-    // Launch B's document was brought up to date after its launch, and launch C's on 15 October
-    // 2026, after launches A and B and the first order paid on a receipt, so none of their rows
-    // needs a note.
-    expect(since.map((row) => `${row.launch}:${row.id}`)).toEqual(["A:B1", "A:B3", "A:N5", "A:N8"]);
+    // Launch A's document was written before its launch: the rows its launch overtook say so. Its
+    // list of what is not verified has carried its own dated note since 15 October 2026 (N1), which
+    // says what the launch showed of the pipeline, the audit, the callback and the gas, so those
+    // rows need none. Launch B's document was brought up to date after its launch, and launch C's
+    // on 15 October 2026, after launches A and B and the first order paid on a receipt, so none of
+    // their rows needs a note.
+    expect(since.map((row) => `${row.launch}:${row.id}`)).toEqual(["A:B1", "A:B3"]);
     for (const row of since) expect(row.since).toMatch(/^Since this was written, /);
     // A note never replaces the document's words: the row still carries them in full.
     for (const row of since) expect(row.limit.length + row.detail.length).toBeGreaterThan(40);

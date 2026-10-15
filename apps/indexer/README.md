@@ -58,10 +58,10 @@ and a mirror of the public IdentityMD API (`api_health`, `api_jobs`, `api_job_re
 `api_oracle_requests`): `/health`, the newest jobs, the newest oracle requests, and for the jobs
 on the watch list the whole job and its work records.
 
-**The default range holds no receipts today.** IdentityMD's receipt writer has been stalled since
-about 8 October 2026, and the default look-back is the last 7,000 blocks (about 23 hours). So
-`receipts` is empty after a default run, and a lookup answers `latest: null` for a job whose
-receipt is on chain, older than the range. The answer says which blocks were searched
+**The default range holds only recent receipts.** The default look-back is the last 7,000 blocks
+(about 23 hours). IdentityMD's receipt writer wrote nothing from about 8 October 2026 until 13
+October, 17:26 UTC, and writes again since; but a receipt older than the range is not in
+`receipts` after a default run, and a lookup answers `latest: null` for such a job. The answer says which blocks were searched
 (`coverage`), so it cannot be read as "no receipt". To index the receipts that exist, read further
 back through a node that keeps old logs:
 
@@ -110,7 +110,7 @@ without a table and why; a test fails when the ABI has an event that is in neith
 
 **The handlers of launches B and C are stubs.** Launch B (WorkOrders, CrowdPots, Doorbell) has been
 on mainnet since 13 October 2026, so its events are final, but its handlers are not written yet;
-launch C is not launched and its events can still change. From the moment such a contract has an
+the same holds for launch C (Rules, Endowments, Zap), on mainnet since 15 October 2026. From the moment such a contract has an
 address, every log of it is stored in `events` with its raw topics and data (undecoded, from the
 launch block on), but nothing is folded into its tables: there is no row in `orders`, `claims`,
 `pots` or `chips` however many orders and pots exist on chain. So that an empty

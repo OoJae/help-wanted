@@ -5,7 +5,7 @@ import NotLaunched from "~/components/NotLaunched.astro";
 import NotLive from "~/components/NotLive.astro";
 import Layout from "~/layouts/Layout.astro";
 import { pageData } from "~/lib/page";
-import type { SeatModel } from "~/models/money";
+import { seatTipPaidWords, type SeatModel } from "~/models/money";
 
 const loaded = await pageData<SeatModel>(Astro);
 if (loaded instanceof Response) return loaded;
@@ -54,9 +54,16 @@ const { model: m, meta } = loaded;
       </div>
       {m.paidImd !== null && (
         <div class="figure">
-          <dt>Paid so far</dt>
+          <dt>Paid from the seat pool</dt>
           <dd class="figure__words">{m.paidImd} IMD</dd>
-          <span class="note">seatPaid, read from Payroll</span>
+          <span class="note">seatPaid, read from Payroll; tips not counted</span>
+        </div>
+      )}
+      {m.tipsPaidImd !== null && (
+        <div class="figure">
+          <dt>Tips paid to its owner</dt>
+          <dd class="figure__words">{m.tipsPaidImd} IMD</dd>
+          <span class="note">claimTip, orders on record here</span>
         </div>
       )}
     </dl>
@@ -103,6 +110,27 @@ const { model: m, meta } = loaded;
         </tbody>
       </table>
     </div>
+  )}
+
+  {m.tipsPaid.length > 0 && (
+    <section class="section">
+      <div class="section__head">
+        <h2>Tips paid to this seat's owner</h2>
+        <p>agent id → seat → owner, at the time of the claim</p>
+      </div>
+      <p>{m.tipsPaidNote}</p>
+      <ul>
+        {m.tipsPaid.map((tip) => (
+          <li>
+            {seatTipPaidWords(tip)}{" "}
+            <a href={tip.txUrl} rel="noopener">
+              Transaction
+            </a>
+            .
+          </li>
+        ))}
+      </ul>
+    </section>
   )}
 
   <section class="section">

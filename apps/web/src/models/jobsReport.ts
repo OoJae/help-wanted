@@ -8,9 +8,10 @@
  * fee address, transfers of zero included), so the two can be held against each other. Until the
  * first print the tally is all there is, and the page says so in its first line.
  */
+import { pinnedPrint } from "~/config/history";
 import { houseSet } from "~/config/house";
 import { MAINNET } from "@help-wanted/shared";
-import { PUBLIC_LOG_WINDOW_BLOCKS, TOPIC, etherscanAddress } from "~/config/chain";
+import { PUBLIC_LOG_WINDOW_BLOCKS, TOPIC, etherscanAddress, etherscanTx } from "~/config/chain";
 import type { PaymentHistory } from "~/data/chain";
 import type { JobsReportCrown, JobsReportPrint, JobsReportSummary } from "~/data/house";
 import { messageOf } from "~/lib/cache";
@@ -58,6 +59,19 @@ export interface JobsReportModel {
   };
   /** The headline of the page: the official figures once a print exists, the unofficial ones until then. */
   headline: string;
+  /**
+   * When the newest print was made, and what the next one waits for. Null before any print. The
+   * release is dated by its print: `releaseDay` and `releaseNumber` follow `lastPrintAt`.
+   */
+  schedule: {
+    /** When the newest print was made (its transaction's block time), or failing that when the round it copies was answered. */
+    lastPrintAt: string | null;
+    lastPrintTxUrl: string | null;
+    lastPrintWords: string;
+    /** The payrolls meter, read for this page, and what a new request costs. Null when unread. */
+    meter: { holdsImd: string; costImd: string | null; shortImd: string | null } | null;
+    nextWords: string;
+  } | null;
   /**
    * The release's figures: payments in the newest day of blocks (at most 7,200), the range the
    * public RPC named in the commands still serves. Null when the chain could not be read at all.
@@ -215,7 +229,7 @@ export const jobsReportPage: PageDef<JobsReportModel> = {
             h.archive === "done" || h.archive === "running"
               ? "read from an archive RPC"
               : "read while it was running"
-          }, back to block ${formatInt(h.window.fromBlock)}. A free public RPC serves logs only for roughly the newest 9,000 blocks, so reproducing these rows needs an archive RPC. No figure of the release above depends on them.`,
+          }, back to block ${formatInt(h.window.fromBlock)}. A free public RPC serves logs only for roughly the newest ${formatInt(PUBLIC_LOG_WINDOW_BLOCKS)} blocks, so reproducing these rows needs an archive RPC. No figure of the release above depends on them.`,
         };
       }
     }
@@ -309,10 +323,57 @@ export const jobsReportPage: PageDef<JobsReportModel> = {
       ? `Official print${newest.index !== null ? ` no. ${newest.index + 1}` : ""}: ${formatImd(newest.amountWei)} IMD was paid to the swarm in blocks ${formatInt(newest.fromBlock)} to ${formatInt(newest.toBlock)}${countInHeadline}, as answered by IdentityMD's oracle and stored on chain.`
       : summary;
 
+    // ---- When the newest print was made, and what the next one waits for. ----
+    let schedule: JobsReportModel["schedule"] = null;
+    if (newest) {
+      const pinned = pinnedPrint(jobsReport.address, newest.index);
+      const payrolls =
+        feeds.live && feeds.data ? (feeds.data.feeds.find((f) => f.house === "payrolls") ?? null) : null;
+      const answeredAt = payrolls?.roundList.find((r) => r.round === newest.payrollsRound)?.updatedAt ?? 0;
+      const lastPrintAt = pinned
+        ? pinned.tx.at
+        : answeredAt > 0
+          ? new Date(answeredAt * 1000).toISOString()
+          : null;
+      const name = `print${newest.index !== null ? `, no. ${newest.index + 1},` : ""}`;
+      const lastPrintWords = pinned
+        ? `The last ${name} was made on ${formatUtc(pinned.tx.at)}.`
+        : lastPrintAt
+          ? `The last ${name} copies the payrolls round answered on ${formatUtc(lastPrintAt)}.`
+          : `When the last ${name} was made could not be read just now.`;
+      const meter = payrolls
+        ? {
+            holdsImd: formatImd(payrolls.meterWei),
+            costImd: payrolls.costWei > 0n ? formatImd(payrolls.costWei) : null,
+            shortImd:
+              payrolls.costWei > payrolls.meterWei ? formatImd(payrolls.costWei - payrolls.meterWei) : null,
+          }
+        : null;
+      const nextWords = !payrolls
+        ? "What the next print waits for could not be read just now: the payrolls feed did not answer."
+        : payrolls.pending
+          ? "A round of the payrolls feed is pending: the next print waits for its answer, which anyone may then copy in with print()."
+          : payrolls.costWei === 0n
+            ? `The next print waits for a new answer of the payrolls feed, and no request can be bought right now. Its meter holds ${formatImd(payrolls.meterWei)} IMD (read for this page).`
+            : payrolls.meterWei < payrolls.costWei
+              ? `The next print waits for a new answer of the payrolls feed, and a new request needs ${formatImd(payrolls.costWei)} IMD on its meter (the Intake's price and the keeper tip). The meter holds ${formatImd(payrolls.meterWei)} IMD, read for this page, so ${formatImd(payrolls.costWei - payrolls.meterWei)} IMD more must be put on it first. Anyone may fund it, on the questions page.`
+              : `The payrolls meter holds ${formatImd(payrolls.meterWei)} IMD, enough for a request at ${formatImd(payrolls.costWei)} IMD (read for this page). The next print waits for that request${payrolls.nextRequestBlock > 0 ? `, which the cadence allows from block ${formatInt(payrolls.nextRequestBlock)}` : ""}, its answer, and anyone's call to print().`;
+      schedule = {
+        lastPrintAt,
+        lastPrintTxUrl: pinned ? etherscanTx(pinned.tx.hash) : null,
+        lastPrintWords,
+        meter,
+        nextWords,
+      };
+    }
+    // A release is dated by its print; until there is one, by the day it was made.
+    const releasedAt = schedule?.lastPrintAt ?? now;
+
     return {
       generatedAt: now.toISOString(),
-      releaseDay: formatUtcLongDay(now),
-      releaseNumber: `HW-RJR-${utcDay(now)}-${printed ? "O" : "U"}`,
+      releaseDay: formatUtcLongDay(releasedAt),
+      releaseNumber: `HW-RJR-${utcDay(releasedAt)}-${printed ? "O" : "U"}`,
+      schedule,
       payee: MAINNET.FEE_PAYEE,
       payeeUrl: etherscanAddress(MAINNET.FEE_PAYEE),
       official: {
@@ -401,6 +462,9 @@ export const jobsReportPage: PageDef<JobsReportModel> = {
         ? doc(
             "## The official release",
             m.headline,
+            m.schedule
+              ? `${m.schedule.lastPrintWords}${m.schedule.lastPrintTxUrl ? ` ${link("The print's transaction", m.schedule.lastPrintTxUrl)}.` : ""} ${m.schedule.nextWords}`
+              : null,
             o.summary
               ? bullets([
                   `Prints so far: ${formatInt(o.summary.prints)}, ${formatImd(o.summary.totalWei)} IMD in all`,

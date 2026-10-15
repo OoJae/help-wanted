@@ -93,6 +93,17 @@ export interface JobDetail {
   } | null;
   deliveredAt: string | null;
   deliveryUrl: string | null;
+  /**
+   * The IPFS CID IdentityMD gives for the job's media (`media.cid`), when it gives one that has the
+   * shape of a CID. Shown as text only: this site links to no gateway.
+   */
+  mediaCid: string | null;
+}
+
+/** A CIDv1 in base32 (`bafy…`) or a CIDv0 (`Qm…`); anything else is not printed. */
+export function safeCid(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  return /^b[a-z2-7]{50,100}$/.test(value) || /^Qm[1-9A-HJ-NP-Za-km-z]{44}$/.test(value) ? value : null;
 }
 
 export interface ApiUsage {
@@ -273,6 +284,7 @@ export function jobView(job: Job): JobDetail {
       : null,
     deliveredAt: job.delivery?.deliveredAt ?? null,
     deliveryUrl: safeHttpUrl(job.delivery?.repoUrl ?? null),
+    mediaCid: safeCid(obj(o.media)?.cid) ?? safeCid(job.delivery?.media?.cid),
   };
 }
 

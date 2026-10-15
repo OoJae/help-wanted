@@ -419,7 +419,17 @@ export interface IdentityMdReads {
     kind: string | null;
     sourceRepoUrl: string | null;
     sourceCommit: string | null;
-    artifacts: { name: string; address: string; verifiedAt: string | null }[];
+    /**
+     * Each contract in IdentityMD's record of the launch. `verifiedAt` (ISO 8601) and
+     * `verifyFailure` are the record's own fields, null when it holds none. IdentityMD's public
+     * documentation does not say what they record.
+     */
+    artifacts: {
+      name: string;
+      address: string;
+      verifiedAt: string | null;
+      verifyFailure: string | null;
+    }[];
     /** Whether IdentityMD lists exactly the addresses the deployments book holds. */
     addressesMatchTheBook: boolean;
   }[];

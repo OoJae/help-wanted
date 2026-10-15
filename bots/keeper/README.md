@@ -315,10 +315,10 @@ Three things about them:
 
 ### The check of a delivery claim
 
-While IdentityMD's receipt writer is behind (it has been since about 8 October 2026), an order
-that allows it is paid on a delivery claim: the runner names a job and a record hash, and if nobody
-challenges within 24 hours the desk pays. Until a receipt exists both are the runner's word. For
-every claim, the keeper holds them against IdentityMD's API:
+While IdentityMD's receipt writer is behind (it was from about 8 to 14 October 2026, and can be
+again), an order that allows it is paid on a delivery claim: the runner names a job and a record
+hash, and if nobody challenges within 24 hours the desk pays. Until a receipt exists both are the
+runner's word. For every claim, the keeper holds them against IdentityMD's API:
 
 | It reads                    | And requires                                                                                                                                              |
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -430,9 +430,13 @@ most worth knowing:
 
 ## What it costs
 
-Gas only. Launch A measured a request at 418,000 to 451,000 gas against the live Intake on a
-mainnet fork (`launches/a-payroll/README.md`). The keeper's integration test, on a local node with
-stand-ins for the Intake and the tokens, measured the rest:
+Gas only. On mainnet, from 13 to 15 October 2026, the keeper's wallet (H1) spent: `createFeed`
+818,553 to 1,118,573 gas, `fund` 123,194 to 162,206, `request` 349,971 to 389,145, `submit`
+143,383 and 143,551, `print` 304,795, `crown` 171,649, `Payroll.fundFeeds` 337,240 (sent with
+1,000,000), `Payroll.drip` 67,469 (84,569 the first time), and `Questions.collectTips` 40,559.
+Launch A measured a request at 418,000 to 451,000 gas against the live Intake on a mainnet fork
+(`launches/a-payroll/README.md`). The keeper's integration test, on a local node with stand-ins
+for the Intake and the tokens, measured the rest:
 
 | Call                              | Gas                                                     |
 | --------------------------------- | ------------------------------------------------------- |
@@ -476,24 +480,45 @@ has its figure.
 
 ## What is not verified
 
-- **An answer delivered by the Intake's own callback.** On 13 October 2026 both answers that
-  reached the launched `Questions` were handed in by this keeper with `submit` (payrolls in block
-  26183772, hires in block 26183780): the oracle had signed each for the `Questions` contract, and
-  the contract accepted them. No answer has come by the callback yet, so what the keeper does
-  after one (for the employers feed, which only the callback can answer, `crown` included) has run
-  on a local node only. If an answer comes signed for another address, the keeper does not send it
-  and the status file says who it was signed for.
+- **Shown on mainnet since this list was first written** (15 October 2026). On 13 October 2026
+  both daily answers that reached the launched `Questions` were handed in by this keeper with
+  `submit` (payrolls in block 26183772, hires in block 26183780): the oracle had signed each for
+  the `Questions` contract, and the contract accepted them. The employers round was answered by the
+  Intake's own callback, in block 26185017, 4 hours 40 minutes after its request, and the keeper's
+  wallet crowned it (`JobsReport.crown`, transaction
+  `0x7794ad3cee6dfeb8ff8ed4fc925574c07e16fce1b3166728d21a0bcdc7d3cdf8`, block 26185036). Since
+  then the same wallet has sent `Payroll.fundFeeds` once (14 October) and `Payroll.drip` fourteen
+  times, up to block 26198116 (15 October, 13:08 UTC). On 15 October it also sent
+  `Questions.collectTips` once (transaction
+  `0xb029a8b70c253915316cdb2bf2c50706a1d607ee9294b04802c76f4b61a8496b`, block 26198381, 14:01
+  UTC): it used 40,559 gas and paid the wallet 0.15 IMD, the tips of the three rounds it had
+  opened, which left it no tips to collect. The keeper's wallet, H1, is also the runner's: after
+  the crown, as the runner, it registered the job of order 1, claimed its delivery and settled it
+  on `WorkOrders` (blocks 26185053, 26185112 and 26190223; `bots/runner/README.md`). Apart from
+  those three calls of the runner, the wallet sent nothing else to HELP WANTED's contracts up to
+  block 26198957 (15 October, 15:57 UTC). These are mainnet calls, not runs on a local node. The
+  team's keeper is not hosted: the team runs it by hand. (The team's runner is hosted, since
+  15 October 2026: `bots/runner/README.md`.) What follows is still not shown.
 - **How late the writer can be.** More than seven hours was seen on 13 October 2026. For the
   employers feed, which only the callback can answer, the round is closable by anyone 36 hours,
   5 minutes and one second after its request.
-- **The keeper against mainnet, beyond launch A's first day.** On 13 October 2026 it sent thirteen
-  transactions to the live contracts: the first day (three `createFeed`, one approval, three
-  `fund`, three `request`), two `submit` and the first `print`. Closing a silent round, `crown`,
-  `collectTips`, Payroll's calls and a second day's requests have run on a local node only (below).
-- **The modules of launches B and C against the deployed contracts.** Neither launch is deployed.
-  They have run against the real contracts of both, built from the launch projects' own output,
-  on a local node, with a stand-in for the WorkRegistry and a local server in place of
-  IdentityMD's API.
+- **The keeper against mainnet, beyond those calls.** Three calls of launch A's module had still
+  not been sent on mainnet by block 26198957: closing a silent round, `Payroll.book` and a second
+  day's requests. They have run on a local node only (below). If an answer comes signed for another
+  address, the keeper does not send it and the status file says who it was signed for; that has not
+  happened on mainnet.
+- **The modules of launches B and C against the launched contracts.** Launch B is live since
+  13 October 2026, and nothing on it has needed a keeper yet: its one order was settled by its
+  runner a minute after the job's receipt landed, and no order has expired, overstayed or had a
+  delivery claim stand for 24 hours. No transaction of the desk, pots or Doorbell modules has been
+  sent on mainnet. Launch C went live on 15 October 2026 (IdentityMD launch 1845, block 26198165),
+  and the deployments book holds it since the same day, so its modules read its addresses from the
+  book unless `RULES` and `ENDOWMENTS` say otherwise. The keeper's wallet, H1, had sent nothing to
+  launch C's contracts by block 26198957; every event those contracts had emitted by then came from
+  four calls of the team's wallet W1 to `Endowments` (`createForMeter`, `stake`, `deposit` and
+  `stake` again). The modules of both
+  launches have run against the real contracts, built from the launch projects' own output, on a
+  local node, with a stand-in for the WorkRegistry and a local server in place of IdentityMD's API.
 - **The check of a delivery claim against the live API.** The shapes of `GET /jobs/:id` and
   `GET /jobs/:id/records` are the shared package's schemas, written against real responses. That
   the API lists a record's hash before, or within minutes of, the job turning `completed` is

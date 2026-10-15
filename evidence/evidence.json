@@ -3,10 +3,10 @@
   "about": "What exists on chain of HELP WANTED, read at one pinned block. Written by scripts/evidence/build.ts (pnpm evidence) and by nothing else; do not edit by hand.",
   "chainId": 1,
   "pinnedBlock": {
-    "number": 26197296,
-    "hash": "0x3a9d9757d6c67ec1304de63f46237c77b4f23d35ecd8779cd1de32b0f440dcd2",
-    "timestamp": 1792059863,
-    "time": "2026-10-15T10:24:23Z",
+    "number": 26199756,
+    "hash": "0x6ddd696b5d1857ac483a4e660d502c1b0537fd2fcacdc0135d76cab3ef762cdc",
+    "timestamp": 1792089431,
+    "time": "2026-10-15T18:37:11Z",
     "finality": "finalized"
   },
   "houseRule": "HOUSE is the activity of the wallets the team publishes in evidence/house-wallets.json and of HELP WANTED's own contracts; everything else is OUTSIDE. Each event is counted for one account: the one that made the call, the one the event pays, or the one an earlier event settled (the opener of a round, the employer of an order). When the account made the call itself, the count is HOUSE if that account or the sender of the transaction is on the list. scripts/evidence/contracts.ts holds the rule of every event.",
@@ -64,15 +64,33 @@
       "address": "0xFd5ab7E03E8554210Faa3cCd3b9D47C622fffcCb",
       "kind": "contract",
       "note": "launch B, from the deployments book"
+    },
+    {
+      "label": "Rules",
+      "address": "0xcbF0dddF07C00a78E2E7561a6F47C275B8c05D7E",
+      "kind": "contract",
+      "note": "launch C, from the deployments book"
+    },
+    {
+      "label": "Endowments",
+      "address": "0xbE916A53b9Bbe634AF7E10E604E06b6069edEE76",
+      "kind": "contract",
+      "note": "launch C, from the deployments book"
+    },
+    {
+      "label": "Zap",
+      "address": "0x51bF8c74bd9BD74Ad08cABDC90DaC7835C18B21A",
+      "kind": "contract",
+      "note": "launch C, from the deployments book"
     }
   ],
   "headline": {
     "contractsInTheBook": 10,
-    "contractsLaunched": 7,
-    "contractsWithCode": 7,
+    "contractsLaunched": 10,
+    "contractsWithCode": 10,
     "transactions": {
-      "total": 55,
-      "house": 54,
+      "total": 64,
+      "house": 63,
       "outside": 0,
       "byIdentityMd": 1
     }
@@ -107,7 +125,7 @@
             "keccak256": "0xf876f5265e4ae5015645fbbee2c47e280391c23fc8256b46b688688a388618f7"
           },
           "namedInLaunchTransaction": true,
-          "imdHeldWei": "160000000000000000",
+          "imdHeldWei": "10000000000000000",
           "events": {
             "AnswerRevealed": {
               "total": 0,
@@ -188,8 +206,8 @@
               "countedFor": "the sender of the transaction"
             },
             "TipsCollected": {
-              "total": 0,
-              "house": 0,
+              "total": 1,
+              "house": 1,
               "outside": 0,
               "countedFor": "the keeper that collected"
             }
@@ -257,7 +275,7 @@
             "keccak256": "0xa962b0633998d594b2720984ad5f76fce369148592da0762b9d9acf399367236"
           },
           "namedInLaunchTransaction": true,
-          "imdHeldWei": "88367063492063491",
+          "imdHeldWei": "37920634920634919",
           "events": {
             "Booked": {
               "total": 1,
@@ -266,8 +284,8 @@
               "countedFor": "the sender of the transaction that booked the IMD"
             },
             "Dripped": {
-              "total": 11,
-              "house": 11,
+              "total": 14,
+              "house": 14,
               "outside": 0,
               "countedFor": "the caller of drip"
             },
@@ -314,9 +332,9 @@
               "countedFor": "the sender of the transaction"
             },
             "TipClaimed": {
-              "total": 0,
+              "total": 1,
               "house": 0,
-              "outside": 0,
+              "outside": 1,
               "countedFor": "the seat's owner, who is paid"
             },
             "TipSwept": {
@@ -336,9 +354,9 @@
       ],
       "logs": {
         "fromBlock": 26182869,
-        "toBlock": 26197296,
-        "count": 39,
-        "transactions": 28
+        "toBlock": 26199756,
+        "count": 44,
+        "transactions": 33
       },
       "evidence": {
         "questions": {
@@ -491,12 +509,12 @@
               }
             },
             "collected": {
-              "total": 0,
-              "house": 0,
+              "total": 1,
+              "house": 1,
               "outside": 0,
               "imd": {
-                "totalWei": "0",
-                "houseWei": "0",
+                "totalWei": "150000000000000000",
+                "houseWei": "150000000000000000",
                 "outsideWei": "0"
               }
             }
@@ -679,20 +697,20 @@
             "toStakersWei": "25000000000000000",
             "toSeatsWei": "15000000000000000",
             "toFeedsWei": "10000000000000000",
-            "drippedWei": "1632936507936509",
+            "drippedWei": "2079365079365081",
             "seatClaimedWei": "0",
             "tipsInWei": "50000000000000000",
-            "tipsClaimedWei": "0",
+            "tipsClaimedWei": "50000000000000000",
             "feedsFundedWei": "10000000000000000",
             "tipsToSeatsWei": "0",
             "feedsReleasedWei": "0"
           },
           "owed": {
-            "stakersWei": "23367063492063491",
+            "stakersWei": "22920634920634919",
             "seatsWei": "15000000000000000",
-            "tipsWei": "50000000000000000",
+            "tipsWei": "0",
             "feedsWei": "0",
-            "totalWei": "88367063492063491"
+            "totalWei": "37920634920634919"
           },
           "unbookedWei": "0",
           "paid": {
@@ -726,13 +744,13 @@
             }
           },
           "tipsClaimed": {
-            "total": 0,
+            "total": 1,
             "house": 0,
-            "outside": 0,
+            "outside": 1,
             "imd": {
-              "totalWei": "0",
+              "totalWei": "50000000000000000",
               "houseWei": "0",
-              "outsideWei": "0"
+              "outsideWei": "50000000000000000"
             }
           },
           "tipsSwept": {
@@ -746,12 +764,12 @@
             }
           },
           "drips": {
-            "total": 11,
-            "house": 11,
+            "total": 14,
+            "house": 14,
             "outside": 0,
             "imd": {
-              "totalWei": "1632936507936509",
-              "houseWei": "1632936507936509",
+              "totalWei": "2079365079365081",
+              "houseWei": "2079365079365081",
               "outsideWei": "0"
             }
           },
@@ -1042,7 +1060,7 @@
       ],
       "logs": {
         "fromBlock": 26184581,
-        "toBlock": 26197296,
+        "toBlock": 26199756,
         "count": 32,
         "transactions": 29
       },
@@ -1252,44 +1270,341 @@
       "title": "Rules, Endowments and Zap",
       "project": "launches/c-company",
       "threats": "launches/c-company/docs/THREATS.md",
-      "launched": false,
-      "status": "not launched: the deployments book holds no address for it",
-      "launchNumber": null,
-      "transaction": null,
+      "launched": true,
+      "status": "live: IdentityMD launch 1845, block 26198165",
+      "launchNumber": 1845,
+      "transaction": {
+        "hash": "0x1806c02e5e38d4c8496476b3f3cf39f250a9d0c97ff5834c75a0475a12bd62fb",
+        "block": 26198165,
+        "time": "2026-10-15T13:18:47Z",
+        "from": "0xcECc29B037f5064fCdF45a5C318F132ef76aA551",
+        "to": "0xfF03410d0Fe5fa8f7F59F743de35E333D9857120",
+        "succeeded": true,
+        "factoryLaunchNumber": 1845
+      },
       "contracts": [
         {
           "key": "rules",
           "name": "Rules",
           "source": "launches/c-company/src/rules/Rules.sol",
-          "address": null,
-          "code": null,
-          "namedInLaunchTransaction": null,
-          "imdHeldWei": null,
-          "events": null
+          "address": "0xcbF0dddF07C00a78E2E7561a6F47C275B8c05D7E",
+          "code": {
+            "nonEmpty": true,
+            "bytes": 13762,
+            "keccak256": "0xec51b0077f235e771b3309380d222b726b50632d97c99179a4f22af356089ff9"
+          },
+          "namedInLaunchTransaction": true,
+          "imdHeldWei": "0",
+          "events": {
+            "Fired": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the rule's creator"
+            },
+            "Recalled": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the rule's creator"
+            },
+            "Reconciled": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the rule's creator"
+            },
+            "RuleCancelled": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the rule's creator"
+            },
+            "RuleCreated": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the rule's creator"
+            },
+            "ToppedUp": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the payer of the top-up"
+            },
+            "WorkDelivered": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the rule's creator"
+            }
+          }
         },
         {
           "key": "endowments",
           "name": "Endowments",
           "source": "launches/c-company/src/endowments/Endowments.sol",
-          "address": null,
-          "code": null,
-          "namedInLaunchTransaction": null,
-          "imdHeldWei": null,
-          "events": null
+          "address": "0xbE916A53b9Bbe634AF7E10E604E06b6069edEE76",
+          "code": {
+            "nonEmpty": true,
+            "bytes": 13161,
+            "keccak256": "0xa87d11ad30a06bec5aa1293e7f7f4bfb6f0c84930057a5b9dc3e2253cc78cdbc"
+          },
+          "namedInLaunchTransaction": true,
+          "imdHeldWei": "0",
+          "events": {
+            "Created": {
+              "total": 1,
+              "house": 1,
+              "outside": 0,
+              "countedFor": "the endowment's creator"
+            },
+            "Deposited": {
+              "total": 1,
+              "house": 1,
+              "outside": 0,
+              "countedFor": "the depositor"
+            },
+            "Donated": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the donor"
+            },
+            "FallbackPaid": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the endowment's creator"
+            },
+            "Harvested": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the caller of harvest"
+            },
+            "MeterFunded": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the endowment's creator"
+            },
+            "PriceMarked": {
+              "total": 1,
+              "house": 1,
+              "outside": 0,
+              "countedFor": "the sender of the transaction"
+            },
+            "Settled": {
+              "total": 1,
+              "house": 1,
+              "outside": 0,
+              "countedFor": "the endowment's creator"
+            },
+            "Staked": {
+              "total": 2,
+              "house": 2,
+              "outside": 0,
+              "countedFor": "the sender of the transaction"
+            },
+            "Withdrawn": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the depositor"
+            }
+          }
         },
         {
           "key": "zap",
           "name": "Zap",
           "source": "launches/c-company/src/rules/Zap.sol",
-          "address": null,
-          "code": null,
-          "namedInLaunchTransaction": null,
-          "imdHeldWei": null,
-          "events": null
+          "address": "0x51bF8c74bd9BD74Ad08cABDC90DaC7835C18B21A",
+          "code": {
+            "nonEmpty": true,
+            "bytes": 3834,
+            "keccak256": "0x76271cf45487ed5b6b74adb4f0048a0918ce073bbbd3fac18e4bf26759fef63f"
+          },
+          "namedInLaunchTransaction": true,
+          "imdHeldWei": "0",
+          "events": {
+            "Bought": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the caller"
+            },
+            "ChippedIn": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the caller"
+            },
+            "MeterFunded": {
+              "total": 0,
+              "house": 0,
+              "outside": 0,
+              "countedFor": "the caller"
+            }
+          }
         }
       ],
-      "logs": null,
-      "evidence": null
+      "logs": {
+        "fromBlock": 26198165,
+        "toBlock": 26199756,
+        "count": 6,
+        "transactions": 4
+      },
+      "evidence": {
+        "rules": {
+          "created": {
+            "total": 0,
+            "house": 0,
+            "outside": 0,
+            "imd": {
+              "totalWei": "0",
+              "houseWei": "0",
+              "outsideWei": "0"
+            }
+          },
+          "fired": {
+            "total": 0,
+            "house": 0,
+            "outside": 0
+          },
+          "firedByCaller": {
+            "total": 0,
+            "house": 0,
+            "outside": 0
+          },
+          "hires": {
+            "total": 0,
+            "house": 0,
+            "outside": 0
+          },
+          "pays": {
+            "total": 0,
+            "house": 0,
+            "outside": 0
+          },
+          "toppedUp": {
+            "total": 0,
+            "house": 0,
+            "outside": 0,
+            "imd": {
+              "totalWei": "0",
+              "houseWei": "0",
+              "outsideWei": "0"
+            }
+          },
+          "cancelled": {
+            "total": 0,
+            "house": 0,
+            "outside": 0
+          },
+          "reconciled": {
+            "total": 0,
+            "house": 0,
+            "outside": 0
+          },
+          "totalEscrowedWei": "0"
+        },
+        "endowments": {
+          "created": {
+            "total": 1,
+            "house": 1,
+            "outside": 0
+          },
+          "deposits": {
+            "total": 1,
+            "house": 1,
+            "outside": 0,
+            "imd": {
+              "totalWei": "1000000000000000000",
+              "houseWei": "1000000000000000000",
+              "outsideWei": "0"
+            }
+          },
+          "donations": {
+            "total": 0,
+            "house": 0,
+            "outside": 0,
+            "imd": {
+              "totalWei": "0",
+              "houseWei": "0",
+              "outsideWei": "0"
+            }
+          },
+          "withdrawals": {
+            "total": 0,
+            "house": 0,
+            "outside": 0,
+            "imd": {
+              "totalWei": "0",
+              "houseWei": "0",
+              "outsideWei": "0"
+            }
+          },
+          "harvests": {
+            "total": 0,
+            "house": 0,
+            "outside": 0,
+            "imd": {
+              "totalWei": "0",
+              "houseWei": "0",
+              "outsideWei": "0"
+            }
+          },
+          "stakes": {
+            "total": 2,
+            "house": 2,
+            "outside": 0
+          },
+          "meterTopUps": {
+            "total": 0,
+            "house": 0,
+            "outside": 0,
+            "imd": {
+              "totalWei": "0",
+              "houseWei": "0",
+              "outsideWei": "0"
+            }
+          },
+          "pendingTotalWei": "0"
+        },
+        "zap": {
+          "bought": {
+            "total": 0,
+            "house": 0,
+            "outside": 0,
+            "imd": {
+              "totalWei": "0",
+              "houseWei": "0",
+              "outsideWei": "0"
+            }
+          },
+          "chippedIn": {
+            "total": 0,
+            "house": 0,
+            "outside": 0,
+            "imd": {
+              "totalWei": "0",
+              "houseWei": "0",
+              "outsideWei": "0"
+            }
+          },
+          "meterFunded": {
+            "total": 0,
+            "house": 0,
+            "outside": 0,
+            "imd": {
+              "totalWei": "0",
+              "houseWei": "0",
+              "outsideWei": "0"
+            }
+          }
+        }
+      }
     }
   },
   "checks": [
@@ -1463,9 +1778,9 @@
     },
     {
       "what": "Payroll: IMD sent to sIMD, in wei",
-      "expected": "1632936507936509",
+      "expected": "2079365079365081",
       "expectedFrom": "logs",
-      "contractSays": "1632936507936509",
+      "contractSays": "2079365079365081",
       "agree": true
     },
     {
@@ -1477,9 +1792,9 @@
     },
     {
       "what": "Payroll: tips claimed, in wei",
-      "expected": "0",
+      "expected": "50000000000000000",
       "expectedFrom": "logs",
-      "contractSays": "0",
+      "contractSays": "50000000000000000",
       "agree": true
     },
     {
@@ -1574,6 +1889,55 @@
       "agree": true
     },
     {
+      "what": "Rules: rules created",
+      "expected": "0",
+      "expectedFrom": "logs",
+      "contractSays": "0",
+      "agree": true
+    },
+    {
+      "what": "Endowments: endowments created",
+      "expected": "1",
+      "expectedFrom": "logs",
+      "contractSays": "1",
+      "agree": true
+    },
+    {
+      "what": "Rules is bound to the WorkOrders address in the book",
+      "expected": "0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2",
+      "expectedFrom": "the deployments book",
+      "contractSays": "0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2",
+      "agree": true
+    },
+    {
+      "what": "Endowments is bound to the Questions address in the book",
+      "expected": "0xEECE4628ceb091C13393fc64056Be8b8501fD3F6",
+      "expectedFrom": "the deployments book",
+      "contractSays": "0xEECE4628ceb091C13393fc64056Be8b8501fD3F6",
+      "agree": true
+    },
+    {
+      "what": "Endowments is bound to the CrowdPots address in the book",
+      "expected": "0x8C2FfCdcb103659aa05c772b8F2059868B496EB5",
+      "expectedFrom": "the deployments book",
+      "contractSays": "0x8C2FfCdcb103659aa05c772b8F2059868B496EB5",
+      "agree": true
+    },
+    {
+      "what": "Zap is bound to the Questions address in the book",
+      "expected": "0xEECE4628ceb091C13393fc64056Be8b8501fD3F6",
+      "expectedFrom": "the deployments book",
+      "contractSays": "0xEECE4628ceb091C13393fc64056Be8b8501fD3F6",
+      "agree": true
+    },
+    {
+      "what": "Zap is bound to the CrowdPots address in the book",
+      "expected": "0x8C2FfCdcb103659aa05c772b8F2059868B496EB5",
+      "expectedFrom": "the deployments book",
+      "contractSays": "0x8C2FfCdcb103659aa05c772b8F2059868B496EB5",
+      "agree": true
+    },
+    {
       "what": "Launch A: the ProjectFactory's log in the launch transaction names every address in the book",
       "expected": "true",
       "expectedFrom": "the deployments book",
@@ -1614,13 +1978,34 @@
       "expectedFrom": "the deployments book",
       "contractSays": "true",
       "agree": true
+    },
+    {
+      "what": "Launch C: the ProjectFactory's log in the launch transaction names every address in the book",
+      "expected": "true",
+      "expectedFrom": "the deployments book",
+      "contractSays": "true",
+      "agree": true
+    },
+    {
+      "what": "Launch C: the launch number in the ProjectFactory's log",
+      "expected": "1845",
+      "expectedFrom": "the deployments book",
+      "contractSays": "1845",
+      "agree": true
+    },
+    {
+      "what": "Launch C: the launch transaction succeeded",
+      "expected": "true",
+      "expectedFrom": "the deployments book",
+      "contractSays": "true",
+      "agree": true
     }
   ],
   "identitymd": {
     "read": true,
     "reason": null,
     "base": "https://api.imd.fun",
-    "fetchedAt": "2026-10-15T10:39:51.796Z",
+    "fetchedAt": "2026-10-15T18:51:12.506Z",
     "launches": [
       {
         "launch": "a",
@@ -1634,17 +2019,20 @@
           {
             "name": "JobsReport",
             "address": "0x58963B57E179f7fE4E95090C21E8e9D75353BCE4",
-            "verifiedAt": null
+            "verifiedAt": "2026-10-13T10:10:46.438Z",
+            "verifyFailure": null
           },
           {
             "name": "Payroll",
             "address": "0x6e4362a5cEc59Eb3F611af6b2d81915CF5b45f1F",
-            "verifiedAt": null
+            "verifiedAt": "2026-10-13T10:10:51.787Z",
+            "verifyFailure": null
           },
           {
             "name": "Questions",
             "address": "0xEECE4628ceb091C13393fc64056Be8b8501fD3F6",
-            "verifiedAt": null
+            "verifiedAt": "2026-10-13T10:10:41.073Z",
+            "verifyFailure": null
           }
         ],
         "addressesMatchTheBook": true
@@ -1661,22 +2049,56 @@
           {
             "name": "CrowdPots",
             "address": "0x8C2FfCdcb103659aa05c772b8F2059868B496EB5",
-            "verifiedAt": null
+            "verifiedAt": "2026-10-13T15:52:16.959Z",
+            "verifyFailure": null
           },
           {
             "name": "Doorbell",
             "address": "0xFd5ab7E03E8554210Faa3cCd3b9D47C622fffcCb",
-            "verifiedAt": null
+            "verifiedAt": "2026-10-13T15:52:22.724Z",
+            "verifyFailure": null
           },
           {
             "name": "WorkOrders",
             "address": "0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2",
-            "verifiedAt": null
+            "verifiedAt": "2026-10-13T15:52:06.050Z",
+            "verifyFailure": null
           },
           {
             "name": "WorkProof",
             "address": "0xB268297dB06985ba0b806Ba97BcB90364b137469",
-            "verifiedAt": null
+            "verifiedAt": "2026-10-13T15:52:28.326Z",
+            "verifyFailure": null
+          }
+        ],
+        "addressesMatchTheBook": true
+      },
+      {
+        "launch": "c",
+        "launchNumber": 1845,
+        "id": "833dbd2c-fb6a-44c7-81a0-f75292e202e8",
+        "status": "live",
+        "kind": "evm_contracts",
+        "sourceRepoUrl": "https://github.com/identity-md-launches/launch-1845-please-deploy-repository-contracts",
+        "sourceCommit": "6ad9a2022a27a9e8170275fdb6bf253bc214fe03",
+        "artifacts": [
+          {
+            "name": "Endowments",
+            "address": "0xbE916A53b9Bbe634AF7E10E604E06b6069edEE76",
+            "verifiedAt": "2026-10-15T13:21:35.863Z",
+            "verifyFailure": null
+          },
+          {
+            "name": "Rules",
+            "address": "0xcbF0dddF07C00a78E2E7561a6F47C275B8c05D7E",
+            "verifiedAt": "2026-10-15T13:21:30.232Z",
+            "verifyFailure": null
+          },
+          {
+            "name": "Zap",
+            "address": "0x51bF8c74bd9BD74Ad08cABDC90DaC7835C18B21A",
+            "verifiedAt": "2026-10-15T13:21:19.634Z",
+            "verifyFailure": null
           }
         ],
         "addressesMatchTheBook": true
@@ -1691,6 +2113,6 @@
       "ethereum-rpc.publicnode.com"
     ],
     "chunkSize": 1500,
-    "logChunks": 19
+    "logChunks": 25
   }
 }

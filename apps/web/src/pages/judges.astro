@@ -4,7 +4,7 @@ import Hash from "~/components/Hash.astro";
 import Layout from "~/layouts/Layout.astro";
 import { formatUtc } from "~/lib/format";
 import { pageData } from "~/lib/page";
-import type { JudgesModel } from "~/models/judges";
+import { countLabel, type JudgesModel } from "~/models/judges";
 
 const loaded = await pageData<JudgesModel>(Astro);
 if (loaded instanceof Response) return loaded;
@@ -16,6 +16,7 @@ const h = m.headerJob;
 const findings = m.audits.reports.reduce((sum, report) => sum + report.findings.length, 0);
 const desk = m.audits.desk;
 const parts = [
+  ...(m.live ? [["#live", "Live on mainnet"]] : []),
   ["#what", "What this is"],
   ["#launched", "Where the launches stand"],
   ["#proven", "Proven on the live system"],
@@ -25,6 +26,7 @@ const parts = [
   ["#limits", "Every disclosed limit"],
   ["#desk", "Launch B"],
   ["#not-live", "What is not live"],
+  ["#unused", "Features we do not use"],
   ["#house", "House wallets"],
 ];
 ---
@@ -36,6 +38,14 @@ const parts = [
       Every statement on this page was read when the page was made, or is linked to a public record, or comes
       with a command that checks it. What is not live is listed as plainly as what is.
     </p>
+    <aside class="notice" aria-label="Read in 30 seconds" style="margin-top:1.2rem">
+      <span class="label">Read in 30 seconds</span>
+      <ol>
+        {m.thirtySeconds.map((line) => (
+          <li>{line}</li>
+        ))}
+      </ol>
+    </aside>
     <dl class="figures">
       <div class="figure">
         <dt>of our contracts launched</dt>
@@ -73,7 +83,62 @@ const parts = [
     </ul>
   </header>
 
-  <section class="section section--first" id="what">
+  {m.live && (
+    <section class="section section--first" id="live">
+      <div class="section__head">
+        <h2>Live on mainnet</h2>
+        <p>every transaction, on Etherscan</p>
+      </div>
+      <p class="small">{m.live.intro}</p>
+      {m.live.groups.map((group, groupIndex) => (
+        <>
+          <h3 class:list={["sub", groupIndex === 0 && "sub--first"]}>{group.title}</h3>
+          <div class="tablewrap">
+            <table class="wide stack">
+              <thead>
+                <tr>
+                  <th style="width:16%">Step</th>
+                  <th style="width:15%">When (UTC)</th>
+                  <th style="width:24%">Transaction</th>
+                  <th>What it did</th>
+                </tr>
+              </thead>
+              <tbody>
+                {group.rows.map((row) => (
+                  <tr>
+                    <th scope="row">{row.label}</th>
+                    <td data-label="When (UTC)">
+                      {row.at ? formatUtc(row.at) : row.block !== null ? `block ${row.block}` : ""}
+                    </td>
+                    <td class="code" data-label="Transaction">
+                      <a class="break" href={row.txUrl} rel="noopener">
+                        {row.tx}
+                      </a>
+                    </td>
+                    <td data-label="What it did">{row.what}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ))}
+      {m.live.prove && (
+        <>
+          <h3 class="sub">The proof, in one call</h3>
+          <Commands commands={m.live.prove.commands} />
+          <div class="cmd cmd--plain">
+            <div class="cmd__row">
+              <pre class="break">{m.live.prove.answer}</pre>
+            </div>
+          </div>
+          <p class="small">{m.live.prove.note}</p>
+        </>
+      )}
+    </section>
+  )}
+
+  <section class:list={["section", !m.live && "section--first"]} id="what">
     <div class="section__head">
       <h2>What this is, in {m.summaryWords} words</h2>
       <p>no token · no owner · no admin key</p>
@@ -122,7 +187,7 @@ const parts = [
     </ul>
     <p>{m.switchOn}</p>
     <p>
-      The two launches' jobs in IdentityMD's pipeline, read for this page. Launch A,{" "}
+      The launches' jobs in IdentityMD's pipeline, read for this page. Launch A,{" "}
       <a class="data break" href={m.pipeline.jobUrl} rel="noopener">
         {m.pipeline.jobId}
       </a>
@@ -137,6 +202,16 @@ const parts = [
           : {m.deskPipeline.words}
         </>
       )}
+      {m.launchCPipeline && (
+        <>
+          {" "}
+          Launch C,{" "}
+          <a class="data break" href={m.launchCPipeline.jobUrl} rel="noopener">
+            {m.launchCPipeline.jobId}
+          </a>
+          : {m.launchCPipeline.words}
+        </>
+      )}
     </p>
     <details class="plain plain--inline">
       <summary>The commands that read those jobs</summary>
@@ -144,6 +219,7 @@ const parts = [
         commands={[
           { comment: "Launch A's job", command: m.pipeline.command },
           ...(m.deskPipeline ? [{ comment: "Launch B's job", command: m.deskPipeline.command }] : []),
+          ...(m.launchCPipeline ? [{ comment: "Launch C's job", command: m.launchCPipeline.command }] : []),
         ]}
       />
     </details>
@@ -155,25 +231,43 @@ const parts = [
             <th>Contract</th>
             <th>Address</th>
             <th>What it does</th>
+            <th>Source on the explorers</th>
           </tr>
         </thead>
         <tbody>
-          {m.contracts.map((c) => (
-            <tr>
-              <td data-label="Launch">{c.launch}</td>
-              <th scope="row">{c.name}</th>
-              <td class="code" data-label="Address">
-                {c.url ? (
-                  <a href={c.url} rel="noopener">
-                    {c.address}
-                  </a>
-                ) : (
-                  <span class="muted">{c.label}</span>
-                )}
-              </td>
-              <td data-label="What it does">{c.role}</td>
-            </tr>
-          ))}
+          {m.contracts.map((c) => {
+            const v = m.verification.rows.find((row) => row.address === c.address);
+            return (
+              <tr>
+                <td data-label="Launch">{c.launch}</td>
+                <th scope="row">{c.name}</th>
+                <td class="code" data-label="Address">
+                  {c.url ? (
+                    <a href={c.url} rel="noopener">
+                      {c.address}
+                    </a>
+                  ) : (
+                    <span class="muted">{c.label}</span>
+                  )}
+                </td>
+                <td data-label="What it does">{c.role}</td>
+                <td data-label="Source on the explorers">
+                  {v ? (
+                    <>
+                      {v.etherscan && <span class="tag tag--solid">Etherscan: {v.etherscan}</span>}{" "}
+                      <a class="small" href={v.url} rel="noopener">
+                        the code on Etherscan
+                      </a>
+                      <br />
+                      <span class="small">{v.words}</span>
+                    </>
+                  ) : (
+                    <span class="muted small">no address</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -417,8 +511,41 @@ const parts = [
       </>
     )}
 
+    {m.pipelinePrs.length > 0 && (
+      <>
+        <p id="proven-pipeline-prs">
+          <strong>
+            What IdentityMD's launch pull requests say about review, and what our documents account for.
+          </strong>{" "}
+          Quoted word for word from each pull request's description; none has a comment or a review. The
+          findings are in IdentityMD's public record of each pipeline job.
+        </p>
+        <ul>
+          {m.pipelinePrs.map((pr) => (
+            <li>
+              <strong>Launch {pr.launch}</strong> (
+              <a href={pr.url} rel="noopener">
+                IdentityMD launch {pr.launchNumber}
+              </a>
+              , merged {formatUtc(pr.merged)}): <q>{pr.reviewer}</q> {pr.accounted}{" "}
+              <a class="break" href={pr.record} rel="noopener">
+                IdentityMD's record of the findings
+              </a>
+              .
+              {pr.document && (
+                <>
+                  {" "}
+                  Every finding, with what became of it: <code>{pr.document}</code>.
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      </>
+    )}
+
     <h3 class="sub" id="proven-header">
-      3. A real job that carried our order header into its work record
+      3. A real job that carried our 85-byte order header into its work record
     </h3>
     <p>
       Job{" "}
@@ -558,7 +685,7 @@ const parts = [
                   {row.statusWords}{" "}
                   {row.usage.count !== null ? (
                     <>
-                      Counted now: <strong>{row.usage.count}</strong> {row.usage.what}.
+                      {countLabel(row.usage)}: <strong>{row.usage.count}</strong> {row.usage.what}.
                     </>
                   ) : (
                     <>Nothing to count: {row.usage.reason}.</>
@@ -717,6 +844,20 @@ const parts = [
         </p>
       </div>
     </div>
+  </section>
+
+  <section class="section" id="unused">
+    <div class="section__head">
+      <h2>Protocol features we do not use</h2>
+      <p>each choice, and where it is written down</p>
+    </div>
+    <ul>
+      {m.unused.map((u) => (
+        <li>
+          <strong>{u.feature}.</strong> {u.why} <span class="small">({u.source})</span>
+        </li>
+      ))}
+    </ul>
   </section>
 
   <section class="section" id="house">

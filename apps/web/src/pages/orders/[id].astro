@@ -5,7 +5,7 @@ import NotLaunched from "~/components/NotLaunched.astro";
 import Stamp from "~/components/Stamp.astro";
 import Theirs from "~/components/Theirs.astro";
 import Layout from "~/layouts/Layout.astro";
-import { formatDuration, formatUtc } from "~/lib/format";
+import { formatDuration, formatInt, formatUtc } from "~/lib/format";
 import { pageData } from "~/lib/page";
 import type { OrderModel } from "~/models/desk";
 
@@ -106,10 +106,12 @@ const c = m.card;
                         <th scope="row">Job text hash</th>
                         <td class="code">{o.terms.specHash}</td>
                       </tr>
-                      <tr>
-                        <th scope="row">Expires</th>
-                        <td>{formatUtc(o.terms.expiresAt * 1000)}</td>
-                      </tr>
+                      {!m.delivered && (
+                        <tr>
+                          <th scope="row">Expires</th>
+                          <td>{formatUtc(o.terms.expiresAt * 1000)}</td>
+                        </tr>
+                      )}
                       <tr>
                         <th scope="row">Delivery window</th>
                         <td>{formatDuration(o.terms.deliverySecs * 1000)} after the job is registered</td>
@@ -192,6 +194,108 @@ const c = m.card;
     </>
   )}
 
+  {m.trail.length > 0 && (
+    <section class="section" id="trail">
+      <div class="section__head">
+        <h2>The transaction trail</h2>
+        <p>{m.trail.length} transactions, oldest first</p>
+      </div>
+      {m.trailNote && <p class="small">{m.trailNote}</p>}
+      <div class="tablewrap">
+        <table class="wide stack">
+          <thead>
+            <tr>
+              <th style="width:14%">Step</th>
+              <th style="width:16%">When (UTC)</th>
+              <th style="width:22%">Transaction</th>
+              <th>What it did</th>
+            </tr>
+          </thead>
+          <tbody>
+            {m.trail.map((step) => (
+              <tr data-step={step.key}>
+                <th scope="row">{step.label}</th>
+                <td data-label="When (UTC)">{formatUtc(step.at)}</td>
+                <td class="code" data-label="Transaction">
+                  <a class="break" href={step.txUrl} rel="noopener">
+                    {step.tx}
+                  </a>
+                  <br />
+                  <span class="small">block {formatInt(step.block)}</span>
+                </td>
+                <td data-label="What it did">{step.what}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )}
+
+  {m.proof && (
+    <section class="section" id="proof">
+      <div class="section__head">
+        <h2>The proof</h2>
+        <p>WorkProof.prove · a call, not a transaction · no key needed</p>
+      </div>
+      <Commands commands={m.proof.commands} />
+      {m.proof.printed && (
+        <>
+          <p class="small">
+            {m.proof.source === "live" ? "It answers, called for this page:" : "It answered, as pinned:"}
+          </p>
+          <div class="cmd cmd--plain">
+            <div class="cmd__row">
+              <pre class="break">{m.proof.printed}</pre>
+            </div>
+          </div>
+        </>
+      )}
+      <p>{m.proof.words}</p>
+    </section>
+  )}
+
+  {m.tips.length > 0 && (
+    <section class="section" id="tip">
+      <div class="section__head">
+        <h2>The tip</h2>
+        <p>agent → seat → the seat's owner, read live</p>
+      </div>
+      <ul>
+        {m.tips.map((tip) => (
+          <li>
+            <strong>Agent {tip.agentId}</strong> → {tip.seat !== null ? `seat #${tip.seat}` : "no seat read"}{" "}
+            → {tip.owner ? <span class="data break">{tip.owner}</span> : "owner unread"}{" "}
+            <span class="small">(the seat Adapter's bindingOf, then the seat token's ownerOf)</span>.{" "}
+            {tip.words}
+            {tip.claimed && (
+              <>
+                {" "}
+                <a href={tip.claimed.txUrl} rel="noopener">
+                  The claim.
+                </a>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
+
+  {m.mediaCid && (
+    <section class="section" id="work">
+      <div class="section__head">
+        <h2>The work</h2>
+        <p>as IdentityMD's API lists it</p>
+      </div>
+      <p>
+        IdentityMD's API gives the job's media this IPFS CID (<code>media.cid</code>). It is printed as text;
+        this site serves and links no copy.
+      </p>
+      <p class="data break">{m.mediaCid}</p>
+    </section>
+  )}
+
   <section class="section">
     <div class="section__head">
       <h2>Check it yourself</h2>
@@ -200,13 +304,15 @@ const c = m.card;
     <Commands commands={m.commands} />
   </section>
 
-  <section class="section">
-    <div class="section__head">
-      <h2>What anyone can do</h2>
-      <p>no privileged caller exists</p>
-    </div>
-    {m.flows.map((flow, index) => (
-      <FlowBlock flow={flow} exampleNote={`order ${m.id}`} repeat={index > 0} />
-    ))}
-  </section>
+  {m.flows.length > 0 && (
+    <section class="section">
+      <div class="section__head">
+        <h2>What anyone can do</h2>
+        <p>no privileged caller exists</p>
+      </div>
+      {m.flows.map((flow, index) => (
+        <FlowBlock flow={flow} exampleNote={`order ${m.id}`} repeat={index > 0} />
+      ))}
+    </section>
+  )}
 </Layout>

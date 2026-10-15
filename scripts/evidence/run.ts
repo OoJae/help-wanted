@@ -787,6 +787,7 @@ async function readIdentityMd(
         name: artifact.name,
         address: checksumAddress(artifact.address),
         verifiedAt: artifact.verifiedAt,
+        verifyFailure: artifact.verifyFailure,
       })),
       addressesMatchTheBook: listed.join(",") === ours.join(","),
     });

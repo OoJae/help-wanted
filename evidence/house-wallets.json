@@ -62,6 +62,27 @@
       "address": "0xFd5ab7E03E8554210Faa3cCd3b9D47C622fffcCb",
       "deployedIn": "0xfb28bef9c477cfe3777231d8c41f202e691673fc4cec98ecb8b07f1bfff7bf9c",
       "block": 26184581
+    },
+    {
+      "label": "Rules",
+      "launch": "C (#1845)",
+      "address": "0xcbF0dddF07C00a78E2E7561a6F47C275B8c05D7E",
+      "deployedIn": "0x1806c02e5e38d4c8496476b3f3cf39f250a9d0c97ff5834c75a0475a12bd62fb",
+      "block": 26198165
+    },
+    {
+      "label": "Endowments",
+      "launch": "C (#1845)",
+      "address": "0xbE916A53b9Bbe634AF7E10E604E06b6069edEE76",
+      "deployedIn": "0x1806c02e5e38d4c8496476b3f3cf39f250a9d0c97ff5834c75a0475a12bd62fb",
+      "block": 26198165
+    },
+    {
+      "label": "Zap",
+      "launch": "C (#1845)",
+      "address": "0x51bF8c74bd9BD74Ad08cABDC90DaC7835C18B21A",
+      "deployedIn": "0x1806c02e5e38d4c8496476b3f3cf39f250a9d0c97ff5834c75a0475a12bd62fb",
+      "block": 26198165
     }
   ]
 }

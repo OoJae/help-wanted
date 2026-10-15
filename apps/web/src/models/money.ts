@@ -19,9 +19,10 @@ import {
   rulesAbi,
 } from "@help-wanted/shared";
 import { NOT_LAUNCHED } from "~/config/deployments";
-import { REFERENCE_JOB, etherscanAddress } from "~/config/chain";
+import { REFERENCE_JOB, etherscanAddress, etherscanTx } from "~/config/chain";
 import type { AgentBinding, StakingFacts } from "~/data/chain";
-import { houseSet } from "~/config/house";
+import { HISTORY_READ_ON, pinnedEndowment, pinnedTipClaims } from "~/config/history";
+import { HOUSE_WALLETS, houseSet } from "~/config/house";
 import type {
   DoorbellRingers,
   DoorbellState,
@@ -374,7 +375,7 @@ const SPLIT = [
   {
     to: "Seat owners",
     share: `${PAYROLL_SPLIT.seatsBps / 100}%`,
-    how: "A pool shared equally by all 2,000 seats. claimSeat(tokenId) pays the seat's share to whoever owns the seat at that moment: anyone may send it for a seat held by an ordinary wallet, and a seat held by a contract must be claimed by that contract.",
+    how: "A pool shared equally by all 2,000 seats. claimSeat(tokenId) pays the seat's share to whoever owns the seat at that moment: anyone may send it when the owner has no code (an ordinary wallet) or is Payroll itself, and any other owner with code must send it itself.",
   },
   {
     to: "The house feeds",
@@ -386,7 +387,7 @@ const SPLIT = [
 const COMPANY_LIMITS = [
   "A visitor to sIMD takes a staker's share of every drip it attends: the stream is paid by plain transfer, and sIMD shares what it receives among whoever holds its shares at that moment. sIMD does not let a holder leave in the block it staked in, so a visit takes IMD of the visitor's own, held from one block into the next. This was a finding of IdentityMD's second audit; it is acknowledged and left open.",
   "A booking can delay money that was already vesting, by at most seven days less the time it had left: new money and what is still vesting become one stream. Stakers are paid in full; when is what a booking can move.",
-  "Unclaimed seat revenue follows the seat: a claim pays whoever owns the seat when it is made, including what accrued before a transfer. Anyone may send the claim for a seat held by an ordinary wallet. A seat held by a contract must be claimed by that contract itself (anyone else's call reverts ContractOwnerMustClaim), so nobody can push IMD into an escrow that did not ask for it; an account that has delegated to code (EIP-7702) counts as a contract here.",
+  "Unclaimed seat revenue follows the seat: a claim pays whoever owns the seat when it is made, including what accrued before a transfer. Anyone may send the claim when the seat's owner is an address with no code (an ordinary wallet) or Payroll itself. When the owner is any other address with code (a contract, or an account that has delegated to code under EIP-7702), only the owner may send it; anyone else's call reverts ContractOwnerMustClaim, so nobody can push IMD into an escrow that did not ask for it.",
   "Payroll never takes IMD back from a meter. What it places on a house feed's meter is spent by that feed or stays there.",
 ];
 
@@ -701,7 +702,7 @@ export interface SeatsModel {
 const HOW_SEATS_ARE_PAID = [
   "The seat pool. 30% of every fee is shared equally by all 2,000 seats. It accrues whether or not a seat's agent worked, and it is paid on claim to whoever owns the seat then.",
   "Tips. 5% of each settled order's price is split equally between the agents named in that job's work record, the first sixteen of them. Each agent's share is paid, on claim, to the owner of the seat the agent is bound to in IdentityMD's Adapter.",
-  "The IMD only ever goes to the seat's owner. For a seat held by an ordinary wallet nothing needs the owner's signature: anyone can send the claim. A seat held by a contract (an escrow, a marketplace, a contract wallet, a wallet that has delegated to code) must send its own claim; anyone else's call reverts ContractOwnerMustClaim.",
+  "The IMD only ever goes to the seat's owner, never to the caller. When the seat's owner is an address with no code (an ordinary wallet) or Payroll itself, nothing needs the owner's signature: anyone can send the claim. When the owner is any other address with code (an escrow, a marketplace, a contract wallet, a wallet that has delegated to code), only the owner may send it; anyone else's call reverts ContractOwnerMustClaim.",
   "A tip whose agent stays unbound waits 180 to 360 days and can then be moved to the seat pool by anyone. A tip that names no agent (a job settled on a later, superseding receipt, or paid on a claim) goes to the seat pool at once.",
 ];
 
@@ -712,7 +713,7 @@ const SEATS_NOT_LIVE = {
 
 /** Who may send a claim, in the one wording the seat pages use. Follows `Payroll._claimAllowed`. */
 export const SEAT_CLAIM_RULE =
-  "A claim pays whoever owns the seat when it is made, and what a seat has not claimed follows the seat. Anyone may send the claim for a seat held by an ordinary wallet. A seat held by a contract must be claimed by that contract itself: sent by anyone else, the call reverts ContractOwnerMustClaim.";
+  "A claim pays whoever owns the seat when it is made, and what a seat has not claimed follows the seat. Anyone may call claimSeat when the seat's owner is an address with no code (an ordinary wallet) or Payroll itself. When the owner is any other address with code (a contract, or a wallet that has delegated to code), only the owner may call it; anyone else's call reverts ContractOwnerMustClaim.";
 
 export const seatsPage: PageDef<SeatsModel> = {
   id: "seats",
@@ -773,7 +774,7 @@ export const seatsPage: PageDef<SeatsModel> = {
   meta: () => ({
     title: "Seats",
     description:
-      "Look up an IdentityMD seat: its owner, the agent bound to it, and what it can claim from HELP WANTED's fees. Seat owners are paid from every fee and tipped for the work their agents do.",
+      "Look up an IdentityMD seat: its owner, the agent bound to it, and what it can claim from HELP WANTED's fees. Seat owners are paid from every fee and tipped when a job's work record names their agents.",
   }),
   markdown(m) {
     return doc(
@@ -812,7 +813,7 @@ export const seatsPage: PageDef<SeatsModel> = {
       "## How seats are paid",
       numbered(m.how),
       "## A worked example",
-      `Job ${inline(m.example.job)} was done by agent ${m.example.agent}. The Adapter binds that agent to seat #${m.example.seat}. Had the job been ordered through our desk, that seat's owner would have been tipped. See ${link(`/verify/${m.example.job}`, `/verify/${m.example.job}`)}.`,
+      `Job ${inline(m.example.job)}'s work record names agent ${m.example.agent}. The Adapter binds that agent to seat #${m.example.seat}. Had the job been ordered through our desk, that seat's owner would have been tipped. See ${link(`/verify/${m.example.job}`, `/verify/${m.example.job}`)}.`,
       fence(
         `cast call ${m.adapter} "bindingOf(uint256)((uint8,address,uint256))" ${m.example.agent} --rpc-url ${PUBLIC_RPC}`,
         "sh",
@@ -838,15 +839,42 @@ export interface SeatModel {
   claimRule: string;
   /** Null until Payroll is launched, and when it could not be read. */
   claimableImd: string | null;
-  /** What the seat has been paid so far. Null until Payroll is launched, or when unread. */
+  /**
+   * What the seat has been paid from the seat pool so far (`Payroll.seatPaid`). Tips paid to its
+   * owner through `claimTip` are not in it. Null until Payroll is launched, or when unread.
+   */
   paidImd: string | null;
   claimError: string | null;
   tips: { agentId: string; owedImd: string | null }[];
+  /**
+   * Tips Payroll paid to this seat's owner through `claimTip`, for the orders this site keeps a
+   * record of (read on `HISTORY_READ_ON`). Not every tip the seat may have been paid.
+   */
+  tipsPaid: {
+    orderId: number;
+    agentId: string;
+    amountImd: string;
+    paidTo: string;
+    at: string;
+    txUrl: string;
+  }[];
+  /** The sum of `tipsPaid`. Null when the list is empty. */
+  tipsPaidImd: string | null;
+  /** What the tips list is and is not. */
+  tipsPaidNote: string;
   /** One sentence for each launch this page leans on that is not live. Empty once all are. */
   notLive: string[];
   flows: FlowPreview[];
   commands: { comment: string; command: string }[];
   sources: SourceNote[];
+}
+
+/** What the seat page's list of paid tips is, and what it is not. */
+const SEAT_TIPS_PAID_NOTE = `Payroll pays a tip through claimTip, not from the seat pool, so the seat pool figure leaves tips out. This list holds only the tips of the orders this site keeps a record of, read on ${HISTORY_READ_ON}.`;
+
+/** One paid tip, in the words both twins of the seat page use. */
+export function seatTipPaidWords(tip: SeatModel["tipsPaid"][number]): string {
+  return `On ${tip.at}, Payroll paid order ${tip.orderId}'s ${tip.amountImd} IMD tip for agent ${tip.agentId} to ${tip.paidTo}, the seat's owner then.`;
 }
 
 export const seatPage: PageDef<SeatModel> = {
@@ -873,6 +901,7 @@ export const seatPage: PageDef<SeatModel> = {
       }),
     );
     const payroll = contractStatus(deployments, "payroll");
+    const tipClaims = pinnedTipClaims(deployments.contracts.workOrders.address, tokenId);
     return {
       generatedAt: now.toISOString(),
       tokenId,
@@ -887,6 +916,17 @@ export const seatPage: PageDef<SeatModel> = {
       paidImd: pay.live && pay.data && pay.data.paidWei !== null ? formatImd(pay.data.paidWei) : null,
       claimError: pay.live ? pay.error : null,
       tips,
+      tipsPaid: tipClaims.map((claim) => ({
+        orderId: claim.orderId,
+        agentId: claim.agentId,
+        amountImd: formatImd(claim.amountWei),
+        paidTo: claim.paidTo,
+        at: formatUtc(claim.tx.at),
+        txUrl: etherscanTx(claim.tx.hash),
+      })),
+      tipsPaidImd:
+        tipClaims.length > 0 ? formatImd(tipClaims.reduce((sum, claim) => sum + claim.amountWei, 0n)) : null,
+      tipsPaidNote: SEAT_TIPS_PAID_NOTE,
       notLive: notLiveNotes(deployments, SEATS_NOT_LIVE),
       flows: [
         previewFlow("claim-seat", deployments, now, { tokenId: String(tokenId) }),
@@ -945,7 +985,13 @@ export const seatPage: PageDef<SeatModel> = {
                 : `Payroll is ${NOT_LAUNCHED}`,
           ],
           ...(m.paidImd !== null
-            ? ([["Paid to this seat so far", `${m.paidImd} IMD`]] as [string, string][])
+            ? ([["Paid from the seat pool so far", `${m.paidImd} IMD`]] as [string, string][])
+            : []),
+          ...(m.tipsPaidImd !== null
+            ? ([["Tips paid to its owner (orders on record here)", `${m.tipsPaidImd} IMD`]] as [
+                string,
+                string,
+              ][])
             : []),
           ...m.tips.map((t): [string, string] => [
             `Tips waiting for agent ${t.agentId}`,
@@ -959,6 +1005,13 @@ export const seatPage: PageDef<SeatModel> = {
       ),
       m.launched ? `Payroll is at ${link(m.payroll.label, m.payroll.url)}.` : null,
       m.claimError ? `Payroll could not be read just now: ${m.claimError}` : null,
+      m.tipsPaid.length > 0
+        ? doc(
+            "## Tips paid to this seat's owner",
+            m.tipsPaidNote,
+            bullets(m.tipsPaid.map((tip) => `${seatTipPaidWords(tip)} ${link("Transaction", tip.txUrl)}.`)),
+          ).trimEnd()
+        : null,
       m.claimRule,
       m.notLive.length > 0 ? doc("## What is not live", bullets(m.notLive)).trimEnd() : null,
       fence(m.commands.map((c) => `# ${c.comment}\n${c.command}`).join("\n\n"), "sh"),
@@ -981,6 +1034,12 @@ export interface EndowmentRow {
   harvestedImd: string;
   /** What a harvest would send now, in words. */
   harvestable: string;
+  /** Who created it: HOUSE (a wallet of ours), OUTSIDE, or null when its creator was not read. */
+  origin: "HOUSE" | "OUTSIDE" | null;
+  /** Who created it and why, in one or two sentences. */
+  originWords: string;
+  /** Its transactions, oldest first, where this site keeps them (config/history.ts). */
+  trail: { label: string; what: string; at: string; tx: string; txUrl: string }[];
 }
 
 export interface EndowmentsModel {
@@ -1037,7 +1096,54 @@ const ENDOWMENT_CAVEATS = [
   "Principal is held in IMD and is exposed to IMD's price like any IMD.",
 ];
 
-function endowmentRow(e: EndowmentRead, runway: number | null): EndowmentRow {
+/**
+ * Who created an endowment, lowercase: from its `Created` log while the RPC serves it, else from the
+ * record this site keeps for it (config/history.ts). Null when neither has it.
+ */
+export function endowmentCreator(e: EndowmentRead, endowments: string | null): string | null {
+  return e.creator ?? pinnedEndowment(endowments, e.id)?.creator.toLowerCase() ?? null;
+}
+
+/**
+ * Who created an endowment, HOUSE or OUTSIDE, and its transactions where this site keeps them. Said
+ * only of what was read or kept.
+ */
+function endowmentOrigin(
+  e: EndowmentRead,
+  endowments: string | null,
+  ours: ReadonlySet<string>,
+): Pick<EndowmentRow, "origin" | "originWords" | "trail"> {
+  const pinned = pinnedEndowment(endowments, e.id);
+  const creator = endowmentCreator(e, endowments);
+  const trail = (pinned?.trail ?? []).map((step) => ({
+    label: step.label,
+    what: step.what,
+    at: step.tx.at,
+    tx: step.tx.hash,
+    txUrl: etherscanTx(step.tx.hash),
+  }));
+  if (creator === null) {
+    return {
+      origin: null,
+      originWords: "Who created it could not be read: its Created log is out of this server's reach.",
+      trail,
+    };
+  }
+  const wallet = HOUSE_WALLETS.find((w) => w.address.toLowerCase() === creator)?.label ?? null;
+  if (ours.has(creator)) {
+    return {
+      origin: "HOUSE",
+      originWords: `HOUSE: created by ${wallet ? `house wallet ${wallet}` : "one of our own contracts"} (${creator})${pinned ? `, ${pinned.purpose}` : ""}. Its principal and its state are read live${pinned ? `; its transactions were read from the chain on ${HISTORY_READ_ON} and are kept with this site` : ""}.`,
+      trail,
+    };
+  }
+  return { origin: "OUTSIDE", originWords: `OUTSIDE: created by ${creator}.`, trail };
+}
+
+function endowmentRow(
+  e: EndowmentRead,
+  runway: number | null,
+): Omit<EndowmentRow, "origin" | "originWords" | "trail"> {
   const feed = e.kind === "Meter" ? houseFeedById(e.target) : undefined;
   const target =
     e.kind === "Meter"
@@ -1084,12 +1190,18 @@ export const endowmentsPage: PageDef<EndowmentsModel> = {
     ]);
     const endowments = contractStatus(deployments, "endowments");
     const book = read.live ? read.data : null;
+    const ours = houseSet(deployments);
     return {
       generatedAt: now.toISOString(),
       endowments,
       launched: read.live,
       count: book ? book.count : null,
-      rows: book ? book.endowments.map((e) => endowmentRow(e, book.meterRunway)) : [],
+      rows: book
+        ? book.endowments.map((e) => ({
+            ...endowmentRow(e, book.meterRunway),
+            ...endowmentOrigin(e, endowments.address, ours),
+          }))
+        : [],
       stakingNote: book
         ? `${book.pendingWei !== null ? `${formatImd(book.pendingWei)} IMD is waiting to be staked` : "What is waiting to be staked could not be read"}${book.nextStakeBlock !== null ? `; the next batch may be staked from block ${formatInt(book.nextStakeBlock)}` : ""}${book.vaultHold ? ". sIMD is holding the contract in this block: withdrawals that need the vault wait one block" : ""}. METER_RUNWAY, as read from the contract: ${book.meterRunway ?? "unread"}.`
         : null,
@@ -1164,6 +1276,7 @@ export const endowmentsPage: PageDef<EndowmentsModel> = {
         ? table(
             [
               "Endowment",
+              "Who created it",
               "Yield goes to",
               "Principal, IMD",
               "Waiting to be staked, IMD",
@@ -1172,6 +1285,7 @@ export const endowmentsPage: PageDef<EndowmentsModel> = {
             ],
             m.rows.map((r) => [
               `#${r.id}`,
+              r.originWords,
               r.target,
               r.principalImd,
               r.waitingImd,
@@ -1180,6 +1294,17 @@ export const endowmentsPage: PageDef<EndowmentsModel> = {
             ]),
           )
         : null,
+      ...m.rows
+        .filter((r) => r.trail.length > 0)
+        .map((r) =>
+          doc(
+            `### Endowment ${r.id}: its transactions`,
+            table(
+              ["Step", "When (UTC)", "Transaction", "What it did"],
+              r.trail.map((s) => [s.label, formatUtc(s.at), link(s.tx, s.txUrl), s.what]),
+            ),
+          ).trimEnd(),
+        ),
       m.stakingNote,
       "## How it works",
       numbered(m.how),

@@ -41,6 +41,7 @@ import {
   type RoundStatusName,
 } from "@help-wanted/shared";
 import type { ContractKey, Deployments } from "~/config/deployments";
+import { pinnedRounds } from "~/config/history";
 import { messageOf } from "~/lib/cache";
 import {
   ENDOWMENT_KINDS,
@@ -267,7 +268,10 @@ export interface SeatPay {
   tokenId: number;
   /** `Payroll.seatClaimable(tokenId)`. */
   claimableWei: bigint;
-  /** `Payroll.seatPaid(tokenId)`: what the seat has been paid so far. Null when unread. */
+  /**
+   * `Payroll.seatPaid(tokenId)`: what the seat has been paid from the seat pool so far. Tips paid
+   * through `claimTip` are not in it. Null when unread.
+   */
   paidWei: bigint | null;
 }
 
@@ -453,6 +457,11 @@ export interface EndowmentRead {
   harvestedWei: bigint;
   /** What `harvest` would send now. Null when the view reverted (for a meter: Questions could not be read). */
   harvestableWei: bigint | null;
+  /**
+   * Who created it, from its `Created` log, lowercase. Null when that log is out of the RPC's reach
+   * or could not be read: the contract keeps no creator in its state.
+   */
+  creator: string | null;
 }
 
 export interface EndowmentBook {
@@ -582,6 +591,31 @@ export class ChainHouseSource implements HouseSource {
   constructor(chain: ChainSource, deployments: Deployments) {
     this.#chain = chain;
     this.#deployments = deployments;
+    this.#seedRoundEvents();
+  }
+
+  /**
+   * The events of the rounds whose logs have left the RPC's reach, as `config/history.ts` keeps
+   * them: only for the Questions contract they were read from, and never over an event read live.
+   */
+  #seedRoundEvents(): void {
+    for (const r of pinnedRounds(this.#address("questions"))) {
+      const key = `${r.feedId.toLowerCase()}:${r.round}`;
+      const held = this.#roundEvents.get(key) ?? {};
+      held.opened ??= {
+        keeper: r.opened.keeper.toLowerCase(),
+        tipWei: r.opened.tipWei,
+        priceWei: r.opened.priceWei,
+        tx: r.opened.hash,
+      };
+      held.answered ??= {
+        deliveredBy: r.answered.deliveredBy.toLowerCase(),
+        agreed: r.answered.agreed,
+        oracleRequestId: r.answered.oracleRequestId,
+        tx: r.answered.hash,
+      };
+      this.#roundEvents.set(key, held);
+    }
   }
 
   #address(contract: ContractKey): string | null {
@@ -1123,8 +1157,11 @@ export class ChainHouseSource implements HouseSource {
         const key = `${feedId.toLowerCase()}:${round}`;
         let held = this.#roundEvents.get(key);
         if (!held) {
-          if (this.#roundEvents.size > 5000) this.#roundEvents.clear();
-          held = {};
+          if (this.#roundEvents.size > 5000) {
+            this.#roundEvents.clear();
+            this.#seedRoundEvents();
+          }
+          held = this.#roundEvents.get(key) ?? {};
           this.#roundEvents.set(key, held);
         }
         return held;
@@ -1454,6 +1491,7 @@ export class ChainHouseSource implements HouseSource {
         `endowments:list:${count}:${limit}`,
         ids.flatMap((id) => [call("endowment", [BigInt(id)]), call("harvestable", [BigInt(id)])]),
       );
+      const creators = ids.length > 0 ? await this.#endowmentCreators(address) : new Map<number, string>();
       const endowments: EndowmentRead[] = [];
       ids.forEach((id, index) => {
         const e = ok<readonly [number, Hex, string, bigint, bigint, bigint, bigint]>(read.value[index * 2]);
@@ -1469,6 +1507,7 @@ export class ChainHouseSource implements HouseSource {
           bufferedWei: e[4],
           harvestedWei: e[6],
           harvestableWei: ok<bigint>(read.value[index * 2 + 1]),
+          creator: creators.get(id) ?? null,
         });
       });
       const number = (index: number) => {
@@ -1489,6 +1528,34 @@ export class ChainHouseSource implements HouseSource {
         error: read.error ?? head.error,
       };
     });
+  }
+
+  /**
+   * Who created each endowment whose `Created` log is still within reach of the RPC, from the launch
+   * block on. Empty when the logs could not be read: an unread creator is never "nobody".
+   */
+  async #endowmentCreators(address: string): Promise<Map<number, string>> {
+    const creators = new Map<number, string>();
+    try {
+      const topics = encodeEventTopics({ abi: endowmentsAbi, eventName: "Created" });
+      const read = await this.#chain.recentLogs(
+        "endowments:created",
+        { address, topics: topics as (string | null)[], fromBlock: this.#launchBlock("endowments") },
+        60_000,
+      );
+      for (const log of read.value.logs) {
+        const { args } = decodeEventLog({
+          abi: endowmentsAbi,
+          eventName: "Created",
+          topics: log.topics as [Hex, ...Hex[]],
+          data: log.data as Hex,
+        });
+        creators.set(Number(args.id), args.creator.toLowerCase());
+      }
+    } catch {
+      // The creators stay unread; the page says so.
+    }
+    return creators;
   }
 
   rules(limit = 20): Promise<Live<RuleBook>> {

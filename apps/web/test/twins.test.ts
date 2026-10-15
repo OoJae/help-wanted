@@ -14,6 +14,7 @@ import { describe, expect, it } from "vitest";
 import { CONTRACT_KEYS, deploymentEnvNames, NOT_LAUNCHED, resolveDeployments } from "~/config/deployments";
 import { DEPLOYMENT_BOOK, flattenBook, HOUSE_FEEDS, isLaunched, MAINNET } from "@help-wanted/shared";
 import { MULTICALL3, REFERENCE_JOB } from "~/config/chain";
+import { HOUSE_X402 } from "~/config/history";
 import { PUBLIC_SOURCE, sourceWords } from "~/config/proofs";
 import { TEMPLATES } from "~/config/templates";
 import { HEADER_JOB, LAUNCH_A_JOB } from "~/data";
@@ -549,7 +550,7 @@ describe("pages that work on today's data", () => {
       "## Proven on the live system",
       "### 1. The live oracle answers the three house feed questions",
       "### 2. IdentityMD's agents audited launch A twice",
-      "### 3. A real job that carried our order header into its work record",
+      "### 3. A real job that carried our 85-byte order header into its work record",
       "## What anyone can check on the live protocol today",
       "## Integration: one row per IdentityMD primitive",
       "## Reproduce",
@@ -720,6 +721,20 @@ describe("pages that work on today's data", () => {
     expect(model.headerJob.receipt).toMatchObject({ value: null, onChain: null });
     expect(model.headerJob.notShown).toContain("The WorkRegistry could not be read for this page");
     expect(model.headerJob.notShown).toContain("nothing is said here about the receipt");
+    // The last reading by hand is the one that found the receipt; no older one is offered as today's.
+    expect(model.headerJob.notShown).toContain(
+      "When it was last read by hand, on 15 October 2026, WorkRegistry.latest for this job held this record's hash.",
+    );
+    expect(model.headerJob.notShown).not.toContain("13 October 2026");
+    expect(model.headerJob.notShown).not.toContain("it was zero");
+    // An unread registry is not called "queued" or "not on chain" anywhere on the page.
+    const x402 = model.integration.find((r) => r.primitive === "Paid swarm jobs (x402)")!;
+    expect(x402.proofNote).toContain("The WorkRegistry could not be read for this page");
+    expect(x402.proofNote).not.toContain("still queued");
+    const said = model.notLive.join(" ");
+    expect(said).not.toContain("The header job's receipt is not on chain");
+    expect(said).toContain("Whether the header job's receipt is on chain could not be read just now");
+    expect(model.headerJob.commands[2]?.comment).not.toContain("Zeros until");
   });
 
   it("/judges prints every disclosed limit of the three threat documents in one table", async () => {
@@ -914,13 +929,12 @@ describe("pages that work on today's data", () => {
       expect(row.usage.count === null ? row.usage.reason : row.usage.count, row.primitive).toBeTruthy();
       expect(row.usage.what.length).toBeGreaterThan(5);
     }
-    // Before any launch the only thing there is to count is what house wallets paid the swarm.
+    // Before any launch the only thing there is to count is what house wallets paid the swarm: the
+    // x402 payments kept with their source, the same whatever the book holds.
     const paid = model.integration.find((row) => row.primitive.includes("x402"));
-    expect(paid?.usage).toEqual({
-      count: "0",
-      what: "payments to the fee address from house wallets and contracts, in the newest day of blocks",
-      reason: null,
-    });
+    expect(paid?.usage).toMatchObject({ count: String(HOUSE_X402.payments.length), reason: null });
+    expect(paid?.usage.what).toContain("x402 payments for swarm jobs from house wallets (W1 6, H1 1)");
+    expect(paid?.proofNote).toContain("In the newest day of blocks the tally counts 0 payments");
     // Its proof is the header job, and the row says what that job does not yet prove.
     expect(paid?.proofs[0]?.url).toBe("https://api.imd.fun/jobs/e70c56ce-60f0-4c2c-b413-67e5ae37ddce");
     expect(paid?.proofNote).toContain("this is not yet a proof on chain");
@@ -1120,9 +1134,10 @@ describe("the root files", () => {
   it("/llms-full.txt carries every fixed page's Markdown, the judges page first", async () => {
     const text = await llmsFullTxt(ctxFor(testSources()));
     expect(text.indexOf("# For judges")).toBeGreaterThan(0);
-    expect(text.indexOf("# For judges")).toBeLessThan(text.indexOf("# The Work Wire"));
+    // The front page's twin is headed with the site's name, as /llms.txt is: its heading is the second.
+    expect(text.indexOf("# For judges")).toBeLessThan(text.indexOf("\n# HELP WANTED\n"));
     for (const title of [
-      "# The Work Wire",
+      "# HELP WANTED",
       "# Verify a job",
       "# The Robot Jobs Report (unofficial tally)",
       "# Questions",

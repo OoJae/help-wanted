@@ -28,6 +28,7 @@ import {
 } from "@help-wanted/shared";
 import { etherscanAddress, etherscanTx, IMD_LINK, SECONDS_PER_BLOCK, TOPIC } from "~/config/chain";
 import { NOT_LAUNCHED } from "~/config/deployments";
+import { HISTORY_READ_ON, pinnedRounds } from "~/config/history";
 import { houseSet } from "~/config/house";
 import { FEED_PROOFS, type FeedProof } from "~/config/proofs";
 import type { IntakeBook } from "~/data/chain";
@@ -421,6 +422,18 @@ function nextWords(feed: Feed, headBlock: number | null): string {
   return blocker ? `Due by the cadence, but ${blocker}.` : "Due now: anyone may call request.";
 }
 
+/** The newest answer of a feed, with how it arrived when the round's delivery is known. */
+function latestWords(name: HouseFeedName, live: Feed): string {
+  const round = live.roundList.find((r) => r.round === live.latest.round);
+  const how =
+    round?.byCallback === true
+      ? ", delivered by the Intake's callback"
+      : round?.byCallback === false
+        ? ", handed in with submit"
+        : "";
+  return `${answerWords(name, live.latest.value, round?.revealed ?? null)} for blocks ${formatInt(live.latest.fromBlock)} to ${formatInt(live.latest.toBlock)} (round ${live.latest.round}, stored ${formatUtc(live.latest.updatedAt * 1000)}${how})`;
+}
+
 function houseFeedView(
   feed: HouseFeed,
   live: Feed | null,
@@ -464,10 +477,7 @@ function houseFeedView(
             rounds: live.rounds,
             pending: live.pending,
             next: nextWords(live, headBlock),
-            latest:
-              live.latest.round > 0
-                ? `${answerWords(feed.name, live.latest.value, live.roundList.find((r) => r.round === live.latest.round)?.revealed ?? null)} for blocks ${formatInt(live.latest.fromBlock)} to ${formatInt(live.latest.toBlock)} (round ${live.latest.round}, stored ${formatUtc(live.latest.updatedAt * 1000)})`
-                : "no answer yet",
+            latest: live.latest.round > 0 ? latestWords(feed.name, live) : "no answer yet",
             canSubmit: live.canSubmit,
             roundRows: live.roundList.map((r) => roundRow(feed.name, r, ours)),
           }
@@ -615,7 +625,11 @@ export const questionsPage: PageDef<QuestionsModel> = {
       feedsError: feeds.live ? (feeds.error ?? book?.eventsError ?? null) : null,
       eventsCoverage:
         book && book.eventsFrom !== null && book.eventsTo !== null
-          ? `Who opened and who answered each round is read from the contract's logs in blocks ${formatInt(book.eventsFrom)} to ${formatInt(book.eventsTo)}, the range this server's RPC serves, and kept while the server runs. A round older than that shows its window, state and answer, which are read from the contract itself, without the name of who earned its tip.`
+          ? `Who opened and who answered each round is read from the contract's logs in blocks ${formatInt(book.eventsFrom)} to ${formatInt(book.eventsTo)}, the range this server's RPC serves, and kept while the server runs.${
+              pinnedRounds(questions.address).length > 0
+                ? ` The first round of each house feed is older than that: its two transactions were read from the chain on ${HISTORY_READ_ON} and are kept with this site (config/history.ts).`
+                : ""
+            } A round older than all of that shows its window, state and answer, which are read from the contract itself, without the name of who earned its tip.`
           : null,
       waits: [
         `Anyone may hand a signed answer in with submit from ${formatDuration(QUESTIONS_WAITS.SUBMIT_AFTER_SILENCE * 1000)} after a request the Intake has not completed (payrolls and hires only; never for a feed a panel judges). The round's tip still goes to the keeper that opened it.`,
@@ -766,7 +780,7 @@ export const questionsPage: PageDef<QuestionsModel> = {
             : `On chain: nothing yet. Questions is ${NOT_LAUNCHED}.`,
           f.live && f.live.roundRows.length > 0
             ? table(
-                ["Round", "Window", "State", "Answer", "Requested", "Delivered by", "Tip"],
+                ["Round", "Window", "State", "Answer", "Requested", "Delivered by", "Tip", "Transactions"],
                 f.live.roundRows.map((r) => [
                   r.round,
                   r.window,
@@ -775,6 +789,14 @@ export const questionsPage: PageDef<QuestionsModel> = {
                   r.requestedAt ? formatUtc(r.requestedAt) : "",
                   r.delivered ?? "",
                   r.tip,
+                  [
+                    r.openedTxUrl ? link("opened", r.openedTxUrl) : "",
+                    r.settledTxUrl
+                      ? link(r.status === "answered" ? "answered" : "closed", r.settledTxUrl)
+                      : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · "),
                 ]),
               )
             : null,

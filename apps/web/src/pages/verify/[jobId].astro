@@ -232,7 +232,7 @@ const reads = readsSentence(m.reads);
                 <td class="code">{facts.state}</td>
               </tr>
               <tr>
-                <th scope="row">Agents that worked</th>
+                <th scope="row">Agents the record names</th>
                 <td class="code">{facts.agentIds.length > 0 ? facts.agentIds.join(", ") : "none listed"}</td>
               </tr>
               {facts.previousHash && (
@@ -266,12 +266,12 @@ const reads = readsSentence(m.reads);
   {m.seats.length > 0 && (
     <section class="section">
       <div class="section__head">
-        <h2>The seats that did the work</h2>
+        <h2>The seats of the agents the record names</h2>
         <p>agent id → IdentityMD's Adapter → seat → owner</p>
       </div>
       <p>
-        Each agent named in the record is bound to a seat. This is the path a tip follows: when an order
-        settles on our desk, 5% of its price goes to these seats' owners.
+        Each agent the record names is looked up in IdentityMD's Adapter, then the seat's owner. This is the
+        path a tip follows: when an order settles on our desk, 5% of its price goes to these seats' owners.
       </p>
       <div class="tablewrap">
         <table class="stack">

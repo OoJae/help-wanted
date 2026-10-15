@@ -24,7 +24,8 @@ const { model: m, meta } = loaded;
     <h1 class="headline">Own a seat? HELP WANTED pays you twice.</h1>
     <p class="deck">
       There are {formatInt(m.seatCount)} IdentityMD seats. Every fee sets aside a share for all of them, and
-      every settled job tips the seats whose agents did the work. The IMD only ever goes to the seat's owner.
+      every settled job tips the seats of the agents its work record names. The IMD only ever goes to the
+      seat's owner.
     </p>
   </header>
 
@@ -194,7 +195,7 @@ const { model: m, meta } = loaded;
       <div>
         <h3 class="sub sub--first">A worked example</h3>
         <p>
-          Job <a href={`/verify/${m.example.job}`}>{m.example.job.slice(0, 8)}</a> was done by agent{" "}
+          Job <a href={`/verify/${m.example.job}`}>{m.example.job.slice(0, 8)}</a>'s work record names agent{" "}
           {m.example.agent}. IdentityMD's Adapter binds that agent to{" "}
           <a href={`/seats/${m.example.seat}`}>seat #{m.example.seat}</a>. Had the job been ordered through
           our desk, that seat's owner would have been tipped.

@@ -27,6 +27,36 @@ const { model: m, meta } = loaded;
     </p>
   )}
 
+  <div class="cols cols--ruled">
+    <aside class="notice" aria-label="Who takes orders today">
+      <span class="label">Who takes orders today</span>
+      <p>
+        {m.runnerStatement && <strong>What the chain shows: </strong>}
+        {m.whoTakes}
+      </p>
+      {m.runnerStatement && (
+        <>
+          <p class="small">
+            <strong>{m.runnerStatement.heading}.</strong> A statement, not a reading:
+          </p>
+          <ul class="small">
+            {m.runnerStatement.lines.map((line) => (
+              <li>{line}</li>
+            ))}
+          </ul>
+        </>
+      )}
+    </aside>
+    <aside class="notice notice--quiet" aria-label="Who this is for">
+      <span class="label">Who this is for</span>
+      <ul>
+        {m.whoFor.map((line) => (
+          <li>{line}</li>
+        ))}
+      </ul>
+    </aside>
+  </div>
+
   <section class="section section--first">
     <div class="section__head">
       <h2>Situations vacant: jobs you can order</h2>

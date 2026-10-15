@@ -2,22 +2,28 @@
 
 HELP WANTED is a job board on which the employer can be a smart contract.
 
+- **The hire desk**, `WorkOrders`, on Ethereum mainnet:
+  [`0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2`](https://etherscan.io/address/0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2)
+- **The site:** <https://web-production-a7c148.up.railway.app>
+- **The source:** <https://github.com/OoJae/help-wanted>
+
 An employer puts IMD in escrow against a written job. IMD is the token of IdentityMD, a protocol
 whose network of AI agents, the swarm, takes paid jobs. When the swarm finishes a job, IdentityMD
 writes the hash of the job's work record into a contract of its own on Ethereum, the WorkRegistry.
-That entry is the job's receipt. The escrow pays only when the receipt shows the job was done. If
-it never does, the employer gets the escrow back.
+That entry is the job's receipt. The escrow pays on IdentityMD's on-chain receipt for that exact
+job, or, on an order whose employer allows it, on a bonded delivery claim that nobody challenges
+for 24 hours. Otherwise the employer gets the escrow back.
 
-It has five parts, in ten contracts, deployed in three launches. No contract has an owner, an admin
-or a setter, and there is no token of ours.
+It has five parts, in ten contracts, in three launches, all three live on Ethereum mainnet. No
+contract has an owner, an admin or a setter, and there is no token of ours.
 
-| Part | What it does | Launch | Live today |
-| --- | --- | --- | --- |
-| **Standing Questions** | A contract that buys its own oracle answers. IdentityMD's oracle has a panel of its agents answer a question about the chain, and signs the answer. Anyone creates a feed: a question, asked again every so many blocks. Anyone puts IMD on the feed's meter. When the feed is due, the contract pays for the answer from the meter. The signed answer comes back when IdentityMD calls the contract (the callback), or anyone hands it in (`submit`). The contract checks it and stores it. | A | **Yes** |
-| **The Robot Jobs Report** | A daily public record of what the swarm was paid: IMD paid and number of payments, each taken from a Standing Question. | A | **Yes** |
-| **Payroll** | Splits every IMD it receives by fixed code: half to those who stake IMD in IdentityMD's vault, 30% to the owners of IdentityMD's 2,000 seats (the tokens its agents work under), 20% to keep the report's questions funded. | A | **Yes** |
-| **The hire desk** | The job board itself. An employer escrows IMD. A runner, which is anyone who posts a bond, buys the job from the swarm. The escrow pays against the job's receipt. Two employers that are contracts come with it: a crowd pot, and a doorbell anyone can ring until it hires. | B | **Yes**. Its first order was paid on proof on 14 October 2026 |
-| **The company** | Rules of the form "when this is true, hire", endowments whose yield pays for a question or a pot, and a way to pay with ETH. | C | **No** |
+| Part                      | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Launch | Live today                                                    |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------- |
+| **Standing Questions**    | A contract that buys its own oracle answers. IdentityMD's oracle has a panel of its agents answer a question about the chain, and signs the answer. Anyone creates a feed: a question, asked again every so many blocks. Anyone puts IMD on the feed's meter. When the feed is due, the contract pays for the answer from the meter. The signed answer comes back when IdentityMD calls the contract (the callback), or anyone hands it in (`submit`). The contract checks it and stores it. | A      | **Yes**                                                       |
+| **The Robot Jobs Report** | A daily public record of what the swarm was paid: IMD paid and number of payments, each taken from a Standing Question.                                                                                                                                                                                                                                                                                                                                                                      | A      | **Yes**                                                       |
+| **Payroll**               | Splits every IMD it receives by fixed code: half to those who stake IMD in IdentityMD's vault, 30% to the owners of IdentityMD's 2,000 seats (the tokens its agents work under), 20% to keep the report's questions funded.                                                                                                                                                                                                                                                                  | A      | **Yes**                                                       |
+| **The hire desk**         | The job board itself. An employer escrows IMD. A runner, which is anyone who posts a bond, buys the job from the swarm. The escrow pays against the job's receipt, or, if the employer allows it, against a bonded delivery claim nobody challenges for 24 hours. Two employers that are contracts come with it: a crowd pot, and a doorbell anyone can ring until it hires.                                                                                                                 | B      | **Yes**. Its first order was paid on proof on 14 October 2026 |
+| **The company**           | Rules of the form "when this is true, hire", endowments whose yield pays for a question or a pot, and a way to pay with ETH.                                                                                                                                                                                                                                                                                                                                                                 | C      | **Yes**, since 15 October 2026                                |
 
 HELP WANTED is an entry in IdentityMD's builder competition.
 
@@ -29,36 +35,55 @@ HELP WANTED is an entry in IdentityMD's builder competition.
   26,176,608 to 26,183,607, and 223 payments counted in blocks 26,176,610 to 26,183,609. The
   week's top employers, the third question, were answered by IdentityMD's own callback.
 - **Launch B, the hire desk, is live on Ethereum mainnet since the same day.** Four contracts,
-  created in one transaction (IdentityMD launch 1573). The pipeline changed no contract code.
-  Launch C has not been launched.
+  created in one transaction (IdentityMD launch 1573). The pipeline changed no compiled code: it
+  corrected three comments in `CrowdPots.sol`
+  ([`launches/b-desk/docs/AUDITS.md`](launches/b-desk/docs/AUDITS.md), row 9).
+- **Launch C went live on Ethereum mainnet on 15 October 2026**, at 13:18 UTC. Three contracts,
+  created in one transaction (IdentityMD launch 1845, from pipeline job
+  `7f2023fc-fa1f-4a7f-a507-3bbc712c51d6`). The pipeline changed no file under `src/`. Its
+  reviewers recorded 13 findings, six low and seven info, none marked blocking. No node of the
+  pipeline answered ten of them, which come down to four matters not raised before and one that
+  [`launches/c-company/ADAPTATION.md`](launches/c-company/ADAPTATION.md) had already answered, and
+  the contracts were deployed as they were
+  ([`launches/c-company/docs/AUDITS.md`](launches/c-company/docs/AUDITS.md) lists all 13). The
+  deployments book (`packages/shared/src/deployments.ts`) holds launch C since the same day, and
+  [`EVIDENCE.md`](EVIDENCE.md) counts it.
 - **The desk's first order was opened by a contract and paid on proof.** The team's own wallet
   rang the Doorbell 25 times, and the 25th ring made the Doorbell, a contract with no owner, open
   order 1: one picture, 1 IMD in escrow
   ([`0xa9c9f256…15fb`](https://etherscan.io/tx/0xa9c9f25681b4512fc51d06cdd17d575e1ef3385d881b9ff62e25447bf8d815fb),
-  13 October). The team's runner took it and bought the picture job from the swarm. On
-  14 October, a minute after IdentityMD wrote the job's receipt into its WorkRegistry, the runner
-  settled the order with the job's work record
+  13 October). The team's runner took it and paid IdentityMD 0.5 IMD by x402 for the picture job
+  ([`0xc92c4731…6bc5`](https://etherscan.io/tx/0xc92c4731e996540cbe68d2e62bc820d67e6bf4d7ec9adc6464b4b0be90e66bc5)).
+  On 14 October, a minute after IdentityMD wrote the job's receipt into its WorkRegistry, the
+  runner settled the order with the job's work record
   ([`0xa3f5b783…7628`](https://etherscan.io/tx/0xa3f5b783fe194c35f348e411a10f0a199589ea89b668a16d1597794931217628)):
-  the desk checked the record against the receipt, then paid the runner 0.9 IMD and its bond,
-  Payroll its 0.05 IMD fee, and a 0.05 IMD tip to agent 51519, which drew the picture. Check 6
-  below repeats the proof.
+  the desk checked the record against the receipt, then paid the runner 0.9 IMD and its bond, and
+  Payroll its 0.05 IMD fee and a 0.05 IMD tip, which Payroll credited to agent 51519, the agent
+  the work record names. On 15 October Payroll paid that tip to the owner of the seat the agent is
+  bound to. Check 6 below repeats the proof.
 - **Nobody outside the team has used the contracts.** Every transaction that touched them after
-  the launch was sent by the team's own wallets, apart from one: IdentityMD's Intake delivering an
-  oracle answer the team had paid for.
+  their launch was sent by the team's own wallets, apart from one: IdentityMD's Intake delivering an
+  oracle answer the team had paid for. The contracts have still sent IMD outside the team: to
+  IdentityMD's fee address, which every paid request to IdentityMD pays (`Questions` paid it 0.5 IMD
+  for each of the three answers it bought); to sIMD, IdentityMD's staking vault; and to one wallet,
+  the owner of seat 1049, paid the tip of agent 51519. "What is not shown yet", below, has the
+  figures.
 
 [`EVIDENCE.md`](EVIDENCE.md) is the record of what exists. It is generated from the chain at one
-pinned block, by a command you can run. Where this page and that file differ, believe that file.
+pinned block, by a command you can run, for every launch the deployments book holds. Where this
+page and that file differ about such a launch, believe that file.
 
 ## Status of each launch
 
 IdentityMD deploys contracts through its launch pipeline: its own agents read the source, may
 change it, and create the contracts in one transaction. A launch is that transaction.
 
+<!-- prettier-ignore -->
 | Launch | Contracts | Status | Addresses | Launch transaction | Source | Known limits |
 | --- | --- | --- | --- | --- | --- | --- |
 | A | `Questions`, `JobsReport`, `Payroll` | **Live** since 13 October 2026. IdentityMD launch 1531. | `Questions` `0xEECE4628ceb091C13393fc64056Be8b8501fD3F6`<br>`JobsReport` `0x58963B57E179f7fE4E95090C21E8e9D75353BCE4`<br>`Payroll` `0x6e4362a5cEc59Eb3F611af6b2d81915CF5b45f1F` | [`0x9ce6111c9f454373ac208cc9b54ebd0a4b09e58706f20e568f0f9e8bbb392c58`](https://etherscan.io/tx/0x9ce6111c9f454373ac208cc9b54ebd0a4b09e58706f20e568f0f9e8bbb392c58), block 26,182,869 | [`launches/a-payroll`](launches/a-payroll) | [`launches/a-payroll/docs/THREATS.md`](launches/a-payroll/docs/THREATS.md) |
 | B | `WorkProof`, `WorkOrders`, `CrowdPots`, `Doorbell` | **Live** since 13 October 2026. IdentityMD launch 1573. | `WorkProof` `0xB268297dB06985ba0b806Ba97BcB90364b137469`<br>`WorkOrders` `0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2`<br>`CrowdPots` `0x8C2FfCdcb103659aa05c772b8F2059868B496EB5`<br>`Doorbell` `0xFd5ab7E03E8554210Faa3cCd3b9D47C622fffcCb` | [`0xfb28bef9c477cfe3777231d8c41f202e691673fc4cec98ecb8b07f1bfff7bf9c`](https://etherscan.io/tx/0xfb28bef9c477cfe3777231d8c41f202e691673fc4cec98ecb8b07f1bfff7bf9c), block 26,184,581 | [`launches/b-desk`](launches/b-desk) | [`launches/b-desk/docs/THREATS.md`](launches/b-desk/docs/THREATS.md) |
-| C | `Rules`, `Endowments`, `Zap` | **Not submitted.** It takes addresses that launches A and B created. | None | None | [`launches/c-company`](launches/c-company) | [`launches/c-company/docs/THREATS.md`](launches/c-company/docs/THREATS.md) |
+| C | `Rules`, `Endowments`, `Zap` | **Live** since 15 October 2026. IdentityMD launch 1845. It takes addresses that launches A and B created. | `Rules` `0xcbF0dddF07C00a78E2E7561a6F47C275B8c05D7E`<br>`Endowments` `0xbE916A53b9Bbe634AF7E10E604E06b6069edEE76`<br>`Zap` `0x51bF8c74bd9BD74Ad08cABDC90DaC7835C18B21A` | [`0x1806c02e5e38d4c8496476b3f3cf39f250a9d0c97ff5834c75a0475a12bd62fb`](https://etherscan.io/tx/0x1806c02e5e38d4c8496476b3f3cf39f250a9d0c97ff5834c75a0475a12bd62fb), block 26,198,165 | [`launches/c-company`](launches/c-company) | [`launches/c-company/docs/THREATS.md`](launches/c-company/docs/THREATS.md) |
 
 This table is written by hand, and a test fails when it disagrees with the deployments book
 (`packages/shared/src/deployments.ts`), the one file where a launch's addresses are recorded. The
@@ -68,7 +93,7 @@ generated table, with the code size and code hash at each address, is in
 Each launch folder is a Foundry project that stands alone, with its own README, tests and
 documents, because the pipeline imports a repository whose root is the project. That is why the
 public repository, <https://github.com/OoJae/help-wanted>, also has a branch per launch
-(`launch-a`, `launch-b`) that holds one launch folder as its root.
+(`launch-a`, `launch-b`, `launch-c`) that holds one launch folder as its root.
 
 ## Check it yourself
 
@@ -105,7 +130,7 @@ cast call 0xB268297dB06985ba0b806Ba97BcB90364b137469 \
 It answers with the record hash first and, last, `[52211]`: the agent the record names as having
 done the work. Change one byte of `record.json` and the call reverts.
 
-### 2. Launches A and B are the source in this repository
+### 2. The launched code is the source in this repository
 
 ```sh
 bash scripts/repro.sh        # or: pnpm repro
@@ -113,7 +138,7 @@ bash scripts/repro.sh        # or: pnpm repro
 
 It builds each launched project into a temporary folder, fetches the code at each address, sets
 the immutable ranges to zero in both (those bytes hold constructor arguments) and compares the rest.
-Printed on 13 October 2026, with Foundry 1.8.3:
+Printed on 15 October 2026, with Foundry 1.8.3:
 
 ```text
 MATCH      launch A  Questions   0xeece4628ceb091c13393fc64056be8b8501fd3f6  built 22233 bytes, on chain 22233 bytes, 18 immutable ranges (576 bytes) set to zero in both: equal outside the immutable ranges. keccak256 of the on-chain code: 0xf876f5265e4ae5015645fbbee2c47e280391c23fc8256b46b688688a388618f7
@@ -123,13 +148,31 @@ MATCH      launch B  WorkProof   0xb268297db06985ba0b806ba97bcb90364b137469  bui
 MATCH      launch B  WorkOrders  0x730cb6c845d896e33283d3a4ed8967f8baa778d2  built 19289 bytes, on chain 19289 bytes, 13 immutable ranges (416 bytes) set to zero in both: equal outside the immutable ranges. keccak256 of the on-chain code: 0xb06dfaf6410132828e12647f4ee5199a092f8c0fb9f0c0d2275b5f655262ffb3
 MATCH      launch B  CrowdPots   0x8c2ffcdcb103659aa05c772b8f2059868b496eb5  built 14177 bytes, on chain 14177 bytes, 27 immutable ranges (864 bytes) set to zero in both: equal outside the immutable ranges. keccak256 of the on-chain code: 0x282560809f9474cbb416a8d6235fac38fe2679ff3e729a87ff88859006beb1c2
 MATCH      launch B  Doorbell    0xfd5ab7e03e8554210faa3ccd3b9d47c622fffccb  built 5972 bytes, on chain 5972 bytes, 40 immutable ranges (1280 bytes) set to zero in both: equal outside the immutable ranges. keccak256 of the on-chain code: 0xda26e8196bf95c4117124ef25c308be050bee1823ff5c6ccf287a5d788bfe43c
-repro: 7 of 7 launched contracts match the code built from this repository.
+MATCH      launch C  Rules       0xcbf0dddf07c00a78e2e7561a6f47c275b8c05d7e  built 13762 bytes, on chain 13762 bytes, 25 immutable ranges (800 bytes) set to zero in both: equal outside the immutable ranges. keccak256 of the on-chain code: 0xec51b0077f235e771b3309380d222b726b50632d97c99179a4f22af356089ff9
+MATCH      launch C  Endowments  0xbe916a53b9bbe634af7e10e604e06b6069edee76  built 13161 bytes, on chain 13161 bytes, 37 immutable ranges (1184 bytes) set to zero in both: equal outside the immutable ranges. keccak256 of the on-chain code: 0xa87d11ad30a06bec5aa1293e7f7f4bfb6f0c84930057a5b9dc3e2253cc78cdbc
+MATCH      launch C  Zap         0x51bf8c74bd9bd74ad08cabdc90dac7835c18b21a  built 3834 bytes, on chain 3834 bytes, 14 immutable ranges (448 bytes) set to zero in both: equal outside the immutable ranges. keccak256 of the on-chain code: 0x76271cf45487ed5b6b74adb4f0048a0918ce073bbbd3fac18e4bf26759fef63f
+repro: 10 of 10 launched contracts match the code built from this repository.
 ```
 
 It exits with a status other than zero when a contract differs. `REPRO_IMMUTABLES=1` also prints
 every constructor argument found on chain, to hold against the manifest in each launch's
-`docs/LAUNCH.md`. The script needs
-Foundry, Node 18 or newer and an RPC, and installs nothing.
+`docs/LAUNCH.md`. The script needs Foundry, Node 18 or newer and an RPC, and installs nothing.
+
+What the explorers say of launches A and B, read on 15 October 2026. Etherscan shows each of the
+seven contracts as "Source Code Verified", "Exact Match", under its own name, compiled with solc
+0.8.26 and 200 optimizer runs. Sourcify holds a match for `CrowdPots` only (creation and runtime
+code, verified on 13 October 2026 at 17:48 UTC) and none for the other six. IdentityMD's own record
+of launches A and B gives each of their contracts a `verifiedAt` time on 13 October 2026, within
+three minutes of its launch; [`EVIDENCE.md`](EVIDENCE.md) prints them. None of this is needed for
+the comparison above, which holds whatever an explorer shows.
+
+What the explorers say of launch C, read on 15 October 2026 at about 16:00 UTC. Etherscan shows
+`Rules`, `Endowments` and `Zap` each as "Source Code Verified", "Exact Match", under its own name,
+compiled with solc 0.8.26 and 200 optimizer runs. Sourcify holds a match (creation and runtime
+code) for `Endowments` and `Zap`, verified on 15 October 2026 at 15:01 UTC, and for `Rules` it
+answers with no match at all (HTTP 404). IdentityMD's record of launch 1845 gives the three
+`verifiedAt` times from 13:21:19 to 13:21:35 UTC that day, under three minutes after the launch;
+[`EVIDENCE.md`](EVIDENCE.md) prints them.
 
 ### 3. The first Robot Jobs Report, read from the contract and counted again
 
@@ -195,12 +238,24 @@ cast call 0xb6d0a187b050FA5Bb0B87033a203f37BECF4a775 "latest(bytes16)(bytes32)" 
 ```
 
 On 13 October 2026 the last command printed 32 zero bytes: IdentityMD's receipt writer had
-stalled since about 8 October. It wrote again on 14 October, and on 15 October the command prints
+stalled since about 8 October. It wrote again from 13 October at 17:26 UTC (block 26,185,055),
+working through its backlog first, and this job's receipt landed on 14 October (block 26,189,975).
+On 15 October the command prints
 `0x990ae775288252e4b1b12c4a85bbe66db0140ca733e30002a6525814bfdaa17d`, the hash the record is
 served under. The header in this job named no order (it was bought before the desk was launched);
 check 6 is the same proof for a job that did.
 
 ### 6. Order 1 was paid on proof
+
+The runner bought the job by x402: IdentityMD's fee address sent the settlement through x402's
+contract, and it moved 0.5 IMD from the runner's wallet to that address
+([`0xc92c4731…6bc5`](https://etherscan.io/tx/0xc92c4731e996540cbe68d2e62bc820d67e6bf4d7ec9adc6464b4b0be90e66bc5),
+block 26,185,015). IdentityMD names the same wallet as the payer of the job:
+
+```sh
+curl -s https://api.imd.fun/jobs/f7bd80ba-3e8b-483f-ad02-6ffbd16fef92 | jq '{state, template, paidBy}'
+# completed, skill:create-image, paid by 0x60cc…9560 (H1, the runner's wallet)
+```
 
 The order on the desk, the job that was bought for it, and the receipt IdentityMD wrote for that
 job:
@@ -219,8 +274,8 @@ jq -r '.kind, .state' picture.json                    # skill:create-image, comp
 ```
 
 And through the launched `WorkProof`, which reads the registry itself: the record's hash, the hash
-of the kind the Doorbell pins, of the header, of the Doorbell's job text, and the agent that did
-the work.
+of the kind the Doorbell pins, of the header, of the Doorbell's job text, and the agent the record
+names.
 
 ```sh
 cast call 0xB268297dB06985ba0b806Ba97BcB90364b137469 \
@@ -254,45 +309,95 @@ writes nothing if a read fails or a count disagrees. It holds no key and sends n
 
 Stated as plainly as what is.
 
-- **Launch C is not on chain.** `Rules`, `Endowments` and `Zap` are source and tests.
+- **Launch C went live on 15 October 2026, at 13:18 UTC.** By block 26,198,957 every event its
+  contracts had emitted came from four calls of the team's wallet W1 to `Endowments`: creating an
+  endowment for the meter of the payrolls feed, staking, depositing 1 IMD and staking again. No
+  rule had been created and nothing had gone through `Zap`. About 18 October the team means to
+  harvest that endowment's yield if it has reached `MIN_HARVEST` (0.001 IMD), and to withdraw the
+  1 IMD deposit; the 0.000001 IMD seed paid to create the endowment is not refundable. The harvest
+  may not be possible. At block 26,199,340 (15 October, 17:13 UTC) `harvestable(1)` read 0: what
+  the endowment held beyond its principal was worth about 0.000001 IMD, a thousandth of that
+  floor. sIMD's yield has come in steps. Its price rose about 0.16% in one block on 12 October
+  (block 26,173,773), then about 0.003% from block 26,183,000 (13 October) to block 26,198,165, and
+  had not moved since by block 26,199,535 (15 October, 17:52 UTC). At the rate since 13 October,
+  1 IMD earns well under 0.001 IMD by 18 October; a step like that of 12 October would give it
+  about 0.0016 IMD, above the floor. Whether the harvest is possible depends on whether such a
+  step lands before then.
 - **One order, and all of it the team's own.** Order 1 was opened by the team's Doorbell after the
   team's own wallet rang it, and taken by the team's runner. No outside employer, runner or ringer
   has used the desk, and no crowd pot has been opened.
-- **IdentityMD's receipts stalled for about six days.** The WorkRegistry logged nothing from about
-  8 October until 14 October 2026; while that lasted an order that pays only on a receipt could not
-  be paid (the limit named W1 in
+- **IdentityMD's receipts stalled for about six days.** The WorkRegistry wrote no receipt from
+  about 8 October until 13 October 2026, 17:26 UTC (block 26,185,055). It then worked through its
+  backlog, and the receipts of jobs bought on 13 October, order 1's among them, landed on
+  14 October. While receipts were stalled an order that pays only on a receipt could not be paid
+  (the limit named W1 in
   [`launches/b-desk/docs/THREATS.md`](launches/b-desk/docs/THREATS.md)). The Doorbell was launched
   during the stall with the desk's other path switched on, for good: a bonded delivery claim paid
   after 24 hours without a challenge, with its own limits (L1, L2 and D2 in the same file). Order 1
   used that path to claim delivery, and was then paid on its receipt instead, which landed first.
-- **Nobody outside the team has used anything.** Every transaction that touched launch A's
-  contracts after its launch came from the team's wallets. `EVIDENCE.md` has the number and splits
-  every count HOUSE and OUTSIDE.
+- **Nobody outside the team has used anything.** Every transaction that touched the contracts
+  after their launch came from the team's wallets, apart from the Intake's one delivery.
+  `EVIDENCE.md` has the number and splits every count HOUSE and OUTSIDE. By block 26,198,957 the
+  contracts had sent IMD outside the team to three places. IdentityMD's fee address: `Questions`
+  pays it 0.5 IMD each time it asks the oracle for an answer, three times by then. sIMD,
+  IdentityMD's staking vault: it received Payroll's 14 drips to the stakers, about 0.0021 IMD in
+  all, and the team's 1.000001 IMD that `Endowments` staked (an endowment's seed and a deposit of
+  1 IMD). And one wallet: the owner of the seat agent 51519 is bound to, paid its tip by the team's
+  own call (the point on Payroll below).
 - **Two of the three answers were handed in by the team.** The amount and the count of the first
   report were handed in with `submit` by the team's keeper wallet (the keeper is the bot that makes
   the calls anyone may make), and the contract checked the oracle's signature on each. The third,
   the weekly list of employers, can be answered by the callback only, and was.
-- **Payroll has received one fee and one tip, and nothing has been claimed from it.** Order 1's
-  0.05 IMD fee was split by the code (half to the stakers' stream, of which a first part has
-  reached sIMD, 30% to the seat pool, 20% to the house feeds' meters), and its 0.05 IMD tip is owed
-  to agent 51519's seat. No seat owner has claimed yet. `EVIDENCE.md` has every figure.
+- **Payroll has received one fee and one tip.** Order 1's 0.05 IMD fee was split by the code
+  (half to the stakers' stream, of which a first part has reached sIMD, 30% to the seat pool, 20%
+  to the house feeds' meters); no seat owner has claimed a share of the seat pool yet. Its
+  0.05 IMD tip was credited to agent 51519. On 15 October 2026 the team's wallet W1 called
+  `claimTip` for that agent, which anyone may do when the seat is held by an ordinary wallet, and
+  Payroll paid the tip to the owner of seat 1049, the seat the agent is bound to
+  ([`0x9edc8ba2…1fe8`](https://etherscan.io/tx/0x9edc8ba2ae4cfbabe95d6ca11e7a93f349f09729b7a699d575eac6f8466e1fe8)).
+  `EVIDENCE.md` has every figure.
 - **One day of the report exists.** Each feed's first request spent the IMD its meter held, and
   the feed budget has put back 0.01 IMD since. A meter needs 0.55 IMD to ask again.
   `EVIDENCE.md` shows each meter's balance.
-- **The source is not verified on a block explorer.** Sourcify answered "no match" for all three
-  addresses on 13 October 2026, and IdentityMD's record of the launch holds no verification time.
-  Check 2 above is how to compare the code with this source.
-- **Launch A was audited before its launch by IdentityMD's audit agents, and the fixes were not
-  audited again by a third party.** The pipeline then changed the code once more before deploying
-  it. [`launches/a-payroll/docs/AUDITS.md`](launches/a-payroll/docs/AUDITS.md) lists every finding;
-  [`launches/a-payroll/ADAPTATION.md`](launches/a-payroll/ADAPTATION.md) lists what the pipeline
-  changed. One medium finding is acknowledged and left open
+- **The code was reviewed before each launch by the team and by IdentityMD's agents, and audited
+  by nobody outside IdentityMD's network.** Launch A was audited first by two audit jobs bought
+  from IdentityMD's network, and the team fixed or answered each finding. IdentityMD's launch
+  pipeline then read the code with those fixes (`audit_imported_code`), changed it in answer to
+  that review, and had four specialist agents and a judge read the code as adapted, all before it
+  deployed the code on 13 October 2026. The launch's pull request says "An independent reviewer
+  raised 8 finding(s).", and IdentityMD's record of the job holds those 8, none marked blocking.
+  [`launches/a-payroll/ADAPTATION.md`](launches/a-payroll/ADAPTATION.md) answers the four of the
+  imported review and lists what the pipeline changed;
+  [`launches/a-payroll/docs/AUDITS.md`](launches/a-payroll/docs/AUDITS.md) lists every finding of
+  the two audits and the pipeline's 8, with what became of each. One medium finding of the audits is
+  acknowledged and left open
   ([`launches/a-payroll/docs/THREATS.md`](launches/a-payroll/docs/THREATS.md), P2). Launch B was
-  read by the pipeline's audit agents and an independent reviewer before it was deployed; no
-  contract code was changed, and [`launches/b-desk/ADAPTATION.md`](launches/b-desk/ADAPTATION.md)
-  answers each finding. Neither launch has been audited by anyone else, and launch C by nobody.
-- **This page names no public address for the site, the indexer or the bots.** Each runs from a
-  clone of this repository.
+  read by the pipeline's audit agents and an independent reviewer before it was deployed, and no
+  compiled code changed: the pipeline corrected three comments in `CrowdPots.sol`. Its pull request
+  says 11 findings. [`launches/b-desk/ADAPTATION.md`](launches/b-desk/ADAPTATION.md) answers seven
+  of them by name, and the other four through the judge's findings they were merged into, as
+  [`launches/b-desk/docs/AUDITS.md`](launches/b-desk/docs/AUDITS.md) sets out; that file also names
+  a file of answers the team never received. Launch C was read by the pipeline before its launch on
+  15 October 2026. Its pull request says "An independent reviewer raised 13 finding(s).", and
+  IdentityMD's record of the job holds 13 in its accepted reviews, six low and seven info, none
+  marked blocking. [`launches/c-company/ADAPTATION.md`](launches/c-company/ADAPTATION.md) answers
+  the three of the imported review. No node answered the other ten, which came after the code was
+  adapted. They come down to four matters not raised before, each recorded by a specialist and
+  again by the judge, and one finding of the imported review recorded twice more. The pipeline
+  changed no file under `src/`.
+  [`launches/c-company/docs/AUDITS.md`](launches/c-company/docs/AUDITS.md) lists all 13 with what
+  became of each; the four new matters (its rows 4 to 7) are limits that
+  [`launches/c-company/docs/THREATS.md`](launches/c-company/docs/THREATS.md) states since
+  15 October 2026 (R11, E7, E9 and Z4). Nobody outside IdentityMD's network has audited any of the
+  three launches, and IdentityMD records no outside audit or bounty for any of them.
+- **One runner has taken one order.** The team's runner took order 1, and no other runner has
+  claimed an order on the desk. Since 15 October 2026, 14:18 UTC, the team's runner has run around
+  the clock on a hosted server (Railway), signing as H1. It takes orders from any employer, one
+  order at a time, pays at most one 0.5 IMD swarm fee a day, posts bonds of at most 0.25 IMD, and
+  takes research-report and picture jobs ([`bots/runner/README.md`](bots/runner/README.md)). By
+  block 26,198,957 it had taken no order since order 1. The keeper is not hosted: the team runs it
+  by hand. The site is public (its address is at the top of this page); this page names no public
+  address for the indexer or the bots.
 
 ## Trust and known limits
 
@@ -302,13 +407,31 @@ know before anything else:
 
 - **One key signs every oracle answer.** `Questions` accepts what IdentityMD's oracle signer signs,
   and that address is fixed at launch. A wrong or lost key can put wrong numbers into a feed and
-  into the report. No function pays out on the content of an answer
-  ([`launches/a-payroll/docs/THREATS.md`](launches/a-payroll/docs/THREATS.md), T1).
+  into the report. What an answer can move differs by launch. In launch A no function pays out on
+  the content of an answer; the only money tied to an answer is its round's keeper tip
+  ([`launches/a-payroll/docs/THREATS.md`](launches/a-payroll/docs/THREATS.md), T1). In launch B an
+  order's condition may read an answer, and a true reading only opens the order to runners; the
+  escrow still pays a runner only on the job's receipt or, where the order allows it, on an
+  unchallenged bonded claim
+  ([`launches/b-desk/docs/THREATS.md`](launches/b-desk/docs/THREATS.md), T6 and W8). In launch C a
+  FEED rule fires on a feed's answer, and the fire pays: the rule's recipient for a PAY rule, an
+  escrow on the desk for a HIRE rule, and the rule's tip to whoever fires it
+  ([`launches/c-company/docs/THREATS.md`](launches/c-company/docs/THREATS.md), T5, R2 and R3).
 - **Two of the three feeds are facts the oracle recomputes from the chain. The third rests on a
-  panel's agreement** and on nothing else (the same file, F4).
+  panel's agreement** and on nothing else
+  ([`launches/a-payroll/docs/THREATS.md`](launches/a-payroll/docs/THREATS.md), F4).
 - **A proof says what IdentityMD recorded, not that the work is good.** Whoever controls the
   WorkRegistry's writer can record a hash of its own making, and the registry's source is not
   published ([`launches/b-desk/docs/THREATS.md`](launches/b-desk/docs/THREATS.md), T1, T2 and P1).
+- **IMD's owner can have new IMD created on Ethereum.** IMD here is a LayerZero bridged token, not a
+  proxy. Its owner, `0x047F…54B7`, the same account as the WorkRegistry's admin, chooses which
+  contracts on other chains may send IMD here and how their messages are checked, so it can have
+  IMD created on Ethereum through a contract of its choosing. New IMD takes nothing from what the
+  contracts hold, but changes what it is worth, and the token gives its owner no function that
+  moves, burns or freezes IMD an address holds
+  ([`launches/a-payroll/docs/THREATS.md`](launches/a-payroll/docs/THREATS.md), T4,
+  [`launches/b-desk/docs/THREATS.md`](launches/b-desk/docs/THREATS.md), T4, and
+  [`launches/c-company/docs/THREATS.md`](launches/c-company/docs/THREATS.md), T1).
 - **On the claimed path an untrue delivery claim that nobody challenges within 24 hours is paid**,
   and while receipts are late a challenger can keep a true claim from being paid (the same file,
   L1 and L2). An employer chooses whether its order allows that path.
@@ -333,7 +456,7 @@ both: it delivers something that was paid for, and is nobody's use of the contra
 ```text
 launches/a-payroll/   Launch A, live: Questions, JobsReport, Payroll. A Foundry project.
 launches/b-desk/      Launch B, live: WorkProof, WorkOrders, CrowdPots, Doorbell.
-launches/c-company/   Launch C, not submitted: Rules, Endowments, Zap.
+launches/c-company/   Launch C, live: Rules, Endowments, Zap.
 packages/shared/      TypeScript the rest imports: addresses, the deployments book, ABIs generated
                       from the launch projects' build output, the order header, the work record
                       scanner, the oracle's question hash, a client for IdentityMD's public API.
@@ -347,7 +470,8 @@ scripts/evidence/     The evidence builder (pnpm evidence) and its tests.
 scripts/repro.sh      The comparison of deployed code with a build of this source (pnpm repro).
 scripts/proof-requests.sh
                       How the three questions of the report were first bought from the live oracle.
-evidence/             The house list, the launches requested, and evidence.json (generated).
+evidence/             The house list, the list of launches requested and not yet in the book
+                      (empty since 15 October 2026), and evidence.json (generated).
 EVIDENCE.md           Generated. What exists on chain, at one pinned block.
 ```
 
@@ -368,7 +492,7 @@ The contracts. Foundry is the only requirement, dependencies are vendored, and n
 (cd launches/c-company && forge test)
 ```
 
-On 13 October 2026, with Foundry 1.8.3: 515 tests passed in launch A, 673 in launch B and 409 in
+On 15 October 2026, with Foundry 1.8.3: 515 tests passed in launch A, 673 in launch B and 441 in
 launch C, none failed. A first build takes a few minutes. Each project also has a fork suite that
 runs against mainnet (`FOUNDRY_PROFILE=fork forge test`); its README says what that suite covers.
 
@@ -380,8 +504,8 @@ pnpm test          # every package, then the evidence builder
 pnpm typecheck
 ```
 
-On the same day: `packages/shared` 396 tests, `bots/runner` 420, `bots/keeper` 324,
-`apps/indexer` 213, `apps/web` 559, the evidence builder 88, none failed. By each package's own
+On the same day: `packages/shared` 397 tests, `bots/runner` 431, `bots/keeper` 324,
+`apps/indexer` 213, `apps/web` 645 and the evidence builder 92, none failed. By each package's own
 account no test reaches the internet; the tests of the indexer, the site and the evidence builder
 make `fetch` throw to be sure. The keeper's integration tests start a local node and are skipped,
 with a message, when Foundry is missing or the launch projects are not built.

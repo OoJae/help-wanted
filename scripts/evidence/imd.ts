@@ -21,7 +21,17 @@ export interface ImdLaunch {
   kind: string | null;
   sourceRepoUrl: string | null;
   sourceCommit: string | null;
-  artifacts: { name: string; address: string; verifiedAt: string | null }[];
+  /**
+   * Each contract as the launch's own record (`GET /launches/:id`) lists it. `verifiedAt` and
+   * `verifyFailure` are that record's fields, null when it holds none; the list of launches
+   * (`GET /launches`) leaves both out.
+   */
+  artifacts: {
+    name: string;
+    address: string;
+    verifiedAt: string | null;
+    verifyFailure: string | null;
+  }[];
 }
 
 export interface ImdIntakeEntry {
@@ -39,7 +49,10 @@ export interface ImdJob {
 
 export interface ImdReads {
   base: string;
-  /** IdentityMD's public record of the launch with this number, or null when it lists none. */
+  /**
+   * IdentityMD's public record of the launch with this number, or null when it lists none. Two
+   * reads: the list finds the launch's id, and the launch's own record gives its contracts.
+   */
   launchByNumber(launchNumber: number): Promise<ImdLaunch | null>;
   /** The Intake request of a transaction with this id, or null while IdentityMD does not know the transaction. */
   intakeEntry(
@@ -92,18 +105,29 @@ export function imdReads(
         (launch) => launch.launchNumber === launchNumber,
       );
       if (!found) return null;
+      // The list row has no verification fields; the launch's own record does.
+      const record = await client.launch(found.id);
+      if (record.id !== found.id || record.launchNumber !== launchNumber) {
+        throw new Error(
+          `IdentityMD's record ${found.id} is not launch ${launchNumber}: it says ${record.id}, number ${String(record.launchNumber)}`,
+        );
+      }
       return {
-        id: found.id,
+        id: record.id,
         launchNumber,
-        status: found.status,
-        kind: found.kind ?? null,
-        sourceRepoUrl: found.sourceRepoUrl ?? null,
-        sourceCommit: found.sourceCommit ?? null,
-        artifacts: (found.artifacts ?? []).map((artifact) => ({
-          name: artifact.name,
-          address: artifact.address,
-          verifiedAt: text((artifact as Record<string, unknown>).verifiedAt),
-        })),
+        status: record.status,
+        kind: record.kind ?? null,
+        sourceRepoUrl: record.sourceRepoUrl ?? null,
+        sourceCommit: record.sourceCommit ?? null,
+        artifacts: (record.artifacts ?? []).map((artifact) => {
+          const fields = artifact as Record<string, unknown>;
+          return {
+            name: artifact.name,
+            address: artifact.address,
+            verifiedAt: text(fields.verifiedAt),
+            verifyFailure: text(fields.verifyFailure),
+          };
+        }),
       };
     },
 

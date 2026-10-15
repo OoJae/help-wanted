@@ -22,8 +22,8 @@
  *   within the limits (per order, and over all orders held);
  * - an order that only a receipt can pay is taken only while the WorkRegistry is writing receipts
  *   (its newest `WorkRecorded` event is recent), unless the operator chose to wait for them:
- *   IdentityMD's receipt writer has been behind since 8 Oct 2026, and such an order would put the
- *   bond at risk of the delivery deadline;
+ *   IdentityMD's receipt writer wrote nothing from about 8 to 13 Oct 2026, and while it is behind
+ *   such an order would put the bond at risk of the delivery deadline;
  * - an order whose kind has only been seen with records too large for this runner's gas limit is
  *   taken only if it allows the bonded claim, and no settlement is sent with a gas limit set by
  *   hand: the limit comes from an estimate and is refused above `MAX_SETTLE_GAS`;

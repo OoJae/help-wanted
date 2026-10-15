@@ -4,7 +4,7 @@
  * Everything on it is either read live when the page is made (and printed with what was read), or
  * linked to a public record, or paired with a command that checks it. Nothing is asserted that a
  * reader cannot repeat. What is not live is listed as plainly as what is, and where something has
- * been shown only in part (the header job's receipt is still queued) the page says which part.
+ * been shown only in part the page says which part.
  */
 import {
   HOUSE_FEEDS,
@@ -27,6 +27,20 @@ import {
   type Deployments,
   type LaunchKey,
 } from "~/config/deployments";
+import {
+  HISTORY_READ_ON,
+  HOUSE_X402,
+  LAUNCH_C_JOB,
+  LAUNCH_C_ON_CHAIN,
+  LAUNCH_PRS,
+  pinnedEndowment,
+  pinnedOrder,
+  pinnedPrint,
+  pinnedRounds,
+  UNUSED_FEATURES,
+  VERIFIED_SOURCE,
+  type PinnedTx,
+} from "~/config/history";
 import { HOUSE_WALLETS, houseSet } from "~/config/house";
 import { DISCLOSED_LIMITS, THREATS_DOCUMENT, limitText, type DisclosedLimit } from "~/config/limits";
 import {
@@ -34,6 +48,8 @@ import {
   AUDITS,
   CHANGED_AFTER_AUDITS,
   DESK_ADAPTATION,
+  deskGradingWords,
+  deskOnRecordWords,
   EMPLOYERS_FIRST_ATTEMPT,
   LAUNCH_ADAPTATION,
   PUBLIC_SOURCE,
@@ -46,7 +62,7 @@ import { HEADER_JOB, LAUNCH_A_JOB, LAUNCH_B_JOB } from "~/data";
 import type { JobDetail } from "~/data/api";
 import { messageOf } from "~/lib/cache";
 import { formatImd, formatInt, formatUtc, plural } from "~/lib/format";
-import { hashNo0x, isZeroHash } from "~/lib/ids";
+import { hashNo0x, isZeroHash, jobIdToBytes16 } from "~/lib/ids";
 import { bullets, doc, fence, inline, link, table } from "~/lib/md";
 import { hashServedRecord, verifyCommands } from "~/lib/verify";
 import {
@@ -54,11 +70,13 @@ import {
   castView,
   launchIsLive,
   launchRecorded,
+  PAYS_WHEN,
   PUBLIC_RPC,
   type ContractStatus,
 } from "./common";
+import { RUNNER_STATEMENT } from "./desk";
 import { paymentsCommand, releaseTally } from "./jobsReport";
-import { ringsByOrigin } from "./money";
+import { endowmentCreator, ringsByOrigin } from "./money";
 import { proofView } from "./questions";
 import {
   claimDefault,
@@ -105,9 +123,10 @@ export interface IntegrationRow {
   /**
    * How much our contracts have used the primitive, read when the page was made. `count` is null,
    * with the reason, while the thing counted cannot exist yet or could not be read: never a zero
-   * that could be taken for a measurement.
+   * that could be taken for a measurement. `countedOn` is the day a pinned count was made, for a
+   * count this page keeps rather than reads; absent for a count read when the page is made.
    */
-  usage: { count: string | null; what: string; reason: string | null };
+  usage: { count: string | null; what: string; reason: string | null; countedOn?: string };
   /** Where the proof is: public records a reader can open. Empty when there is none yet. */
   proofs: Evidence[];
   /** What those records show, or why there is none yet. */
@@ -120,10 +139,12 @@ export interface LaunchView {
   name: string;
   purpose: string;
   contracts: string[];
+  /** Whether every contract of the launch has an address in the deployments book. */
   launched: boolean;
   /** Where the launch stands, in one or two sentences. */
   status: string;
   txUrl: string | null;
+  /** IdentityMD's launch number, as the deployments book records it. */
   launchNumber: number | null;
 }
 
@@ -242,8 +263,64 @@ export interface LimitRow {
   since: string | null;
 }
 
+/** One transaction in the "Live on mainnet" block. */
+export interface LiveTx {
+  label: string;
+  what: string;
+  /** The block's time, when it is kept; a launch transaction is given by its block alone. */
+  at: string | null;
+  block: number | null;
+  tx: string;
+  txUrl: string;
+}
+
+/** A launched contract's Etherscan page, and what the explorers showed for its source. */
+export interface VerificationRow {
+  name: string;
+  address: string;
+  /** The contract's code tab on Etherscan. */
+  url: string;
+  /** "Exact Match" when Etherscan showed verified source; null when it was not checked at this address. */
+  etherscan: string | null;
+  sourcify: string | null;
+  words: string;
+}
+
 export interface JudgesModel {
   generatedAt: string;
+  /**
+   * The transactions behind what is live on mainnet: the launches, the first rounds and print, the
+   * first order from opening to settlement, and the proof command with its answer. Null where the
+   * deployments book is not mainnet's (a fork, a rehearsal, a test).
+   */
+  live: {
+    intro: string;
+    groups: { title: string; rows: LiveTx[] }[];
+    prove: { commands: { comment: string; command: string }[]; answer: string; note: string } | null;
+  } | null;
+  /** Five lines: what it is, what happened, how to check it, what is live, what is not. */
+  thirtySeconds: string[];
+  /** Every launched contract's Etherscan page and verification status. */
+  verification: { checked: string; rows: VerificationRow[] };
+  /** Parts of IdentityMD's protocol our contracts do not use, with where each choice is written down. */
+  unused: { feature: string; why: string; source: string }[];
+  /** What IdentityMD's launch pull requests say about review, and what our documents account for. */
+  pipelinePrs: {
+    launch: string;
+    launchNumber: number;
+    url: string;
+    merged: string;
+    reviewer: string;
+    /** The number of findings the pull request gives. */
+    count: number;
+    /** IdentityMD's record of the job's submissions, which holds every finding. */
+    record: string;
+    /** Our document that lists every finding, with what became of it. Null while none does. */
+    document: string | null;
+    accounted: string;
+  }[];
+  /** Launch C's job in IdentityMD's launch pipeline, read live. Null while the book records no launch C. */
+  launchCPipeline: PipelineView | null;
   summary: string;
   summaryWords: number;
   launchedCount: number;
@@ -289,6 +366,10 @@ export interface JudgesModel {
       document: string;
       documentUrl: string | null;
       corrected: string;
+      /**
+       * The findings ADAPTATION.md answers, by the grade it gives them: the judge's first round's
+       * grades (a submission that was not accepted). The accepted last round grades all three info.
+       */
       counts: { medium: number; info: number; contractCodeChanged: 0 };
       findings: DeskAdaptationFinding[];
     } | null;
@@ -316,7 +397,20 @@ export interface JudgesModel {
 }
 
 const SUMMARY_BODY =
-  "HELP WANTED is a job board where the employers are smart contracts. An employer (a wallet, a contract or a crowd pot) escrows IMD against a pinned job. A bonded runner pays the swarm's 0.5 IMD fee, opens the job with the order's header leading its objective, and registers the job id. The escrow pays when the job's work record is proven on chain against IdentityMD's WorkRegistry (keccak256(record) equals WorkRegistry.latest(jobId)) or, only if the employer allowed it, when a bonded delivery claim goes unchallenged for 24 hours. No delivery, refund. Standing Questions, a second contract, buys its own oracle answers from the IdentityMD Intake and publishes them as feeds; the first is the daily Robot Jobs Report. Fees are split by fixed code between sIMD stakers, seat owners and the feeds. Nothing has an owner. There is no token.";
+  "HELP WANTED is a job board where the employers are smart contracts. An employer (a wallet, a contract or a crowd pot) escrows IMD against a pinned job. A bonded runner pays the swarm's 0.5 IMD fee, opens the job with the 85-byte order header leading its objective, and registers the job id. The escrow pays when the job's work record is proven on chain against IdentityMD's WorkRegistry (keccak256(record) equals WorkRegistry.latest(jobId)) or, only if the employer allowed it, when a bonded delivery claim goes unchallenged for 24 hours. No delivery, refund. Standing Questions, a second contract, buys its own oracle answers from IdentityMD's Intake and publishes them as feeds; the first is the Robot Jobs Report. Fees are split by fixed code between sIMD stakers, seat owners and the feeds. Nothing has an owner. There is no token.";
+
+/**
+ * How a row's count is headed: "Read for this page" for a count read when the page is made, and
+ * "Counted on <day>" for one this site keeps. A kept figure is never said to be read now.
+ */
+export function countLabel(usage: IntegrationRow["usage"]): string {
+  return usage.countedOn ? `Counted on ${usage.countedOn}` : "Read for this page";
+}
+
+/** The noun after a usage row's count: the singular for a count of one ("1 order", "2 orders"). */
+function countNoun(count: number | null, one: string, many: string): string {
+  return count === 1 ? one : many;
+}
 
 function launchedLaunches(deployments: Deployments): LaunchKey[] {
   return LAUNCH_KEYS.filter((key) => launchIsLive(deployments, key));
@@ -365,7 +459,7 @@ const NEVER_CLAIMED = [
   "That a transfer to sIMD on Ethereum reaches every staker on every chain.",
   "That no other product pays seat owners.",
   "That our own activity is outside usage: every count is split HOUSE and OUTSIDE.",
-  "That the header job is proven on chain: its receipt is read for this page every time, and the page says what the registry answered.",
+  "That a proof shows the work is good. It shows what IdentityMD recorded: that the record is the one its WorkRegistry holds for the job.",
 ];
 
 /**
@@ -375,7 +469,7 @@ const NEVER_CLAIMED = [
  * list of its first entry is left out: addresses on this site come from the deployments book).
  */
 export const DESK_FROM_ITS_DOCUMENTS = {
-  asOf: "13 October 2026",
+  asOf: "15 October 2026",
   what: "Launch B is four contracts for Ethereum mainnet with no owner and no token: WorkProof, WorkOrders, CrowdPots and the Doorbell.",
   points: [
     "WorkOrders is a job board on which the employer can be a contract: an employer escrows IMD against a pinned job text, a bonded runner opens the job with IdentityMD's swarm, and the escrow pays when the job's work record is proven on chain against IdentityMD's WorkRegistry.",
@@ -385,13 +479,13 @@ export const DESK_FROM_ITS_DOCUMENTS = {
     "It pays its fees into Payroll (the first launch, launch A on this site) and needs nothing else from the other two launches.",
   ],
   status: [
-    "Live on Ethereum mainnet since 13 October 2026. IdentityMD's pipeline changed no contract code before deploying; ADAPTATION.md says what it checked and which comments and documents it corrected.",
-    "The central claim holds through the launched WorkProof. Called on mainnet with the served record of the real job e9efec16-56f3-40d3-9243-52c453effc7d, prove answers with the record's hash and the agent that did the work.",
+    "Live on Ethereum mainnet since 13 October 2026. IdentityMD's pipeline changed no compiled code before deploying; ADAPTATION.md says what it checked and which comments and documents it corrected.",
+    "The central claim holds through the launched WorkProof. Called on mainnet with the served record of the real job e9efec16-56f3-40d3-9243-52c453effc7d, prove answers with the record's hash and the agent the record names.",
     "Payroll, the one contract this launch pays and does not create, is live. The tests that need no network use a stand-in for it.",
     "The desk's first order was settled by a real job, on proof. The order is Delivered and marked proven. The ringer, the runner and the Doorbell's IMD were all the team's own.",
     "The earlier header job is proven too.",
     "IdentityMD's receipts stalled from about 8 to 14 October 2026. While receipts are late, only orders that allow the bonded-claim path can be paid, which is why the Doorbell was launched with that path on.",
-    "Audited by IdentityMD's launch pipeline, and by nobody else. Before deploying, its audit agents and an independent reviewer read this code and reported one medium and several info findings. None changed a contract; each is answered in ADAPTATION.md, and the medium one (a receipt-only pot can be ended in a refund with no bond forfeited) is now stated as a limit in docs/THREATS.md, C2.",
+    "Audited by IdentityMD's launch pipeline, and by nobody outside IdentityMD's network. Before deploying, its audit agents and an independent reviewer read this code and reported one medium and several info findings. None changed the compiled code; each is answered in ADAPTATION.md, and the medium one (a receipt-only pot can be ended in a refund with no bond forfeited) is now stated as a limit in docs/THREATS.md, C2. Of the eleven findings on IdentityMD's record of the pipeline job, ADAPTATION.md answers seven by name, and the other four through the judge's findings they were merged into.",
   ],
 } as const;
 
@@ -410,8 +504,11 @@ const SAID_OF_THE_LAUNCHED_DESK = [
 export const SUITES = {
   A: { project: "launches/a-payroll", tests: 515, suites: 50, forkTests: 23 },
   B: { project: "launches/b-desk", tests: 673, suites: 32, forkTests: 38 },
-  C: { project: "launches/c-company", tests: 415, suites: 19, forkTests: 34 },
+  C: { project: "launches/c-company", tests: 441, suites: 23, forkTests: 34 },
 } as const;
+
+/** What IdentityMD's launch pipeline did with launch C before it launched it, as that pipeline wrote it. */
+const LAUNCH_C_ADAPTATION = "launches/c-company/ADAPTATION.md";
 
 /** Our contracts that take IMD, in the order the page names them. */
 const IMD_HOLDERS: readonly ContractKey[] = [
@@ -429,6 +526,11 @@ const settle = <T>(p: Promise<T>) =>
     (value) => ({ value, error: null as string | null }),
     (error: unknown) => ({ value: null as T | null, error: messageOf(error) }),
   );
+
+/** "a", "a and b", "a, b and c". */
+function listWords(items: readonly string[]): string {
+  return items.length <= 2 ? items.join(" and ") : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
+}
 
 function houseLabel(address: string | null): string | null {
   if (!address) return null;
@@ -528,6 +630,9 @@ export const judgesPage: PageDef<JudgesModel> = {
       headerRecords,
       headerRecord,
       headerReceipt,
+      launchCJob,
+      endowmentsRead,
+      rulesRead,
     ] = await Promise.all([
       settle(runVerify(own, REFERENCE_JOB.jobId)),
       settle(api.health()),
@@ -558,6 +663,10 @@ export const judgesPage: PageDef<JudgesModel> = {
       settle(api.jobRecords(HEADER_JOB.jobId)),
       settle(api.workRecord(HEADER_JOB.recordHash)),
       settle(chain.receiptRead(HEADER_JOB.jobIdBytes16)),
+      // Launch C's job, like launch B's, is read once the book records that launch.
+      launchRecorded(deployments, "C") ? settle(api.job(LAUNCH_C_JOB.jobId)) : null,
+      house.endowments(20),
+      house.rules(20),
     ]);
 
     const v = verify.value?.result ?? null;
@@ -581,7 +690,18 @@ export const judgesPage: PageDef<JudgesModel> = {
     // ---- What the launch pipeline's audits found in launch B (launches/b-desk/ADAPTATION.md). ----
     const deskMedium = DESK_ADAPTATION.findings.filter((f) => f.severity === "medium").length;
     const deskInfo = DESK_ADAPTATION.findings.filter((f) => f.severity === "info").length;
-    const deskAuditWords = `Before it deployed them, IdentityMD's launch pipeline audited the four contracts: ${plural(deskMedium, "medium finding")} and ${deskInfo} at level info. No contract code was changed for any of them; the medium finding was answered in words, not in code, and the limit it describes is disclosed below as launch B's C2 (${DESK_ADAPTATION.document}).`;
+    const deskRecord = DESK_ADAPTATION.onRecord;
+    const launchAPr = LAUNCH_PRS.find((pr) => pr.launch === "A") ?? null;
+    const launchCPr = LAUNCH_PRS.find((pr) => pr.launch === "C") ?? null;
+    const deskMediumIds = DESK_ADAPTATION.findings.filter((f) => f.severity === "medium").map((f) => f.id);
+    const deskAuditWords = `Before it deployed them, IdentityMD's launch pipeline audited the four contracts. Its record of the job holds ${deskOnRecordWords()}, the number its pull request gives. ${deskGradingWords()} No contract code was changed for any of them; ${deskMediumIds.join(" and ")} was answered in words, not in code, and the limit it describes is disclosed below as launch B's C2. ${deskRecord.document} lists all ${deskRecord.count}.`;
+    // Launch C, as its pull request and IdentityMD's record of its job give it (config/history.ts).
+    const launchCAuditWords = launchCPr
+      ? `Before it deployed them, IdentityMD's launch pipeline audited the three contracts. Its pull request says: "${launchCPr.reviewer.split(/(?<=\.)\s/)[0]}" Its record of the job (${launchCPr.record}) holds those ${launchCPr.count}, all in accepted review submissions: 6 graded low and 7 info, none marked blocking. The pipeline changed no source file; ${LAUNCH_C_ADAPTATION} says so and answers the 3 raised by the audit it imported. No node of the job answered the other 10, which were raised after the pipeline's adaptation step.${launchCPr.document ? ` ${launchCPr.document} lists all ${launchCPr.count}, each with what became of it.` : ""}`
+      : "";
+    // Launch C as mainnet holds it: only then is IdentityMD's own record of the launch cited.
+    const launchCIsMainnets =
+      deployments.launches.C.txHash?.toLowerCase() === LAUNCH_C_ON_CHAIN.tx.hash.toLowerCase();
 
     // ---- Where the launches stand. ----
     const pipeline = pipelineView(
@@ -600,6 +720,15 @@ export const judgesPage: PageDef<JudgesModel> = {
           deskPipelineJob.value !== null && deskPipelineJob.value.value === null,
         )
       : null;
+    const launchCPipeline = launchCJob
+      ? pipelineView(
+          LAUNCH_C_JOB.jobId,
+          launchCJob.value
+            ? { value: launchCJob.value.value, error: null }
+            : { value: null, error: launchCJob.error },
+          launchCJob.value !== null && launchCJob.value.value === null,
+        )
+      : null;
     const launchStatus = (key: LaunchKey): string => {
       const launch = deployments.launches[key];
       const some = launch.contracts.some((c) => deployments.contracts[c].address !== null);
@@ -607,8 +736,11 @@ export const judgesPage: PageDef<JudgesModel> = {
         const launched = launch.txHash
           ? `Launched${launch.launchNumber !== null ? ` as IdentityMD launch ${launch.launchNumber}` : ""}${launch.block !== null ? `${launch.launchNumber !== null ? "," : ""} in block ${formatInt(launch.block)}` : ""}.`
           : "Addresses are filled in, but no launch transaction is recorded with them.";
-        // Launch B: what the pipeline's audits found before it deployed, said in one plain sentence.
-        return key === "B" && launch.txHash ? `${launched} ${deskAuditWords}` : launched;
+        if (!launch.txHash) return launched;
+        // Launches B and C: what the pipeline's audits found before it deployed, said plainly.
+        if (key === "B") return `${launched} ${deskAuditWords}`;
+        if (key === "C" && launchCAuditWords) return `${launched} ${launchCAuditWords}`;
+        return launched;
       }
       if (some) return "Some of its contracts have an address and some do not; treat it as not launched.";
       const none = "Not launched: the deployments book holds no address for it.";
@@ -729,7 +861,7 @@ export const judgesPage: PageDef<JudgesModel> = {
         onChain: receiptOnChain,
         readAt: headerReceipt.value ? new Date(headerReceipt.value.fetchedAt).toISOString() : null,
       },
-      shown: `A real swarm job, paid for on 13 October 2026, was given an objective that began with a HELP WANTED order header. IdentityMD kept those 85 bytes unchanged and wrote them into the job's work record. ${recordShown}${
+      shown: `A real swarm job, paid for on 13 October 2026, was given an objective that began with a HELP WANTED 85-byte order header. IdentityMD kept those bytes unchanged and wrote them into the job's work record. ${recordShown}${
         hj
           ? ` IdentityMD's API gives the job's state as "${hj.state}"${hj.paidBy ? ` and its payer as ${hj.paidBy}${houseLabel(hj.paidBy) ? ` (house wallet ${houseLabel(hj.paidBy)})` : ""}` : ""}.`
           : ""
@@ -739,7 +871,7 @@ export const judgesPage: PageDef<JudgesModel> = {
           ? null
           : receiptOnChain === false
             ? `Not shown: a receipt on chain. WorkRegistry.latest for this job ${isZeroHash(receiptValue ?? "0x") ? "read zero" : `read ${receiptValue}, which is not this record's hash`} when this page was made (${formatUtc(headerReceipt.value?.fetchedAt ?? now)}).${listedWords} The receipt is still queued at IdentityMD, so this is a record that hashes to the hash the API lists, not a proof on chain. ${headerNamedNoOrder}`
-            : `Not shown: a receipt on chain. The WorkRegistry could not be read for this page${headerReceipt.error ? ` (${headerReceipt.error})` : ""}, so nothing is said here about the receipt; the last time it was read by hand (13 October 2026) it was zero and the API listed the record as queued. Run the third command.${listedWords}`,
+            : `Not shown: a receipt on chain. The WorkRegistry could not be read for this page${headerReceipt.error ? ` (${headerReceipt.error})` : ""}, so nothing is said here about the receipt. When it was last read by hand, on 15 October 2026, WorkRegistry.latest for this job held this record's hash. Run the third command.${listedWords}`,
       commands: [
         {
           comment: `The record, hashed. Prints ${HEADER_JOB.recordHash}`,
@@ -750,7 +882,12 @@ export const judgesPage: PageDef<JudgesModel> = {
           command: "jq -j .objective record.json | head -c 85",
         },
         {
-          comment: "The receipt on chain. Zeros until IdentityMD writes it",
+          comment:
+            receiptOnChain === true
+              ? `The receipt on chain. Prints ${HEADER_JOB.recordHash}`
+              : receiptOnChain === false
+                ? "The receipt on chain. Zeros until IdentityMD writes it"
+                : `The receipt on chain. Prints ${HEADER_JOB.recordHash} when it holds this record's receipt`,
           command: `cast call ${MAINNET.WORK_REGISTRY} "latest(bytes16)(bytes32)" ${HEADER_JOB.jobIdBytes16} --rpc-url ${PUBLIC_RPC}`,
         },
         {
@@ -819,7 +956,7 @@ export const judgesPage: PageDef<JudgesModel> = {
       },
       {
         claim:
-          "The agents named in a work record can be traced to seats and their owners on chain, which is how per-job tips find the people behind the work.",
+          "The agents named in a work record can be traced to seats and their owners on chain, which is how per-job tips reach the owners of the seats behind the agents a record names.",
         readNow: binding?.bound
           ? `Agent 52211 (the one in the reference job's record) is bound to seat #${binding.tokenId}${binding.owner ? `, owned by ${binding.owner}` : ""}.`
           : null,
@@ -842,11 +979,6 @@ export const judgesPage: PageDef<JudgesModel> = {
     const book = orders.live && !env.sampleData ? orders.data : null;
     const l = ledger.live ? ledger.data : null;
     const feedBook = feeds.live ? feeds.data : null;
-    const contractAddresses = new Set(
-      Object.values(deployments.contracts)
-        .map((c) => c.address?.toLowerCase())
-        .filter((a): a is string => typeof a === "string"),
-    );
     const notYet = (key: ContractKey) => `${deployments.contracts[key].name} is ${NOT_LAUNCHED}`;
     const unread = (what: string, error: string | null) =>
       `${what} could not be read just now${error ? `: ${error}` : ""}`;
@@ -872,13 +1004,14 @@ export const judgesPage: PageDef<JudgesModel> = {
               ? "launched"
               : "partly";
       const names = (list: typeof contracts) => list.map((c) => c.name).join(", ");
+      const missing = contracts.filter((c) => c.address === null);
       const contractWords =
         contracts.length === 0
           ? ""
           : launch === "launched"
             ? `Launched: ${launchedHere.map((c) => `${c.name} at ${c.address}`).join(", ")}.`
             : launch === "partly"
-              ? `Launched: ${launchedHere.map((c) => `${c.name} at ${c.address}`).join(", ")}. Not launched yet: ${names(contracts.filter((c) => c.address === null))}.`
+              ? `Launched: ${launchedHere.map((c) => `${c.name} at ${c.address}`).join(", ")}. Not launched yet: ${names(missing)}.`
               : `In our contracts (${names(contracts)}); ${NOT_LAUNCHED}.`;
       return {
         ...rest,
@@ -887,10 +1020,10 @@ export const judgesPage: PageDef<JudgesModel> = {
         launchLabel:
           launch === "launched"
             ? "Launched"
-            : launch === "partly"
-              ? "Partly launched"
-              : launch === "none"
-                ? "Done from a wallet"
+            : launch === "none"
+              ? "Done from a wallet"
+              : launch === "partly"
+                ? "Partly launched"
                 : "Built, not launched",
         statusWords: [onSite, contractWords].filter(Boolean).join(" "),
       };
@@ -899,11 +1032,16 @@ export const judgesPage: PageDef<JudgesModel> = {
     const provenOrders = book
       ? book.orders.filter((o) => o.state === "Delivered" && o.terms?.proven).length
       : null;
+    const deliveredOrders = book ? book.orders.filter((o) => o.state === "Delivered").length : null;
     const ordersReason = orders.live ? (orders.error ?? "sample data is not counted") : notYet("workOrders");
     const ledgerReason = ledger.live ? unread("Payroll", ledger.error) : notYet("payroll");
-    const boughtByOurs = intakeRead
-      ? intakeRead.requests.filter((r) => r.version === 2 && contractAddresses.has(r.payer)).length
-      : null;
+    // Every round of a feed is one request Questions bought from the Intake. The contract counts its
+    // own rounds, all time, so the count does not depend on how far back this server reads logs.
+    const boughtByOurs =
+      feeds.live && feeds.data && feeds.data.feeds.length === feeds.data.count
+        ? feeds.data.feeds.reduce((sum, f) => sum + f.rounds, 0)
+        : null;
+    const firstOrder = pinnedOrder(deployments.contracts.workOrders.address, 1);
     const launchesRecorded = LAUNCH_KEYS.filter((key) => deployments.launches[key].txHash !== null);
     const answeredFeeds = feedBook ? feedBook.feeds.filter((f) => f.latest.updatedAt > 0).length : null;
     const questionsLaunched = deployments.contracts.questions.address !== null;
@@ -961,7 +1099,7 @@ export const judgesPage: PageDef<JudgesModel> = {
         onSite: "The same check runs on this site today, for any job.",
         usage: {
           count: provenOrders === null ? null : formatInt(provenOrders),
-          what: "orders settled against a registry receipt, among the newest 40",
+          what: `${countNoun(provenOrders, "order", "orders")} settled against a registry receipt, among the newest 40`,
           reason: provenOrders === null ? ordersReason : null,
         },
         proofs: [
@@ -977,43 +1115,51 @@ export const judgesPage: PageDef<JudgesModel> = {
         primitive: "Work records",
         where: `${IMD_API_BASE}/work-records/<hash>.json`,
         whereUrl: IMD_LINK.workRecord(hashNo0x(REFERENCE_JOB.receipt)),
-        use: "The bytes a settlement submits. WorkProof walks them on chain for the job id, the kind, the objective (which must begin with the order's header), the final state and the agents that worked.",
+        use: "The bytes a settlement submits. WorkProof walks them on chain for the job id, the kind, the objective (which must begin with the 85-byte order header), the final state and the agents the record names.",
         status: "live",
         uses: ["workProof"],
         onSite: "Fetched, hashed and read on this site today.",
         usage: {
-          count: book ? formatInt(book.orders.filter((o) => o.state === "Delivered").length) : null,
-          what: "orders delivered, among the newest 40",
+          count: deliveredOrders === null ? null : formatInt(deliveredOrders),
+          what: `${countNoun(deliveredOrders, "order", "orders")} delivered, among the newest 40`,
           reason: book ? null : ordersReason,
         },
         proofs: [
           { label: "the reference record", url: IMD_LINK.workRecord(hashNo0x(REFERENCE_JOB.receipt)) },
           { label: "the header job's record", url: headerJobView.recordUrl },
         ],
-        proofNote: "Each hashes to the hash it is served under; the second carries our header.",
+        proofNote: "Each hashes to the hash it is served under; the second carries our 85-byte order header.",
         command: verifyCmds[1]?.command ?? null,
       }),
       row({
         primitive: "Paid swarm jobs (x402)",
         where: `POST ${IMD_API_BASE}/jobs, paid to ${MAINNET.FEE_PAYEE}`,
         whereUrl: etherscanAddress(MAINNET.FEE_PAYEE),
-        use: "A runner buys the job for each order with an x402 payment and puts the order's 85-byte header at the start of the objective. The Robot Jobs Report counts the payments that reach the fee address.",
+        use: "A runner buys the job for each order with an x402 payment and puts the 85-byte order header at the start of the objective. The Robot Jobs Report counts the payments that reach the fee address.",
         status: "live",
         uses: ["workOrders", "jobsReport"],
         onSite: "The tally of payments runs on this site today.",
         usage: {
-          count: tally ? formatInt(tally.housePayments) : null,
-          what: "payments to the fee address from house wallets and contracts, in the newest day of blocks",
-          reason: tally ? null : unread("The payment logs", payments.error),
+          count: formatInt(HOUSE_X402.payments.length),
+          what: `x402 payments for swarm jobs from house wallets (W1 ${HOUSE_X402.payments.filter((p) => p.payer === "W1").length}, H1 ${HOUSE_X402.payments.filter((p) => p.payer === "H1").length}), each one's transaction linked in this row: every IMD Transfer from W1 or H1 to the fee address in blocks ${formatInt(HOUSE_X402.fromBlock)} to ${formatInt(HOUSE_X402.toBlock)}, less the four oracle requests W1 bought through the legacy Intake (three attested, one not)`,
+          reason: null,
+          countedOn: HISTORY_READ_ON,
         },
         proofs: [
           { label: `the header job ${HEADER_JOB.jobId.slice(0, 8)}`, url: headerJobView.jobUrl },
+          ...HOUSE_X402.payments.map((p) => ({
+            label: `x402, ${p.payer}: ${p.job}`,
+            url: etherscanTx(p.tx.hash),
+          })),
           { label: "the tally", url: "/jobs-report" },
         ],
-        proofNote:
+        proofNote: `${
           receiptOnChain === true
-            ? "One real job carried the header into its work record, and its receipt is on chain."
-            : "One real job carried the header into its work record. Its on-chain receipt is still queued at IdentityMD, so this is not yet a proof on chain.",
+            ? "One real job carried the 85-byte order header into its work record, and its receipt is on chain."
+            : receiptOnChain === false
+              ? "One real job carried the 85-byte order header into its work record. Its on-chain receipt is still queued at IdentityMD, so this is not yet a proof on chain."
+              : "One real job carried the 85-byte order header into its work record. The WorkRegistry could not be read for this page, so nothing is said here about its receipt."
+        }${tally ? ` In the newest day of blocks the tally counts ${plural(tally.housePayments, "payment")} to the fee address from house wallets and contracts, oracle requests included.` : ""}`,
         command: headerJobView.commands[1]?.command ?? null,
       }),
       row({
@@ -1026,8 +1172,10 @@ export const judgesPage: PageDef<JudgesModel> = {
         onSite: "Two audit jobs were bought, from house wallet W1.",
         usage: {
           count: formatInt(AUDITS.reduce((sum, a) => sum + a.findings.length, 0)),
-          what: "findings reported across the two jobs",
+          what: "findings reported across the two jobs, as launches/a-payroll/docs/AUDITS.md lists them",
           reason: null,
+          // Two reports judged that day; the count is kept with this site, not read for the page.
+          countedOn: "13 October 2026",
         },
         proofs: auditLinks,
         proofNote: `Both read commit ${AUDITED_COMMIT.slice(0, 7)}. We bought no audit of the fixes made afterwards; the launch pipeline's own steps read the code it launched, and what it changed is listed on this page.`,
@@ -1043,11 +1191,11 @@ export const judgesPage: PageDef<JudgesModel> = {
         onSite: "This site lists the requests it has taken.",
         usage: {
           count: !questionsLaunched || boughtByOurs === null ? null : formatInt(boughtByOurs),
-          what: "Intake requests bought by our contracts, among those listed",
+          what: `${countNoun(boughtByOurs, "Intake request", "Intake requests")} bought by our Questions contract, all time: the sum of its own round counters (feedState.rounds), one request for each round`,
           reason: !questionsLaunched
             ? notYet("questions")
             : boughtByOurs === null
-              ? unread("The Intake's logs", intake.error)
+              ? unread("Questions", feeds.live ? feeds.error : null)
               : null,
         },
         proofs: [{ label: "the requests this site lists", url: "/questions" }],
@@ -1066,8 +1214,9 @@ export const judgesPage: PageDef<JudgesModel> = {
         onSite: "Its requests are listed on this site beside version 2's.",
         usage: {
           count: formatInt(HOUSE_FEED_NAMES.length + 1),
-          what: "requests bought through it by house wallet W1 for the house feeds (three attested, one first attempt not attested)",
+          what: "requests bought through it by house wallet W1 for the house feeds (three attested, one first attempt not attested), from the same Transfer logs as the x402 row",
           reason: null,
+          countedOn: HISTORY_READ_ON,
         },
         proofs: [
           ...feedRows.map((r) => ({ label: `${r.feed}: the purchase`, url: r.requestTxUrl })),
@@ -1086,7 +1235,7 @@ export const judgesPage: PageDef<JudgesModel> = {
         onSite: null,
         usage: {
           count: answeredFeeds === null ? null : formatInt(answeredFeeds),
-          what: "feeds holding an answer whose attestation our contract checked",
+          what: `${countNoun(answeredFeeds, "feed holding", "feeds holding")} an answer whose attestation our contract checked`,
           reason:
             answeredFeeds !== null
               ? null
@@ -1114,7 +1263,7 @@ export const judgesPage: PageDef<JudgesModel> = {
         onSite: "Transfers of it to the fee address are counted on this site today.",
         usage: {
           count: book ? formatInt(book.count) : null,
-          what: "orders opened with IMD in escrow",
+          what: `${countNoun(book ? book.count : null, "order", "orders")} opened with IMD in escrow`,
           reason: book ? null : ordersReason,
         },
         proofs: [{ label: "IMD on Etherscan", url: etherscanAddress(MAINNET.IMD) }],
@@ -1223,12 +1372,15 @@ export const judgesPage: PageDef<JudgesModel> = {
           ...(deskPipeline
             ? [{ label: `launch B's job ${LAUNCH_B_JOB.jobId.slice(0, 8)}`, url: deskPipeline.jobUrl }]
             : []),
+          ...(launchCPipeline
+            ? [{ label: `launch C's job ${LAUNCH_C_JOB.jobId.slice(0, 8)}`, url: launchCPipeline.jobUrl }]
+            : []),
           ...launchesRecorded.map((key) => ({
             label: `launch ${key}'s transaction`,
             url: etherscanTx(deployments.launches[key].txHash as string),
           })),
         ],
-        proofNote: `Launch A's job: ${pipeline.words}${deskPipeline ? ` Launch B's job: ${deskPipeline.words}` : ""}${launchRecorded(deployments, "B") ? ` What the pipeline's audits found in launch B, and that no contract code was changed for it, is in ${DESK_ADAPTATION.document}.` : ""}`,
+        proofNote: `Launch A's job: ${pipeline.words}${deskPipeline ? ` Launch B's job: ${deskPipeline.words}` : ""}${launchCPipeline ? ` Launch C's job: ${launchCPipeline.words}` : ""}${launchRecorded(deployments, "B") ? ` Every finding the pipeline's audits recorded in launch B is in ${deskRecord.document}; the answers, and that no contract code was changed for any of them, are in ${DESK_ADAPTATION.document}.` : ""}${launchRecorded(deployments, "C") && launchCPr ? ` For launch C, IdentityMD's record of the job holds ${launchCPr.count} findings (6 low, 7 info, none marked blocking); ${LAUNCH_C_ADAPTATION} answers the 3 from the audit the pipeline imported and says no source file was changed.${launchCPr.document ? ` ${launchCPr.document} lists all ${launchCPr.count}, each with what became of it.` : ""}` : ""}`,
         command: pipeline.command,
       },
       row({
@@ -1249,7 +1401,9 @@ export const judgesPage: PageDef<JudgesModel> = {
         },
         proofs: [],
         proofNote:
-          "None yet. Zap is exercised against the live pool only on a fork of mainnet, in launch C's tests.",
+          deployments.contracts.zap.address === null
+            ? "None yet. Zap is exercised against the live pool only on a fork of mainnet, in launch C's tests."
+            : `None on mainnet when last read: Zap's logs from its launch block to block 26,199,087, read on ${HISTORY_READ_ON} at 16:23 UTC, held no event. Launch C's tests exercise it against the live pool on a fork of mainnet.`,
         command: null,
       }),
     ];
@@ -1457,6 +1611,40 @@ export const judgesPage: PageDef<JudgesModel> = {
         }
       }
     }
+    // Launch C: the endowments and the standing rules, from the contracts' own counters.
+    if (endowmentsRead.live) {
+      const endowmentBook = endowmentsRead.data;
+      if (!endowmentBook) notRead.push("the endowments");
+      else if (endowmentBook.count === 0) notHappened.push("no endowment has been created");
+      else {
+        const address = deployments.contracts.endowments.address;
+        const creators = endowmentBook.endowments.map((e) => endowmentCreator(e, address));
+        const known = creators.filter((c): c is string => c !== null);
+        const others = known.filter((c) => !ours.has(c)).length;
+        if (others > 0)
+          byOthers.push(`${formatInt(others)} of the ${plural(known.length, "endowment")} read`);
+        else if (known.length > 0)
+          byUsOnly.push(
+            known.length === 1
+              ? `the one endowment read was created by ${houseLabel(known[0] ?? null) ? `our own wallet ${houseLabel(known[0] ?? null)}` : "one of our own contracts"}`
+              : `the ${formatInt(known.length)} endowments read were all created by our own wallets`,
+          );
+        if (known.length < endowmentBook.count) notRead.push("who created the other endowments");
+      }
+    }
+    if (rulesRead.live) {
+      if (!rulesRead.data) notRead.push("the standing rules");
+      else if (rulesRead.data.count === 0) notHappened.push("no standing rule has been created");
+      else {
+        const others = rulesRead.data.rules.filter((r) => !ours.has(r.creator.toLowerCase())).length;
+        if (others > 0)
+          byOthers.push(`${formatInt(others)} of the newest ${plural(rulesRead.data.rules.length, "rule")}`);
+        else
+          byUsOnly.push(
+            `the ${plural(rulesRead.data.rules.length, "standing rule")} read ${rulesRead.data.rules.length === 1 ? "was" : "were all"} created by our own wallets`,
+          );
+      }
+    }
     // Said only while nothing read was done by anyone else, and only of what was read.
     if (byOthers.length === 0 && byUsOnly.length + notHappened.length > 0) {
       notLive.push(
@@ -1480,9 +1668,13 @@ export const judgesPage: PageDef<JudgesModel> = {
         "Whether IdentityMD's receipts are arriving could not be read just now: the WorkRegistry's log did not answer.",
       );
     }
-    if (receiptOnChain !== true) {
+    if (receiptOnChain === false) {
       notLive.push(
-        "The header job's receipt is not on chain. Its record carries our header; the WorkRegistry does not hold its hash yet.",
+        "The header job's receipt is not on chain. Its record carries our 85-byte order header; the WorkRegistry does not hold its hash yet.",
+      );
+    } else if (receiptOnChain === null) {
+      notLive.push(
+        "Whether the header job's receipt is on chain could not be read just now: the WorkRegistry did not answer, so nothing is said here about it.",
       );
     }
     const notLaunchedKeys = launches.filter((launch) => !launch.launched).map((launch) => launch.key);
@@ -1491,22 +1683,190 @@ export const judgesPage: PageDef<JudgesModel> = {
         "The pages for contracts that are not launched are complete as pages and show the exact transactions and the cast commands, but their buttons stay disabled until the contract has an address in the deployments book, and until that address answers as the contract.",
         notLaunchedKeys.length === LAUNCH_KEYS.length
           ? "This site's reads of our own contracts have run only against stand-ins in its tests, because no contract of ours exists to read."
-          : `This site's reads of the contracts that are not launched (${notLaunchedKeys.map((key) => `launch ${key}`).join(", ")}) have run only against stand-ins in its tests, because those contracts do not exist to read.`,
+          : `This site's reads of the contracts that are not in its deployments book (${notLaunchedKeys.map((key) => `launch ${key}`).join(", ")}) have run only against stand-ins in its tests: it has no address to read them at.`,
       );
     }
     notLive.push(
       deskLaunched
-        ? "The keeper, the runner and the indexer are in the repository (bots/keeper, bots/runner, apps/indexer). The indexer folds launch A's events into tables; for the hire desk, the crowd pots and the Doorbell it stores the raw logs and its handlers are still stubs, so it holds no table of orders, claims or pots. This site does not read from the indexer; it reads the chain and IdentityMD's API directly, so an order's or a pot's job text is shown only while its opening log is within about a day, and there is no history of rings."
+        ? `The keeper, the runner and the indexer are in the repository (bots/keeper, bots/runner, apps/indexer). ${RUNNER_STATEMENT.short} The indexer folds launch A's events into tables; ${launchIsLive(deployments, "C") ? "for the hire desk, the crowd pots, the Doorbell and launch C's three contracts it stores the raw logs and its handlers are still stubs, so it holds no table of orders, claims, pots, rules or endowments" : "for the hire desk, the crowd pots and the Doorbell it stores the raw logs and its handlers are still stubs, so it holds no table of orders, claims or pots"}. This site does not read from the indexer; it reads the chain and IdentityMD's API directly, so an order's or a pot's job text is shown only while its opening log is within about a day, or where this site keeps the history itself (config/history.ts holds order 1's), and there is no history of rings.`
         : questionsLaunched
           ? "The keeper, the runner and the indexer are in the repository (bots/keeper, bots/runner, apps/indexer). Since launch A the keeper has feeds to keep; the runner has no desk to take orders from. This site does not read from the indexer; it reads the chain and IdentityMD's API directly."
           : "The keeper, the runner and the indexer are in the repository (bots/keeper, bots/runner, apps/indexer). None has anything to act on yet: there is no feed to keep and no desk to take orders from. This site does not read from the indexer; it reads the chain and IdentityMD's API directly.",
       "Wallet buttons have not been exercised with a real wallet: the transactions they build are encoded with the same ABIs the contracts are built from, and each is shown as a cast command, but no transaction has been signed through this site.",
       `We bought no audit after the two of launch A: the fixes made afterwards and the two waits changed have not been audited again by a job of ours. The code on chain is what IdentityMD's launch pipeline made of it, after that pipeline's own audit, adaptation and review steps. ${
         launchRecorded(deployments, "B")
-          ? `Launch B was audited by that pipeline before it was deployed, and by nobody else: we bought no audit of it (${DESK_ADAPTATION.document} has what was found). Launch C has not been audited by a third party.`
+          ? `Launch B was audited by that pipeline before it was deployed, and by nobody outside IdentityMD's network: we bought no audit of it (${deskRecord.document} lists every finding on IdentityMD's record of the job; ${DESK_ADAPTATION.document} has the answers). ${
+              launchRecorded(deployments, "C")
+                ? `Launch C was audited by that pipeline too, before it was launched${deployments.launches.C.launchNumber !== null ? ` as IdentityMD launch ${deployments.launches.C.launchNumber}` : ""}, and by no one outside it: we bought no audit of it${launchCIsMainnets ? `, and IdentityMD records no outside audit of it (GET ${IMD_API_BASE}/launches/${LAUNCH_C_ON_CHAIN.launchId}/assurances answered a count of ${LAUNCH_C_ON_CHAIN.outsideAudits.count} on ${LAUNCH_C_ON_CHAIN.outsideAudits.read})` : ""}. What the pipeline did with it is in ${LAUNCH_C_ADAPTATION}: no source file was changed.${launchCPr ? ` IdentityMD's pull request for the launch says: "${launchCPr.reviewer.split(/(?<=\.)\s/)[0]}" Its record of the job (${launchCPr.record}) holds those ${launchCPr.count}, none marked blocking. The 3 raised by the audit the pipeline imported are answered in ${LAUNCH_C_ADAPTATION}; no node of the job answered the other 10.${launchCPr.document ? ` ${launchCPr.document} lists all ${launchCPr.count}, each with what became of it.` : ""}` : ""}`
+                : "Launch C has not been audited by a third party."
+            }`
           : "Launches B and C have not been audited by a third party."
       }`,
     );
+
+    // ---- Live on mainnet: the transactions, kept in config/history.ts where the RPC no longer serves them. ----
+    const liveTx = (label: string, what: string, tx: PinnedTx): LiveTx => ({
+      label,
+      what,
+      at: tx.at,
+      block: tx.block,
+      tx: tx.hash,
+      txUrl: etherscanTx(tx.hash),
+    });
+    const groups: NonNullable<JudgesModel["live"]>["groups"] = [];
+    const launchRows: LiveTx[] = launchesRecorded
+      .filter((key) => launchIsLive(deployments, key))
+      .map((key) => {
+        const launch = deployments.launches[key];
+        return {
+          label: `Launch ${key}${launch.launchNumber !== null ? `, IdentityMD launch ${launch.launchNumber}` : ""}`,
+          what: `IdentityMD's ProjectFactory created ${launch.contracts.map((c) => deployments.contracts[c].name).join(", ")} in one transaction.`,
+          at: null,
+          block: launch.block,
+          tx: launch.txHash as string,
+          txUrl: etherscanTx(launch.txHash as string),
+        };
+      });
+    if (launchRows.length > 0) groups.push({ title: "The launches", rows: launchRows });
+    const rounds = pinnedRounds(deployments.contracts.questions.address);
+    if (rounds.length > 0) {
+      groups.push({
+        title: "The house feeds' first rounds: three Intake requests, three answers",
+        rows: rounds.flatMap((r) => [
+          liveTx(
+            `${r.feed}, round ${r.round} opened`,
+            `request(feedId) bought the question from the Intake, version 2, paying ${formatImd(r.opened.priceWei)} IMD and setting aside a ${formatImd(r.opened.tipWei)} IMD keeper tip from the feed's meter. Sent by house wallet ${houseLabel(r.opened.from) ?? r.opened.from}.`,
+            r.opened,
+          ),
+          liveTx(
+            `${r.feed}, round ${r.round} answered`,
+            r.answered.byCallback
+              ? `Delivered by the Intake's callback: IdentityMD's Intake writer sent the transaction and the Intake called Questions back, which checked the oracle's signature (${r.answered.agreed} of 7 agreed) and stored the answer.`
+              : `Handed in with submit by house wallet ${houseLabel(r.answered.from) ?? r.answered.from}; Questions checked the oracle's signature (${r.answered.agreed} of 7 agreed) and stored the answer.`,
+            r.answered,
+          ),
+        ]),
+      });
+    }
+    const firstPrint = pinnedPrint(deployments.contracts.jobsReport.address, 0);
+    if (firstPrint) {
+      groups.push({
+        title: "The first Robot Jobs Report",
+        rows: [
+          liveTx(
+            "Print no. 1",
+            "print() copied the two answered rounds into JobsReport: 112 IMD paid to the swarm in blocks 26,176,608 to 26,183,607, and 223 payments in blocks 26,176,610 to 26,183,609.",
+            firstPrint.tx,
+          ),
+        ],
+      });
+    }
+    if (firstOrder) {
+      groups.push({
+        title: `Order ${firstOrder.id}: opened by a contract, paid on proof`,
+        rows: [
+          ...firstOrder.trail.map((step) => liveTx(step.label, step.what, step.tx)),
+          ...firstOrder.tipClaims.map((claim) =>
+            liveTx(
+              "Tip claimed",
+              `${houseLabel(claim.tx.from) ? `House wallet ${houseLabel(claim.tx.from)}` : claim.tx.from} called Payroll.claimTip(${claim.agentId}). Payroll paid the ${formatImd(claim.amountWei)} IMD tip credited for agent ${claim.agentId}, the agent IdentityMD's work record names, to the owner of seat #${claim.tokenId}, ${claim.paidTo}. ${claim.paidToHasCode ? `That owner's address had code (eth_getCode, read on ${HISTORY_READ_ON}), so only the owner could send the call.` : `That owner's address had no code (eth_getCode, read on ${HISTORY_READ_ON}), so anyone could send the call; had it held code, only the owner could have sent it.`}`,
+              claim.tx,
+            ),
+          ),
+        ],
+      });
+    }
+    const drill = pinnedEndowment(deployments.contracts.endowments.address, 1);
+    if (drill) {
+      groups.push({
+        title: `Endowment ${drill.id}: ${drill.purpose}`,
+        rows: drill.trail.map((step) =>
+          liveTx(
+            step.label,
+            `${step.what} Sent by house wallet ${houseLabel(step.tx.from) ?? step.tx.from}.`,
+            step.tx,
+          ),
+        ),
+      });
+    }
+    const workProofAddress = deployments.contracts.workProof.address;
+    const live: JudgesModel["live"] =
+      groups.length === 0
+        ? null
+        : {
+            intro: `The main transactions behind what is live, oldest first in each group. The public RPC serves logs for about a day, so the hashes of older ones were read from the chain on ${HISTORY_READ_ON} and are kept with this site (config/history.ts); every state a page states, it reads live. All of it was sent by the team's own wallets, by IdentityMD's services, or by our own contracts.`,
+            groups,
+            prove:
+              firstOrder && workProofAddress
+                ? {
+                    commands: [
+                      {
+                        comment: `Order ${firstOrder.id}'s work record, exactly as IdentityMD serves it`,
+                        command: `curl -s ${IMD_LINK.workRecord(hashNo0x(firstOrder.prove.recordHash))} -o record.json`,
+                      },
+                      {
+                        comment: "Ask the launched WorkProof; it reads WorkRegistry.latest itself",
+                        command: castView(workProofAddress, "WORK_PROOF", workProofAbi, "prove", [
+                          jobIdToBytes16(firstOrder.jobId),
+                          `"0x$(xxd -p record.json | tr -d '\\n')"`,
+                          "85",
+                        ]),
+                      },
+                    ],
+                    answer: `(${[firstOrder.prove.recordHash, firstOrder.prove.kindHash, firstOrder.prove.headHash, firstOrder.prove.specHash, firstOrder.prove.stateHash].join(", ")}, [${firstOrder.prove.agentIds.join(", ")}])`,
+                    note: `What it answered on ${firstOrder.prove.read}: the record's hash (the receipt), then the hashes of its kind, its 85-byte order header, its job text and its state, then the agent the record names. Change one byte of the record and it reverts. The order page calls it live: /orders/${firstOrder.id}.`,
+                  }
+                : null,
+          };
+
+    // ---- What the explorers show for each launched contract's source. ----
+    const verification: JudgesModel["verification"] = {
+      checked: VERIFIED_SOURCE.checked,
+      rows: allContracts(deployments)
+        .filter((c) => c.address !== null)
+        .map((c) => {
+          const seen = VERIFIED_SOURCE.contracts.find(
+            (v) => v.address.toLowerCase() === (c.address as string).toLowerCase(),
+          );
+          return {
+            name: c.name,
+            address: c.address as string,
+            url: `${etherscanAddress(c.address as string)}#code`,
+            etherscan: seen?.etherscan ?? null,
+            sourcify: seen?.sourcify ?? null,
+            words: seen
+              ? `Etherscan: Source Code Verified (${seen.etherscan}), compiler ${VERIFIED_SOURCE.compiler}. Sourcify: ${seen.sourcify}. Checked ${VERIFIED_SOURCE.checked}.`
+              : "Not checked at this address.",
+          };
+        }),
+    };
+
+    // ---- Read in 30 seconds. Each line follows what this page read or keeps. ----
+    const launchedNumbers = LAUNCH_KEYS.filter((key) => launchRecorded(deployments, key))
+      .map((key) => deployments.launches[key].launchNumber)
+      .filter((n): n is number => n !== null);
+    const allVerified =
+      verification.rows.length > 0 && verification.rows.every((r) => r.etherscan === "Exact Match");
+    const outsideRunners = book
+      ? book.orders.filter((o) => o.claim !== null && !ours.has(o.claim.runner)).length
+      : null;
+    const thirtySeconds = [
+      `What it is: a job board on which a contract can be the employer. The escrow ${PAYS_WHEN}; otherwise it refunds.`,
+      firstOrder
+        ? `What happened: on 13 Oct 2026 the Doorbell, a contract with no owner, opened order ${firstOrder.id}; on 14 Oct the desk paid the runner on the job's WorkRegistry receipt. The ringer, the runner and the IMD were the team's own (HOUSE).`
+        : "What happened: see what is live below, launch by launch.",
+      firstOrder
+        ? `How to check: WorkProof.prove(${jobIdToBytes16(firstOrder.jobId)}, record, 85) answers with the record's hash and agent [${firstOrder.prove.agentIds.join(", ")}]; or check job ${firstOrder.jobId} in your browser at /verify/${firstOrder.jobId}.`
+        : `How to check: /verify/${REFERENCE_JOB.jobId} hashes a real job's work record and holds it against its WorkRegistry receipt, in your browser.`,
+      `What is live: ${deployments.launchedCount} of ${Object.keys(deployments.contracts).length} contracts in this site's deployments book${launchedNumbers.length > 0 ? `, from IdentityMD ${launchedNumbers.length === 1 ? "launch" : "launches"} ${listWords(launchedNumbers.map(String))}` : ""}${allVerified ? `, each with source verified on Etherscan (Exact Match, checked ${VERIFIED_SOURCE.checked})` : ""}.`,
+      `What is not: ${
+        byOthers.length === 0 && byUsOnly.length + notHappened.length > 0
+          ? "nobody outside the team has used the contracts in what this page read"
+          : byOthers.length > 0
+            ? `outside use was found: ${byOthers.join("; ")}`
+            : "who has used the contracts could not be read for this page"
+      }${outsideRunners === 0 && book && book.orders.some((o) => o.claim !== null) ? "; the team's runner has taken every order so far" : ""}.`,
+    ];
 
     const documents = (["A", "B", "C"] as const).map((launch) => ({
       launch,
@@ -1523,6 +1883,13 @@ export const judgesPage: PageDef<JudgesModel> = {
 
     return {
       generatedAt: now.toISOString(),
+      live,
+      thirtySeconds,
+      verification,
+      unused: UNUSED_FEATURES.map((u) => ({ ...u })),
+      // Each launch's pull request is shown once the book records that launch.
+      pipelinePrs: LAUNCH_PRS.filter((pr) => launchRecorded(deployments, pr.launch)).map((pr) => ({ ...pr })),
+      launchCPipeline,
       summary: summaryFor(deployments),
       summaryWords: summaryFor(deployments).split(/\s+/).length,
       launchedCount: deployments.launchedCount,
@@ -1573,14 +1940,18 @@ export const judgesPage: PageDef<JudgesModel> = {
             pipeline.read
               ? `Read for this page: ${formatInt(pipeline.read.steps.filter((step) => LAUNCH_ADAPTATION.reviewedAfter.steps.includes(step.key) && step.state === "accepted").length)} of those ${LAUNCH_ADAPTATION.reviewedAfter.steps.length} are accepted.`
               : 'The record could not be read for this page; the command under "Where the launches stand" reads it.'
-          } This site has no report of theirs to link, and says nothing of what they found.`,
+          }${
+            launchAPr
+              ? ` What they found is on IdentityMD's record of the job's submissions (${launchAPr.record}): audit_math and audit_economics reported 1 finding each, audit_judge merged those two into its own two, and audit_flow and audit_permissions reported none. None was marked blocking. The last section of ${launchAPr.document} lists them with what became of each.`
+              : ""
+          }`,
           document: LAUNCH_ADAPTATION.document,
           findings: LAUNCH_ADAPTATION.findings.map((f) => ({ ...f })),
         },
         desk: !launchRecorded(deployments, "B")
           ? null
           : {
-              intro: `IdentityMD's launch pipeline read launch B before it deployed it${deployments.launches.B.launchNumber !== null ? ` as launch ${deployments.launches.B.launchNumber}` : ""}, and ${DESK_ADAPTATION.document} records what it found. The audit it imported reported ${DESK_ADAPTATION.findings.filter((f) => f.raisedBy === "the audit the pipeline imported").length} entries, all at level info. An independent reviewer then reopened the accepted work with ${plural(deskMedium, "medium finding")} and ${DESK_ADAPTATION.findings.filter((f) => f.raisedBy === "the independent review" && f.severity === "info").length} info notes. Each was reproduced against the code. No contract code was changed for any of them. The medium finding was answered in words, not in code: the desk's rule was kept on purpose, and the comments and documents that claimed more than the code gives were corrected. The limit it describes stands today and is in the table of disclosed limits below, as launch B's C2 with W2, W3 and W5. We bought no audit of launch B ourselves. The pipeline's own public record of the job, with the state of each of its audit steps, is read for this page under "Where the launches stand"; what those steps found is in that document.`,
+              intro: `IdentityMD's launch pipeline read launch B before it deployed it${deployments.launches.B.launchNumber !== null ? ` as launch ${deployments.launches.B.launchNumber}` : ""}, and ${DESK_ADAPTATION.document} records what it found. The audit it imported reported ${DESK_ADAPTATION.findings.filter((f) => f.raisedBy === "the audit the pipeline imported").length} entries, all at level info. The pipeline's judge, its independent reviewer, then reopened the accepted work: its first round, a submission that was not accepted, raised ${plural(deskMedium, "medium finding")} and ${DESK_ADAPTATION.findings.filter((f) => f.raisedBy === "the independent review" && f.severity === "info").length} info notes, and its last round, the accepted one, restates the same ${DESK_ADAPTATION.findings.filter((f) => f.raisedBy === "the independent review").length}, all graded info. The grades below are ADAPTATION.md's, which follow the first round. Each was reproduced against the code. No contract code was changed for any of them. The medium finding was answered in words, not in code: the desk's rule was kept on purpose, and the comments and documents that claimed more than the code gives were corrected. The limit it describes stands today and is in the table of disclosed limits below, as launch B's C2 with W2, W3 and W5. We bought no audit of launch B ourselves. The pipeline's own public record of the job, with the state of each of its audit steps, is read for this page under "Where the launches stand". Its accepted submissions (${deskRecord.record}) hold ${deskRecord.count} findings, the number its pull request gives: these ${DESK_ADAPTATION.findings.length} (the imported ${DESK_ADAPTATION.findings.filter((f) => f.raisedBy === "the audit the pipeline imported").length} and the judge's last ${DESK_ADAPTATION.findings.filter((f) => f.raisedBy === "the independent review").length}), and ${deskRecord.merged} more from the economics, flow and permissions steps that the judge merged into its three. The ${deskRecord.notAccepted} of the judge's first round are on the record too and are not counted in the ${deskRecord.count}. ${deskRecord.document} lists all ${deskRecord.count}, each with the answer that covers it.`,
               document: DESK_ADAPTATION.document,
               documentUrl: PUBLIC_SOURCE.B
                 ? `${PUBLIC_SOURCE.B.repository}/blob/${PUBLIC_SOURCE.B.branch}/ADAPTATION.md`
@@ -1603,7 +1974,7 @@ export const judgesPage: PageDef<JudgesModel> = {
           ? [
               {
                 title: "Ask the launched WorkProof",
-                note: "The same claim through our own contract on mainnet: called with the reference job's record as served, prove answers with the record's hash first and the agent that did the work last, and reverts for any other bytes. It is a call, not a transaction: it sends nothing and costs nothing.",
+                note: "The same claim through our own contract on mainnet: called with the reference job's record as served, prove answers with the record's hash first and the agent the record names last, and reverts for any other bytes. It is a call, not a transaction: it sends nothing and costs nothing.",
                 commands: [
                   `# The record, exactly as IdentityMD serves it\ncurl -s ${IMD_LINK.workRecord(hashNo0x(REFERENCE_JOB.receipt))} -o record.json`,
                   `# Prints the record's hash first, ${REFERENCE_JOB.receipt}, and the agent last, [52211]\n${castView(deployments.contracts.workProof.address, "WORK_PROOF", workProofAbi, "prove", [REFERENCE_JOB.jobIdBytes16, `"0x$(xxd -p record.json | tr -d '\\n')"`, "0"])}`,
@@ -1622,7 +1993,12 @@ export const judgesPage: PageDef<JudgesModel> = {
           : []),
         {
           title: "Check the header job",
-          note: "The first two need no chain. The third is the one that still reads zero.",
+          note:
+            receiptOnChain === true
+              ? "The first two need no chain. The third reads the receipt IdentityMD wrote for the job."
+              : receiptOnChain === false
+                ? "The first two need no chain. The third reads the receipt, which held no hash of this record when this page was made."
+                : "The first two need no chain. The third reads the receipt, which could not be read for this page.",
           commands: headerJobView.commands.map((c) => `# ${c.comment}\n${c.command}`).join("\n\n"),
         },
         {
@@ -1774,6 +2150,36 @@ export const judgesPage: PageDef<JudgesModel> = {
   markdown(m) {
     const h = m.headerJob;
     return doc(
+      "## Read in 30 seconds",
+      bullets(m.thirtySeconds),
+      m.live
+        ? doc(
+            "## Live on mainnet",
+            m.live.intro,
+            ...m.live.groups.map((g) =>
+              doc(
+                `### ${g.title}`,
+                table(
+                  ["Step", "When (UTC)", "Transaction", "What it did"],
+                  g.rows.map((r) => [
+                    r.label,
+                    r.at ? formatUtc(r.at) : r.block !== null ? `block ${formatInt(r.block)}` : "",
+                    link(r.tx, r.txUrl),
+                    r.what,
+                  ]),
+                ),
+              ).trimEnd(),
+            ),
+            m.live.prove
+              ? doc(
+                  "### The proof, in one call",
+                  fence(m.live.prove.commands.map((c) => `# ${c.comment}\n${c.command}`).join("\n\n"), "sh"),
+                  `It answers:\n\n${fence(m.live.prove.answer)}`,
+                  m.live.prove.note,
+                ).trimEnd()
+              : null,
+          ).trimEnd()
+        : null,
       "## What this is",
       m.summary,
       "## Where the launches stand",
@@ -1787,12 +2193,31 @@ export const judgesPage: PageDef<JudgesModel> = {
       m.deskPipeline
         ? `Launch B's job: ${link(m.deskPipeline.jobId, m.deskPipeline.jobUrl)}. ${m.deskPipeline.words}`
         : null,
-      fence([m.pipeline.command, ...(m.deskPipeline ? [m.deskPipeline.command] : [])].join("\n"), "sh"),
+      m.launchCPipeline
+        ? `Launch C's job: ${link(m.launchCPipeline.jobId, m.launchCPipeline.jobUrl)}. ${m.launchCPipeline.words}`
+        : null,
+      fence(
+        [
+          m.pipeline.command,
+          ...(m.deskPipeline ? [m.deskPipeline.command] : []),
+          ...(m.launchCPipeline ? [m.launchCPipeline.command] : []),
+        ].join("\n"),
+        "sh",
+      ),
       m.switchOn,
       table(
         ["Launch", "Contract", "Address", "What it does"],
         m.contracts.map((c) => [c.launch, c.name, c.label, c.role]),
       ),
+      m.verification.rows.length > 0
+        ? doc(
+            `**Source on the explorers** (checked ${m.verification.checked}):`,
+            table(
+              ["Contract", "Etherscan", "Source"],
+              m.verification.rows.map((r) => [r.name, link(r.address, r.url), r.words]),
+            ),
+          ).trimEnd()
+        : null,
       "## Proven on the live system",
       "### 1. The live oracle answers the three house feed questions",
       m.feedProofs.intro,
@@ -1857,7 +2282,18 @@ export const judgesPage: PageDef<JudgesModel> = {
             `${m.audits.desk.corrected} The document: ${m.audits.desk.documentUrl ? link(m.audits.desk.document, m.audits.desk.documentUrl) : inline(m.audits.desk.document)}.`,
           ]
         : []),
-      "### 3. A real job that carried our order header into its work record",
+      ...(m.pipelinePrs.length > 0
+        ? [
+            "**What IdentityMD's launch pull requests say about review, and what our documents account for.**",
+            bullets(
+              m.pipelinePrs.map(
+                (pr) =>
+                  `Launch ${pr.launch} (${link(`IdentityMD launch ${pr.launchNumber}`, pr.url)}, merged ${formatUtc(pr.merged)}): "${pr.reviewer}" ${pr.accounted} ${link("IdentityMD's record of the findings", pr.record)}.${pr.document ? ` Every finding, with what became of it: ${inline(pr.document)}.` : ""}`,
+              ),
+            ),
+          ]
+        : []),
+      "### 3. A real job that carried our 85-byte order header into its work record",
       `Job ${link(h.jobId, h.jobUrl)} · ${link("its record", h.recordUrl)} · ${link("the API's record list", h.recordsUrl)}`,
       h.shown,
       h.notShown
@@ -1883,7 +2319,7 @@ export const judgesPage: PageDef<JudgesModel> = {
           r.primitive,
           r.where,
           r.use,
-          `${r.launchLabel}. ${r.statusWords} ${r.usage.count !== null ? `Counted now: ${r.usage.count} ${r.usage.what}.` : `Nothing to count: ${r.usage.reason}.`}`,
+          `${r.launchLabel}. ${r.statusWords} ${r.usage.count !== null ? `${countLabel(r.usage)}: ${r.usage.count} ${r.usage.what}.` : `Nothing to count: ${r.usage.reason}.`}`,
           [
             r.proofs.map((e) => link(e.label, e.url)).join(" · "),
             r.proofNote,
@@ -1908,6 +2344,8 @@ export const judgesPage: PageDef<JudgesModel> = {
       bullets(m.desk.status),
       "## What is not live yet",
       bullets(m.notLive),
+      "## Protocol features we do not use",
+      bullets(m.unused.map((u) => `**${u.feature}.** ${u.why} (${u.source})`)),
       "## What we do not claim",
       bullets(m.neverClaimed),
       "## House wallets",

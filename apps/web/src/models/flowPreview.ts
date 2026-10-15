@@ -75,13 +75,18 @@ export function previewFlow(
   };
 }
 
+/** The name that stands for a contract's address in the printed commands: "Endowments" → "$ENDOWMENTS". */
+export function addressVariable(contractName: string): string {
+  return `$${contractName.replace(/[A-Z]/g, (c, i) => (i ? `_${c}` : c)).toUpperCase()}`;
+}
+
 /** The Markdown rendering of a flow preview, shared by every page that has one. */
 export function flowMarkdown(preview: FlowPreview): string {
   return doc(
     `### ${preview.title}`,
     preview.ready
       ? `Sent to ${preview.contract.name} at ${preview.contract.address}.`
-      : `${preview.contract.name} is ${preview.contract.label}, so this cannot be sent yet. The commands below show exactly what will be sent; \`$${preview.contract.name.replace(/[A-Z]/g, (c, i) => (i ? `_${c}` : c)).toUpperCase()}\` stands for the address.`,
+      : `${preview.contract.name} is ${preview.contract.label}, so this cannot be sent yet. The commands below show exactly what will be sent; \`${addressVariable(preview.contract.name)}\` stands for the address.`,
     preview.summary.length > 0 ? numbered(preview.summary) : null,
     preview.problems.length > 0 ? preview.problems.map((p) => `- ${p}`).join("\n") : null,
     preview.reads.length > 0

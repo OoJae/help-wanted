@@ -15,7 +15,7 @@ import { formatImd, formatInt, formatUtc, formatUtcLongDay } from "~/lib/format"
 import { toJson } from "~/lib/http";
 import { SITE_NAME, SITE_TAGLINE } from "~/lib/twins";
 import { PAID_ACTION_PRICE } from "@help-wanted/shared";
-import { isLivePath, STATIC_PATHS, twinPaths } from "~/models/registry";
+import { isLivePath, LAUNCH_C_LINKS, STATIC_PATHS, twinPaths } from "~/models/registry";
 import type { SourceNote } from "~/models/types";
 
 interface Props {
@@ -43,8 +43,14 @@ const twins = twinPaths(path);
 // page carries no canonical link rather than one that points at whatever host the server guesses.
 const origin = env.siteOrigin;
 // A page moves out of "in press" by itself once its contract has an address in the deployments book.
+// Launch C's features are named apart, as coming, until its contracts have addresses there; once
+// they do, Endowments is a page of the main row, and Rules and Zap are parts of Say When and Pots.
+const launchC = deployments.launches.C.contracts;
 const live = STATIC_PATHS.filter((p) => isLivePath(p, deployments));
-const press = STATIC_PATHS.filter((p) => !isLivePath(p, deployments));
+const press = STATIC_PATHS.filter(
+  (p) => !isLivePath(p, deployments) && !(p.needs !== null && launchC.includes(p.needs)),
+);
+const coming = LAUNCH_C_LINKS.filter((l) => deployments.contracts[l.needs].address === null);
 const isCurrent = (p: string) => (p === "/" ? path === "/" : path === p || path.startsWith(`${p}/`));
 // The front page carries the full nameplate; every other page a running head.
 const front = path === "/";
@@ -182,6 +188,26 @@ const jsonLd = {
               {press.map((p) => (
                 <a href={p.path} aria-current={isCurrent(p.path) ? "page" : undefined}>
                   {p.label}
+                </a>
+              ))}
+            </div>
+          )}
+          {coming.length > 0 && (
+            <div class="nav__group nav__group--press">
+              <span
+                class="nav__tag"
+                title="Launch C: Rules, Endowments and Zap. Their pages are complete; this site switches them on once launch C's addresses are written into its deployments book."
+              >
+                Coming: launch C
+              </span>
+              {coming.map((l) => (
+                <a
+                  href={l.path}
+                  aria-current={
+                    isCurrent(l.path.split("#")[0] ?? l.path) && !l.path.includes("#") ? "page" : undefined
+                  }
+                >
+                  {l.label}
                 </a>
               ))}
             </div>

@@ -6,7 +6,7 @@
  * deployments book (or the environment). Launch A's three (Questions, JobsReport, Payroll) are
  * launched and fold their events. Launch B's three (WorkOrders, CrowdPots, Doorbell) are launched
  * too: their logs are stored from the launch block on, and their handlers are still stubs, as are
- * launch C's, which is not launched (see `own/stub.ts`).
+ * launch C's, launched on 15 October 2026 (see `own/stub.ts`).
  */
 import type { ContractModule } from "../engine/module.js";
 import { feeTransfersModule } from "./feeTransfers.js";

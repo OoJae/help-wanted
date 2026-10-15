@@ -62,10 +62,14 @@ export const DEPLOYMENT_BOOK: DeploymentBook = {
   },
   c: {
     project: "launches/c-company",
-    contracts: { rules: null, endowments: null, zap: null },
-    transaction: null,
-    block: null,
-    launchNumber: null,
+    contracts: {
+      rules: "0xcbf0dddf07c00a78e2e7561a6f47c275b8c05d7e",
+      endowments: "0xbe916a53b9bbe634af7e10e604e06b6069edee76",
+      zap: "0x51bf8c74bd9bd74ad08cabdc90dac7835c18b21a",
+    },
+    transaction: "0x1806c02e5e38d4c8496476b3f3cf39f250a9d0c97ff5834c75a0475a12bd62fb",
+    block: 26198165,
+    launchNumber: 1845,
   },
 };
 
