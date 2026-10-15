@@ -113,7 +113,7 @@ forge build --sizes
 forge test
 ```
 
-`forge test` runs 441 tests in 23 suites and needs no network. It skips the fork tests.
+`forge test` runs 447 tests in 26 suites and needs no network. It skips the fork tests.
 
 ```sh
 FOUNDRY_PROFILE=fork forge test
