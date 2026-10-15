@@ -1,0 +1,22 @@
+{
+  "_about": "The Uniswap v4 ETH/IMD pool that Zap swaps on, as read from Ethereum mainnet. The key and the id are fixed facts; the reading drifts and is recorded only to show the pool was live and liquid when this was written.",
+  "_source": "poolId = keccak256(abi.encode(key)); reading from StateView 0x7fFE42C4a5DEeA5b0feC41C94C136Cf115597227 getSlot0 / getLiquidity over https://ethereum-rpc.publicnode.com",
+  "poolManager": "0x000000000004444c5dc75cB358380D2e3dE08A90",
+  "stateView": "0x7fFE42C4a5DEeA5b0feC41C94C136Cf115597227",
+  "key": {
+    "currency0": "0x0000000000000000000000000000000000000000",
+    "currency1": "0xD34a99Bc0f67aE1bbd63C660e6d0b0dd03E263B7",
+    "fee": 10000,
+    "tickSpacing": 200,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "poolId": "0xb07d640fd9e2eb9dc81b953c8e4fd006bdfeaf276010fb5418eb763ca15abfb3",
+  "reading": {
+    "blockNumber": 26164416,
+    "sqrtPriceX96": "1423337957788082600002926950818",
+    "tick": 57771,
+    "protocolFee": 4097000,
+    "lpFee": 10000,
+    "liquidity": "8100505386730542213813"
+  }
+}
