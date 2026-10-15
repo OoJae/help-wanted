@@ -16,12 +16,12 @@ hires.
   `0x8C2FfCdcb103659aa05c772b8F2059868B496EB5` and the `Doorbell` at
   `0xFd5ab7E03E8554210Faa3cCd3b9D47C622fffcCb`. `src/` is the source that was deployed: built here
   with the manifest's arguments, each contract has the runtime code that is at its address.
-  IdentityMD's pipeline changed no contract code before deploying; `ADAPTATION.md` says what it
+  IdentityMD's pipeline changed no compiled code before deploying; `ADAPTATION.md` says what it
   checked and which comments and documents it corrected. `docs/LAUNCH.md` is the launch request
-  and the runbook, kept as they were written before the launch.
+  and the runbook, kept as written before the launch, apart from its status paragraph.
 - **The central claim holds through the launched `WorkProof`.** Called on mainnet with the served
   record of the real job `e9efec16-56f3-40d3-9243-52c453effc7d`, `prove` answers with the record's
-  hash and the agent that did the work (`docs/LAUNCH.md`, section 7, step 0, has the command).
+  hash and the agent the record names (`docs/LAUNCH.md`, section 7, step 0, has the command).
 - **`Payroll`, the one contract this launch pays and does not create, is live.** HELP WANTED's
   first launch put it on Ethereum mainnet on 13 October 2026, at
   `0x6e4362a5cEc59Eb3F611af6b2d81915CF5b45f1F`. That address is the desk's third constructor
@@ -35,25 +35,31 @@ hires.
   work record (transaction
   `0xa3f5b783fe194c35f348e411a10f0a199589ea89b668a16d1597794931217628`, block 26190223): the desk
   had `WorkProof` check the record against the live WorkRegistry, then paid the runner 0.9 IMD and
-  its bond, `Payroll` its 0.05 IMD fee and a 0.05 IMD tip for agent 51519, and called the Doorbell
-  back. The order is `Delivered` and marked proven. The ringer, the runner and the Doorbell's IMD
-  were all the team's own.
+  its bond, `Payroll` its 0.05 IMD fee and a 0.05 IMD tip, which `Payroll` credited to agent 51519,
+  the agent the record names, and called the Doorbell back. On 15 October `Payroll` paid that tip
+  to the owner of seat 1049, the seat the agent is bound to (`claimTip`, called by the team's
+  wallet W1). The order is `Delivered` and marked proven. The ringer, the runner and the
+  Doorbell's IMD were all the team's own.
 - **The earlier header job is proven too.** The research-report job bought with a header on 13
   October has its receipt since 14 October, and
   `FOUNDRY_PROFILE=fork forge test --match-test test_fork_headerJob -vv` proves it against the
   real registry.
-- **IdentityMD's receipts stalled from about 8 to 14 October 2026.** On 13 October the registry
-  had written no `WorkRecorded` event in the last 9,000 blocks; it wrote again on 14 October.
-  While receipts are late, only orders that allow the bonded-claim path can be paid, which is why
-  the Doorbell was launched with that path on (`docs/LAUNCH.md`, section 5; `docs/THREATS.md`,
-  D2).
-- **Audited by IdentityMD's launch pipeline, and by nobody else.** Before deploying, its audit
-  agents and an independent reviewer read this code and reported one medium and several info
-  findings. None changed a contract; each is answered in `ADAPTATION.md`, and the medium one (a
-  receipt-only pot can be ended in a refund with no bond forfeited) is now stated as a limit in
-  `docs/THREATS.md`, C2. That file lists every trust root and every known limit, and, in its
-  section 11, what was checked here after the pipeline changed our first launch.
-  `docs/DEVIATIONS.md` lists where we depart from IdentityMD's guidance.
+- **IdentityMD's receipts stalled from about 8 to 14 October 2026.** The registry wrote no
+  `WorkRecorded` event from about 8 October until 13 October, 17:26 UTC (block 26,185,055). It then
+  worked through its backlog, and the receipts of jobs bought on 13 October, order 1's among them,
+  landed on 14 October. While receipts are late, only orders that allow the bonded-claim path can
+  be paid, which is why the Doorbell was launched with that path on (`docs/LAUNCH.md`, section 5;
+  `docs/THREATS.md`, D2).
+- **Audited by IdentityMD's launch pipeline, and by nobody outside IdentityMD's network.** Before
+  deploying, its audit agents and an independent reviewer read this code and reported one medium
+  and several info findings. None changed the compiled code; each is answered in `ADAPTATION.md`,
+  and the medium one (a receipt-only pot can be ended in a refund with no bond forfeited) is now
+  stated as a limit in `docs/THREATS.md`, C2. Of the eleven findings on IdentityMD's record of the pipeline job,
+  `ADAPTATION.md` answers seven by name, and the other four through the judge's findings they were
+  merged into. `docs/AUDITS.md` lists all eleven, the answer that covers each, and the one file the
+  answers cite that the team never received. `docs/THREATS.md` lists every trust root and every
+  known limit, and, in its section 11, what was checked here after the pipeline changed our first
+  launch. `docs/DEVIATIONS.md` lists where we depart from IdentityMD's guidance.
 
 This is the second of three launches of HELP WANTED. It pays its fees into `Payroll` (the first
 launch) and needs nothing else from the other two.
@@ -122,12 +128,12 @@ A full build takes a few minutes because of `via_ir`.
 
 ## The contracts
 
-| Contract | File | Runtime bytes | Initcode bytes | Holds money |
-|---|---|---|---|---|
-| `WorkProof` | `src/proof/WorkProof.sol` | 4,579 | 4,712 | No |
-| `WorkOrders` | `src/desk/WorkOrders.sol` | 19,289 | 19,630 | Escrows and bonds of live orders |
-| `CrowdPots` | `src/pots/CrowdPots.sol` | 14,177 | 14,582 | Chips of pots that have not hired, and refunds not yet claimed |
-| `Doorbell` | `src/pots/Doorbell.sol` | 5,972 | 6,776 | What it was sent, until it hires |
+| Contract     | File                      | Runtime bytes | Initcode bytes | Holds money                                                    |
+| ------------ | ------------------------- | ------------- | -------------- | -------------------------------------------------------------- |
+| `WorkProof`  | `src/proof/WorkProof.sol` | 4,579         | 4,712          | No                                                             |
+| `WorkOrders` | `src/desk/WorkOrders.sol` | 19,289        | 19,630         | Escrows and bonds of live orders                               |
+| `CrowdPots`  | `src/pots/CrowdPots.sol`  | 14,177        | 14,582         | Chips of pots that have not hired, and refunds not yet claimed |
+| `Doorbell`   | `src/pots/Doorbell.sol`   | 5,972         | 6,776          | What it was sent, until it hires                               |
 
 The limits are 24,576 bytes of runtime code and 49,152 of initcode; our own gates are 23,000 and
 46,000, and a test fails above them.
@@ -184,35 +190,35 @@ is not in its table, a payable function, a `receive` or a fallback.
 
 It has no function that changes state. All three are open to anyone.
 
-| Function | What it does | Reverts when |
-|---|---|---|
-| `prove(jobId, record, headLen)` (view) | Returns the record's hash, the hashes of its `kind`, `state` and `objective` (the objective split at `headLen`) and the agents it names, if `record` is the receipt the registry holds for `jobId`. | `InsufficientGas`; `NoReceipt(jobId)`: the registry holds nothing usable; `HashMismatch(expected, got)`; `Malformed(pos)`, `MissingKey`, `WrongSchema`: not a canonical v1 work record; `JobIdMismatch`; `HeadTooLong`. |
-| `proveChunks(jobId, chunks, headLen)` (view) | The same for a record stored across data contracts, each holding `0x00` and a slice. | As `prove`; `BadChunk(index)`. |
-| `scan(record, headLen)` (pure) | Parses a record without asking the registry. Proves nothing. | `Malformed`, `MissingKey`, `WrongSchema`, `HeadTooLong`. |
+| Function                                     | What it does                                                                                                                                                                                        | Reverts when                                                                                                                                                                                                            |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `prove(jobId, record, headLen)` (view)       | Returns the record's hash, the hashes of its `kind`, `state` and `objective` (the objective split at `headLen`) and the agents it names, if `record` is the receipt the registry holds for `jobId`. | `InsufficientGas`; `NoReceipt(jobId)`: the registry holds nothing usable; `HashMismatch(expected, got)`; `Malformed(pos)`, `MissingKey`, `WrongSchema`: not a canonical v1 work record; `JobIdMismatch`; `HeadTooLong`. |
+| `proveChunks(jobId, chunks, headLen)` (view) | The same for a record stored across data contracts, each holding `0x00` and a slice.                                                                                                                | As `prove`; `BadChunk(index)`.                                                                                                                                                                                          |
+| `scan(record, headLen)` (pure)               | Parses a record without asking the registry. Proves nothing.                                                                                                                                        | `Malformed`, `MissingKey`, `WrongSchema`, `HeadTooLong`.                                                                                                                                                                |
 
 Views: `WORK_REGISTRY`, `REGISTRY_GAS`.
 
 ### WorkOrders
 
-| Function | Who may call | What it does | Reverts when |
-|---|---|---|---|
-| `createOrder(params, spec)` | Anyone, having approved `maxPay` | Opens an order and pulls `maxPay` as escrow. The caller is the employer. | `SpecInvalid(at)`; `PayRange`; `DeliveryTooShort`, `DeliveryTooLong`; `BondTooLow`; `Expired`; `BadFlags`; `BadCondition`; the token transfer fails. |
-| `cancel(id)` | **The order's employer** | Withdraws an order nobody holds. | `BadState`; `NotEmployer`. |
-| `refund(id)` | Anyone | Returns the escrow of an order that expired with nobody holding it. | `BadState`; `TooEarly`. |
-| `trigger(id)` | Anyone | Records that a conditional order's condition holds now, which opens it for good. | `BadState`; `ConditionNotMet`; `GasShort`. |
-| `claim(id)` | Anyone, having approved the bond (the one named runner, if the order names one) | Takes an open order: posts the bond, fixes the price, returns the ticket. | `BadState`; `Expired`; `NotRunner`; `Barred`; `ConditionNotMet`; `GasShort`; `BooksFull`. |
-| `release(id)` | **The runner that holds the order** | Gives the order back inside the first hour: 90% of the bond back, 10% to the employer. | `BadState`; `NotRunner`; `TooLate`. |
-| `evict(id)` | Anyone | Removes a runner that registered no job within the hour. The bond goes to the employer. | `BadState`; `TooEarly`. |
-| `register(id, jobId)` | **The runner that holds the order** | Records the swarm job, or replaces it with a retry. | `BadState`; `NotRunner`; `ZeroJob`; `JobUsed`. |
-| `settle(id, record, chunks)` | Anyone | Pays the order out against the registered job's work record. | WorkProof's errors, passed on; `JobUsed`; `NotCompleted`; `WrongKind`; `WrongHeader`; `WrongSpec`; `BadState`; `GasShort`. |
-| `reportFailed(id, record, chunks)` | Anyone, except that a failed job with the right objective is its runner's to report | Ends a claim with a receipt that does not settle the order. | WorkProof's errors; `NotFailed`; `NotRunner`; `BadState`. |
-| `timeout(id)` | Anyone | Ends a claim whose delivery time has passed: a registered job forfeits the bond; an undecided dispute refunds the order. | `BadState`; `TooEarly`. |
-| `claimDelivered(id, recordHash)` | **The runner that holds the order**, on an order that allows it | States that the job was delivered and opens the 24-hour challenge window. | `BadState`; `NotRunner`; `ClaimedPathOff`; `ZeroHash`; `TooLate`. |
-| `challenge(id)` | Anyone, having approved an amount equal to the bond | Disputes a delivery claim. The bond is held until the dispute ends, at the longest until the delivery deadline. | `BadState`; `TooLate`; the token transfer fails. |
-| `finalize(id)` | Anyone | Pays out a delivery claim nobody challenged in time, marked unproven, the tip with no agents named. | `BadState`; `TooEarly`; `GasShort`. |
-| `resolve(id, delivered)` | **The order's arbiter** | Decides a disputed claim. | `BadState`; `NotArbiter`; `GasShort`. |
-| `redeliver(id)` | Anyone | Tries a failed employer callback again. Moves no money. | `BadState`; `GasShort`; `ReentrancyGuardReentrantCall`. |
-| `stamp(id, record, chunks)` | Anyone | Marks an order paid on a claim as proven, once its receipt exists. Moves no money. | `BadState`; WorkProof's errors; the checks of `settle`. |
+| Function                           | Who may call                                                                        | What it does                                                                                                             | Reverts when                                                                                                                                         |
+| ---------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createOrder(params, spec)`        | Anyone, having approved `maxPay`                                                    | Opens an order and pulls `maxPay` as escrow. The caller is the employer.                                                 | `SpecInvalid(at)`; `PayRange`; `DeliveryTooShort`, `DeliveryTooLong`; `BondTooLow`; `Expired`; `BadFlags`; `BadCondition`; the token transfer fails. |
+| `cancel(id)`                       | **The order's employer**                                                            | Withdraws an order nobody holds.                                                                                         | `BadState`; `NotEmployer`.                                                                                                                           |
+| `refund(id)`                       | Anyone                                                                              | Returns the escrow of an order that expired with nobody holding it.                                                      | `BadState`; `TooEarly`.                                                                                                                              |
+| `trigger(id)`                      | Anyone                                                                              | Records that a conditional order's condition holds now, which opens it for good.                                         | `BadState`; `ConditionNotMet`; `GasShort`.                                                                                                           |
+| `claim(id)`                        | Anyone, having approved the bond (the one named runner, if the order names one)     | Takes an open order: posts the bond, fixes the price, returns the ticket.                                                | `BadState`; `Expired`; `NotRunner`; `Barred`; `ConditionNotMet`; `GasShort`; `BooksFull`.                                                            |
+| `release(id)`                      | **The runner that holds the order**                                                 | Gives the order back inside the first hour: 90% of the bond back, 10% to the employer.                                   | `BadState`; `NotRunner`; `TooLate`.                                                                                                                  |
+| `evict(id)`                        | Anyone                                                                              | Removes a runner that registered no job within the hour. The bond goes to the employer.                                  | `BadState`; `TooEarly`.                                                                                                                              |
+| `register(id, jobId)`              | **The runner that holds the order**                                                 | Records the swarm job, or replaces it with a retry.                                                                      | `BadState`; `NotRunner`; `ZeroJob`; `JobUsed`.                                                                                                       |
+| `settle(id, record, chunks)`       | Anyone                                                                              | Pays the order out against the registered job's work record.                                                             | WorkProof's errors, passed on; `JobUsed`; `NotCompleted`; `WrongKind`; `WrongHeader`; `WrongSpec`; `BadState`; `GasShort`.                           |
+| `reportFailed(id, record, chunks)` | Anyone, except that a failed job with the right objective is its runner's to report | Ends a claim with a receipt that does not settle the order.                                                              | WorkProof's errors; `NotFailed`; `NotRunner`; `BadState`.                                                                                            |
+| `timeout(id)`                      | Anyone                                                                              | Ends a claim whose delivery time has passed: a registered job forfeits the bond; an undecided dispute refunds the order. | `BadState`; `TooEarly`.                                                                                                                              |
+| `claimDelivered(id, recordHash)`   | **The runner that holds the order**, on an order that allows it                     | States that the job was delivered and opens the 24-hour challenge window.                                                | `BadState`; `NotRunner`; `ClaimedPathOff`; `ZeroHash`; `TooLate`.                                                                                    |
+| `challenge(id)`                    | Anyone, having approved an amount equal to the bond                                 | Disputes a delivery claim. The bond is held until the dispute ends, at the longest until the delivery deadline.          | `BadState`; `TooLate`; the token transfer fails.                                                                                                     |
+| `finalize(id)`                     | Anyone                                                                              | Pays out a delivery claim nobody challenged in time, marked unproven, the tip with no agents named.                      | `BadState`; `TooEarly`; `GasShort`.                                                                                                                  |
+| `resolve(id, delivered)`           | **The order's arbiter**                                                             | Decides a disputed claim.                                                                                                | `BadState`; `NotArbiter`; `GasShort`.                                                                                                                |
+| `redeliver(id)`                    | Anyone                                                                              | Tries a failed employer callback again. Moves no money.                                                                  | `BadState`; `GasShort`; `ReentrancyGuardReentrantCall`.                                                                                              |
+| `stamp(id, record, chunks)`        | Anyone                                                                              | Marks an order paid on a claim as proven, once its receipt exists. Moves no money.                                       | `BadState`; WorkProof's errors; the checks of `settle`.                                                                                              |
 
 Views: `stateOf`, `accountOf`, `orderOf`, `claimOf`, `priceNow`, `ticketOf`, `headerOf`,
 `conditionOf`, `orderOfJob`, `barred`, `orderCount`, and the constants and constructor arguments
@@ -221,27 +227,27 @@ others answer with zeros for an order that does not exist.
 
 ### CrowdPots
 
-| Function | Who may call | What it does | Reverts when |
-|---|---|---|---|
-| `openPot(terms, spec, firstChip)` | Anyone | Opens a pot, with its job kind in text, and optionally chips in. The opener gets no rights. | `KindMissing`, `KindTooLong`; `SpecInvalid(at)` for the kind or the spec; `TargetTooSmall`; `HireWindowOutOfRange`; `FundingWindowOutOfRange`; `BadPriceRamp`; `DeskTokenMismatch`; `BondOutOfRange`; `DeliveryOutOfRange`. |
-| `openSeries(terms, spec)` | Anyone | Opens a recurring pot: a chip sent to its id lands in its current round. | As `openPot`. |
-| `chipIn(potId, amount)` | Anyone, having approved | Adds IMD to a pot that is collecting. Takes nothing, and does not revert, when the pot is full, launched, out of time or unknown. | The token transfer fails. |
-| `chipInFor(potId, amount, beneficiary)` | Anyone, having approved | The same; the chip and any refund belong to `beneficiary`. | `BadBeneficiary`; the token transfer fails. |
-| `launch(potId, spec)` | Anyone | Turns a full pot into one order on the desk for the whole amount. | `WrongStage`; `NotFull`; `PastDeadline`; `WrongSpec`; the desk refuses the order; `DeskPulledWrongAmount`, `OrderIdReused`, `NotOurOrder` if the desk misbehaves. |
-| `onWorkDelivered(orderId, jobId, recordHash)` | **The desk only** | Records the delivery. Moves no money. | `NotDesk`; `UnknownOrder`. |
-| `reconcile(potId)` | Anyone | Brings a pot's books up to date, after making the desk call its order is waiting for. | `NotOurOrder`; `DeskShortfall`. |
-| `claimRefund(potId, contributor)` | Anyone, for anyone | Pays a contributor their share of what a settled pot has to give back. | `WrongStage`; `NotOurOrder`; `DeskShortfall`. |
-| `claimRefunds(potId, contributors)` | Anyone | The same for a list. | As `claimRefund`. |
+| Function                                      | Who may call            | What it does                                                                                                                      | Reverts when                                                                                                                                                                                                                |
+| --------------------------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `openPot(terms, spec, firstChip)`             | Anyone                  | Opens a pot, with its job kind in text, and optionally chips in. The opener gets no rights.                                       | `KindMissing`, `KindTooLong`; `SpecInvalid(at)` for the kind or the spec; `TargetTooSmall`; `HireWindowOutOfRange`; `FundingWindowOutOfRange`; `BadPriceRamp`; `DeskTokenMismatch`; `BondOutOfRange`; `DeliveryOutOfRange`. |
+| `openSeries(terms, spec)`                     | Anyone                  | Opens a recurring pot: a chip sent to its id lands in its current round.                                                          | As `openPot`.                                                                                                                                                                                                               |
+| `chipIn(potId, amount)`                       | Anyone, having approved | Adds IMD to a pot that is collecting. Takes nothing, and does not revert, when the pot is full, launched, out of time or unknown. | The token transfer fails.                                                                                                                                                                                                   |
+| `chipInFor(potId, amount, beneficiary)`       | Anyone, having approved | The same; the chip and any refund belong to `beneficiary`.                                                                        | `BadBeneficiary`; the token transfer fails.                                                                                                                                                                                 |
+| `launch(potId, spec)`                         | Anyone                  | Turns a full pot into one order on the desk for the whole amount.                                                                 | `WrongStage`; `NotFull`; `PastDeadline`; `WrongSpec`; the desk refuses the order; `DeskPulledWrongAmount`, `OrderIdReused`, `NotOurOrder` if the desk misbehaves.                                                           |
+| `onWorkDelivered(orderId, jobId, recordHash)` | **The desk only**       | Records the delivery. Moves no money.                                                                                             | `NotDesk`; `UnknownOrder`.                                                                                                                                                                                                  |
+| `reconcile(potId)`                            | Anyone                  | Brings a pot's books up to date, after making the desk call its order is waiting for.                                             | `NotOurOrder`; `DeskShortfall`.                                                                                                                                                                                             |
+| `claimRefund(potId, contributor)`             | Anyone, for anyone      | Pays a contributor their share of what a settled pot has to give back.                                                            | `WrongStage`; `NotOurOrder`; `DeskShortfall`.                                                                                                                                                                               |
+| `claimRefunds(potId, contributors)`           | Anyone                  | The same for a list.                                                                                                              | As `claimRefund`.                                                                                                                                                                                                           |
 
 Views: `potOf`, `stageOf`, `chipOf`, `refundOf`, `remaining`, `kindOf`, `potCount`, `owed`,
 `potOfOrder`, `currentRound`, and the constants and constructor arguments by name.
 
 ### Doorbell
 
-| Function | Who may call | What it does | Reverts when |
-|---|---|---|---|
-| `ring()` | Anyone | Counts a ring. Every 25th ring opens an order if the Doorbell holds the escrow. | The desk refuses the order; `DeskPulledWrongAmount`, `OrderIdReused`, `NotOurOrder` if the desk misbehaves. |
-| `onWorkDelivered(orderId, jobId, recordHash)` | **The desk only** | Records the delivery. Moves no money. | `NotDesk`; `UnknownOrder`; `AlreadyDelivered`. |
+| Function                                      | Who may call      | What it does                                                                    | Reverts when                                                                                                |
+| --------------------------------------------- | ----------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `ring()`                                      | Anyone            | Counts a ring. Every 25th ring opens an order if the Doorbell holds the escrow. | The desk refuses the order; `DeskPulledWrongAmount`, `OrderIdReused`, `NotOurOrder` if the desk misbehaves. |
+| `onWorkDelivered(orderId, jobId, recordHash)` | **The desk only** | Records the delivery. Moves no money.                                           | `NotDesk`; `UnknownOrder`; `AlreadyDelivered`.                                                              |
 
 Views: `hireOf`, `ringsUntilHire`, `funded`, `rings`, `hires`, `receipts`, `lastOrderId`,
 `lastDeliveredOrderId`, `SPEC`, `SPEC_HASH`, and the constants and constructor arguments by name.
@@ -255,12 +261,12 @@ A settlement, on real work records with an order's objective swapped in, through
 `WorkProof`, with the Payroll stand-in (`test/desk/WorkOrders.gas.t.sol`; `execution` is the desk
 call alone, `transaction` adds the base cost and the calldata, computed):
 
-| Record | Bytes | `settle`, execution | `settle`, transaction | Least gas to offer |
-|---|---|---|---|---|
-| Small: a research report | 3,549 | 480,904 | 559,476 | 1,384,398 |
-| Large: a contract project, sent as calldata | 102,034 | 589,718 | 4,104,500 | |
-| The same through five data contracts | 102,034 | 565,724 | 588,416 | |
-| The costliest real shape: research, walked nearly to its end | 86,837 | 1,060,279 | 3,496,590 | 2,008,178 |
+| Record                                                       | Bytes   | `settle`, execution | `settle`, transaction | Least gas to offer |
+| ------------------------------------------------------------ | ------- | ------------------- | --------------------- | ------------------ |
+| Small: a research report                                     | 3,549   | 480,904             | 559,476               | 1,384,398          |
+| Large: a contract project, sent as calldata                  | 102,034 | 589,718             | 4,104,500             |                    |
+| The same through five data contracts                         | 102,034 | 565,724             | 588,416               |                    |
+| The costliest real shape: research, walked nearly to its end | 86,837  | 1,060,279           | 3,496,590             | 2,008,178          |
 
 The gas to offer is more than the gas used because the desk refuses to start a Payroll call it
 cannot hand 1,000,000 gas to.
@@ -269,12 +275,12 @@ The same with the live `Payroll` and real IMD, on a mainnet fork
 (`test_fork_payroll_gasOfASettlementWithTheLiveContract`, 13 October 2026, records of 3,576 and
 7,680 bytes):
 
-| Settlement | `settle`, execution | Least gas to offer |
-|---|---|---|
-| The first the live Payroll ever sees, one agent | 551,689 | 1,515,990 |
-| The same first settlement, sixteen agents never tipped before | 1,128,435 | 1,750,121 |
-| A later one, sixteen more agents never tipped before | 950,872 | 1,589,477 |
-| A later one, one agent | 374,057 | 1,355,346 |
+| Settlement                                                    | `settle`, execution | Least gas to offer |
+| ------------------------------------------------------------- | ------------------- | ------------------ |
+| The first the live Payroll ever sees, one agent               | 551,689             | 1,515,990          |
+| The same first settlement, sixteen agents never tipped before | 1,128,435           | 1,750,121          |
+| A later one, sixteen more agents never tipped before          | 950,872             | 1,589,477          |
+| A later one, one agent                                        | 374,057             | 1,355,346          |
 
 Those figures were taken while nothing had yet been paid into Payroll on mainnet; they move with
 its state on the day of the run. The test asserts only what does not: each case is inside the
@@ -283,18 +289,18 @@ calldata needs more, as the first table shows: its own bytes are most of what it
 
 Other figures, each printed by the named test with `-vv`:
 
-| What | Gas | Test |
-|---|---|---|
-| `WorkProof.prove`, the 7,339-byte reference record, registry cold | under 140,000 (asserted) | `test_gas_referenceJob` |
-| `WorkProof.prove`, each stored record | printed as a table | `test_gas_everyFixture` |
-| The live `WorkRegistry.latest`, cold, mainnet fork | 5,468 | `test_fork_registryAnswersFarInsideItsGasAllowance` |
-| Long text inside a record | 3.95 a byte | `test_gas_longStringsCostUnderFiveGasPerByte` |
-| The costliest text found | 18.81 a byte | `test_gas_noTextCostsTwentyGasPerByte` |
-| Bare structure between strings | up to 195.26 a byte | `test_gas_bareStructureCeiling` |
-| `Doorbell.ring` that hires, mainnet fork | 354,333 | `test_fork_rehearsal_firstDay_theDoorbellHiresAndItsPictureJobIsProven` |
-| `settle` of the Doorbell's order, real IMD, the live Payroll, a 5,072-byte record, mainnet fork | 719,399 | the same test |
-| `finalize` of the first pot's order, the live Payroll, mainnet fork | 495,295 | `test_fork_rehearsal_firstDay_theDocumentedPotIsPaidOnAClaimWhileReceiptsAreStalled` |
-| `settle` with both Payroll calls using all the gas they are handed, mainnet fork | 2,379,082 | `test_fork_payroll_burningAllItsGasCannotBlockASettlementOnTheDocumentedLimit` |
+| What                                                                                            | Gas                      | Test                                                                                 |
+| ----------------------------------------------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------ |
+| `WorkProof.prove`, the 7,339-byte reference record, registry cold                               | under 140,000 (asserted) | `test_gas_referenceJob`                                                              |
+| `WorkProof.prove`, each stored record                                                           | printed as a table       | `test_gas_everyFixture`                                                              |
+| The live `WorkRegistry.latest`, cold, mainnet fork                                              | 5,468                    | `test_fork_registryAnswersFarInsideItsGasAllowance`                                  |
+| Long text inside a record                                                                       | 3.95 a byte              | `test_gas_longStringsCostUnderFiveGasPerByte`                                        |
+| The costliest text found                                                                        | 18.81 a byte             | `test_gas_noTextCostsTwentyGasPerByte`                                               |
+| Bare structure between strings                                                                  | up to 195.26 a byte      | `test_gas_bareStructureCeiling`                                                      |
+| `Doorbell.ring` that hires, mainnet fork                                                        | 354,333                  | `test_fork_rehearsal_firstDay_theDoorbellHiresAndItsPictureJobIsProven`              |
+| `settle` of the Doorbell's order, real IMD, the live Payroll, a 5,072-byte record, mainnet fork | 719,399                  | the same test                                                                        |
+| `finalize` of the first pot's order, the live Payroll, mainnet fork                             | 495,295                  | `test_fork_rehearsal_firstDay_theDocumentedPotIsPaidOnAClaimWhileReceiptsAreStalled` |
+| `settle` with both Payroll calls using all the gas they are handed, mainnet fork                | 2,379,082                | `test_fork_payroll_burningAllItsGasCannotBlockASettlementOnTheDocumentedLimit`       |
 
 The figures are as Foundry 1.8.3 prints them with its default settings on the day of the run (13
 October 2026).
@@ -307,6 +313,8 @@ October 2026).
 - `docs/THREATS.md`: trust roots, every known limit, the static-analysis results, what is not
   verified, and what was checked after IdentityMD's pipeline changed our first launch.
 - `docs/DEVIATIONS.md`: where we depart from IdentityMD's guidance, and why.
+- `docs/AUDITS.md`: every finding IdentityMD's launch pipeline reported for this launch, and what
+  was done about each.
 
 ## Layout
 
@@ -326,7 +334,7 @@ test/kit/             what the tests share: real records with an order's objecti
                       the registry and Payroll
 test/fixtures/        21 real work records with their on-chain hashes, the record of the job that
                       carried a header, header vectors, spec vectors
-docs/                 LAUNCH.md, THREATS.md, DEVIATIONS.md
+docs/                 LAUNCH.md, THREATS.md, DEVIATIONS.md, AUDITS.md
 ```
 
 ## Licence
