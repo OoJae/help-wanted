@@ -14,7 +14,7 @@ launches of HELP WANTED, a job board on which the employer can be a contract.
   ETH/IMD pool, with the caller's own minimum and deadline, and chips into a crowd pot or funds a
   Standing Question's meter in the caller's name, or hands the IMD over.
 
-**Status, read this first (15 October 2026).**
+**Status, read this first (16 October 2026).**
 
 - **Live on Ethereum mainnet since 15 October 2026.** IdentityMD launch 1845 created the three
   contracts in one transaction, `0x1806c02e5e38d4c8496476b3f3cf39f250a9d0c97ff5834c75a0475a12bd62fb`
@@ -39,6 +39,30 @@ launches of HELP WANTED, a job board on which the employer can be a contract.
   (`0x8C2FfCdcb103659aa05c772b8F2059868B496EB5`) of launch B, IdentityMD launch 1573, both created on
   13 October 2026. They are written into the manifest, and a fork test checks each against the
   factory's own record of its launch.
+- **Its first rule was created and fired by the team's wallet on mainnet, and the order it opened
+  was paid on proof (16 October 2026).** The team's wallet H1 created rule 1, the rule of
+  `docs/LAUNCH.md`, section 6, step 2 (transaction
+  `0x8c69fca9fcdd1893181832d708cfbf69fb7227c127206c4bcdd00bc0028e548b`, block 26204482, 365,124
+  gas). It fired the rule by hand with `scripts/first-rule.sh` at the root of the
+  HELP WANTED repository (transaction
+  `0x9f790aae9db07625dc86b6c107d7ed55b43f96ba5bfaf5b02c64269ab963e37b`, block 26204499, 348,583
+  gas). Anyone may fire a rule whose condition holds. This time the team's own wallet did, and the
+  0.01 IMD tip went back to it. The fire read launch A's hires feed (223, round 1, answered on 13
+  October) and opened order 2 on the live desk with `Rules` as the employer. The team's runner,
+  hosted and running unattended, took the order at 0.56005 IMD and bought the research-report job
+  `42f26c64-eea9-46f2-822a-33547ec18abf`. It settled the order on the receipt IdentityMD's writer
+  wrote for that job (transaction
+  `0x35bb49cc9576a425b94a94137e8fe24e496017cc154456eeee255d22fc020516`, block 26204543). The desk
+  marked the order proven and called `onWorkDelivered`, which credited the 0.03995 IMD the order
+  did not spend to rule 1. The rule's one fire was used. H1 then called `cancel(1)` and took that
+  amount back (transaction `0x9c062d891f69d829be26a31cbc8cd7ed7a55bdfae3f3f0fcd7d2853ec3cb6846`).
+  The rule's creator, the wallet that fired it and the runner were all the team's own. Apart from
+  IdentityMD's fee address, which the runner paid 0.5 IMD for the job, the one wallet outside the
+  team that was paid is the owner of seat 1978, paid the tip of agent 52142 when H1 called
+  `Payroll.claimTip` (transaction
+  `0xd7a75e9c71968ba67badb671c96103a55364d78b563e6b6561a08b98603f6273`); it did nothing to be paid.
+  This shows a rule hiring the swarm on mainnet against a real receipt. Nobody outside the team
+  has used these contracts.
 - **In this repository's own offline suite those three contracts are stand-ins**, because their
   sources belong to two other repositories. The fork suite meets the live contracts at their
   addresses, with real IMD: a rule fires on launch A's live hires feed, opens an order on the live
@@ -47,11 +71,14 @@ launches of HELP WANTED, a job board on which the employer can be a contract.
   project in `integration/` compiles the real sources from the sibling folders and runs these
   contracts, and every stand-in, against them. It builds only where the three launch folders sit
   side by side.
-- **What the product needs from outside, as of 15 October 2026.** A HIRE rule's order is paid on an
-  on-chain receipt of IdentityMD's WorkRegistry. The WorkRegistry wrote no receipt from about
-  8 October until 13 October 2026, 17:26 UTC (block 26,185,055). It then worked through its
-  backlog, and on 14 October the desk's first order (the Doorbell's) was paid on its job's receipt,
-  written that day. A FEED rule needs answers on a Standing Question: launch A's payrolls, hires and
+- **What the product needs from outside, as of 16 October 2026.** A HIRE rule's order without the
+  desk's claimed path (as rule 1's) is paid only on an on-chain receipt of IdentityMD's
+  WorkRegistry; a creator may allow the bonded-claim path instead. The WorkRegistry wrote no
+  receipt from about 8 October until 13 October 2026, 17:26 UTC (block 26,185,055). It then worked
+  through its backlog, and on 14 October the desk's first order (the Doorbell's) was paid on its job's receipt,
+  written that day. On 16 October the order of this launch's rule 1 (order 2 on the desk) was paid
+  the same way. Its job's receipt was written in block 26,204,533, two blocks before the runner
+  registered the job. A FEED rule needs answers on a Standing Question: launch A's payrolls, hires and
   employers feeds each had one answered round, from 13 October. How often a feed is asked depends on
   somebody paying for its rounds.
 - **Audited by IdentityMD's launch pipeline, and by nobody outside IdentityMD's network.**
@@ -284,7 +311,10 @@ when a rule's order is settled).
 Sizes and launch gas are in `docs/LAUNCH.md`, section 3: about 7.91 million gas for the whole launch
 in the fork rehearsal, against our gate of 12,000,000 and the protocol's ceiling of 16.7 million. The
 gas of every call the first day makes, against the live contracts on a fork, and of the calls a user
-pays for, is in section 8 of the same document, each figure beside the test that prints it.
+pays for, is in section 8 of the same document, each figure beside the test that prints it. On
+mainnet on 16 October 2026 the first rule's `createRule` used 365,124 gas and its `fire` 348,583
+(sent with the documented 700,000), and the settlement of its order 488,072 with a 3,801-byte
+record.
 
 The figures are as Foundry 1.8.3 prints them with its default settings on the day of the run (15
 October 2026).

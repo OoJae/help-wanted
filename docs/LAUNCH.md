@@ -11,7 +11,19 @@ October 2026, in transaction `0x1806c02e5e38d4c8496476b3f3cf39f250a9d0c97ff5834c
 `0x51bF8c74bd9BD74Ad08cABDC90DaC7835C18B21A`. The rest of this document is kept as it was written
 before the launch. One correction: section 6, step 2, says IdentityMD's receipt writer has been
 writing again since 14 October; it wrote again from 13 October 2026, 17:26 UTC (block 26,185,055),
-and the desk's first order was paid on its job's receipt on 14 October. Every number below was
+and the desk's first order was paid on its job's receipt on 14 October. Section 6, step 2, ran on
+mainnet on 16 October 2026, and the hire of step 3 was done by the team's hosted runner with its
+standing settings (it takes any employer's orders, not only `EMPLOYERS=$RULES`). The team's
+wallet H1 created the rule exactly as written (rule 1; block 26,204,482, 365,124 gas). It fired
+the rule by hand with `scripts/first-rule.sh` at the root of the HELP WANTED repository (block
+26,204,499, 348,583 gas of the documented 700,000). The fire read the hires feed's answer of 13
+October (223, round 1) and opened order 2 on the desk. The runner claimed the order nine blocks
+after the fire, when the price had risen to 0.56005 IMD, so the figures differ slightly from the
+ledger below. The runner was paid 0.504045 IMD and its bond, Payroll's fee and tip were 0.0280025
+IMD each, and 0.03995 IMD came back to the rule inside the callback (`accountOf` reads 6, `Rules`,
+0, 560050000000000000, 39950000000000000). The creator took that back with `cancel` (block
+26,204,586). The settlement used 488,072 gas with a 3,801-byte record, against a receipt
+IdentityMD's writer had written in block 26,204,533. Every number below was
 produced by a test or a command that is named beside it, and where a command needs one of the three
 addresses it reads it from a shell variable: set those to the addresses above.
 
