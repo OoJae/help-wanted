@@ -14,7 +14,8 @@ addresses are in `README.md`). Audited by IdentityMD's launch pipeline before it
 The two launches it builds on are live on Ethereum
 mainnet since 13 October 2026: launch A (IdentityMD launch 1531) and launch B
 (IdentityMD launch 1573). Section 10 says what IdentityMD's launch pipeline changed in those two and
-what was checked here as a result.
+what was checked here as a result. Its first rule was created and fired on mainnet on 16 October
+2026 by the team's own wallet, and the order it opened was paid on proof (`README.md`).
 
 ## 1. Who can do what
 
@@ -220,7 +221,8 @@ only when the WorkRegistry holds the job's receipt, and a receipt that arrives a
 delivery deadline cannot pay if somebody has had the order timed out first (launch B's
 `docs/THREATS.md`, W1). The registry wrote no receipt from about 8 October 2026 until 13 October,
 17:26 UTC. It then worked through its backlog, and on 14 October the desk's first order was paid on
-its job's receipt, written that day. What the rule
+its job's receipt, written that day. On 16 October the order of rule 1 (order 2) was paid the same
+way, on a receipt written two blocks before its runner registered the job. What the rule
 loses when a receipt is late is the tip of the fire and the order's time: the escrow comes back
 through `reconcile`, with the runner's bond, which the desk forfeits to the employer.
 
@@ -536,16 +538,18 @@ with `block.timestamp`, narrowing casts and partial reads of a tuple are silence
 ## 7. What this launch inherits from the two before it
 
 These are not limits of the three contracts, but a reader deciding whether to use them should know
-them. Each is set out in the earlier launches' own documents. As of 15 October 2026:
+them. Each is set out in the earlier launches' own documents. As of 16 October 2026:
 
 - **Receipts.** An order of a HIRE rule without the claimed path is paid only when IdentityMD's
   WorkRegistry holds the job's receipt. The registry's writer wrote nothing from about 8 October
   until 13 October 2026, 17:26 UTC (block 26,185,055). It has written again since (44 receipts in
   the 1,800 blocks up to block 26,197,394), and on 14 October the desk's first order was paid on its
-  job's receipt, written that day. It can stall again (R14).
+  job's receipt, written that day. On 16 October it wrote the receipt of rule 1's order within a
+  minute of the job completing, and the desk paid that order on it. It can stall again (R14).
 - **The order header.** IdentityMD keeps a job's objective byte for byte with the desk's 85 header
   bytes in front: shown on a research report bought on 13 October, and on chain by the desk's first
-  order, a picture job, which the desk paid on the proven path on 14 October.
+  order, a picture job, which the desk paid on the proven path on 14 October, and by its second, the
+  research report rule 1 opened, paid the same way on 16 October.
 - **The house feeds.** Launch A's three feeds were created and their first rounds bought; each was
   answered on 13 October 2026, the employers feed by the Intake's own callback. A FEED rule, and a
   meter endowment, are worth what their feed is worth, and a feed is asked only when somebody pays
@@ -628,10 +632,12 @@ reason in the table should treat the matching finding as open.
   2026 show what the reviewers showed (`test/rules/RulesUnusedHalf.t.sol`,
   `test/endowments/Endowments.target.t.sol`, `test/rules/ZapAsPayee.t.sol`). By block 26,198,957
   the team's wallet W1 had created one endowment, for the meter of launch A's payrolls feed,
-  deposited 1 IMD into it and called `stake` twice; no rule had been created and nothing had gone
-  through `Zap`. The entries below were written before the launch and are kept as they were, but
-  for the first, which now says what was shown. This note answers the first of them, and adds to
-  the one on an audit.
+  deposited 1 IMD into it and called `stake` twice. No rule had been created by then, and nothing
+  had gone through `Zap`. On 16 October 2026 the team's wallet H1 created rule 1, the first rule of
+  `docs/LAUNCH.md`, fired it by hand, and cancelled it after its order was paid (the second entry
+  below). The entries below were written before the launch and are kept as they were, but for the
+  first, the second, the third and the one on gas figures, which now say what was shown. This note
+  answers the first of them, and adds to the one on an audit.
 - **These contracts on chain.** Written before the launch, when nothing of it had been deployed.
   Shown since: IdentityMD launch 1845 created the three contracts on 15 October 2026, in block
   26,198,165 (the note above). The launch was rehearsed on a fork through the real ProjectFactory,
@@ -640,9 +646,15 @@ reason in the table should treat the matching finding as open.
   order of the first rule is settled on the live desk against the real WorkRegistry, but the receipt
   is written by acting as the registry's writer, for a real record whose job id and objective were
   replaced (B4). That a real job's receipt pays a desk order on chain was shown by launch B's first
-  order on 14 October 2026, not by an order of a rule.
+  order on 14 October 2026, not by an order of a rule. Shown since, on 16 October 2026: rule 1
+  fired on the live hires feed and opened order 2 on the live desk. A real swarm job
+  (`42f26c64-eea9-46f2-822a-33547ec18abf`, a research report) was bought for it. IdentityMD's own
+  writer wrote the job's receipt in block 26,204,533, and the order was settled on the proven path
+  in block 26,204,543, with the change returned to the rule in the desk's callback. The rule's
+  creator, the wallet that fired it and the runner were all the team's own.
 - **A FEED rule on an answer newer than 13 October.** The fork reads the live hires feed's one
   answered round. Whether the feed is asked again, and when, depends on somebody paying for it.
+  The mainnet fire of 16 October read that same answer (223, round 1).
 - **`integration/` in the launch pipeline.** It is run by hand (B2).
 - **Real yield harvested.** No test waits for sIMD's own earnings: the tests add yield by
   transferring IMD to the vault, which is how the real vault receives it. The rate the first day
@@ -656,7 +668,10 @@ reason in the table should treat the matching finding as open.
   contract code.
 - **No third-party audit.** Two internal reviews per contract in the first wave, their findings
   fixed or listed above, and the checks in this repository.
-- **Gas figures** are from tests and from a mainnet fork, not from mainnet transactions.
+- **Gas figures** are from tests and from a mainnet fork, apart from those of rule 1 and its order
+  on mainnet (16 October 2026): `createRule` used 365,124 gas and `fire` 348,583, against 374,586
+  and 400,806 on the fork, and the order's settlement 488,072 as a transaction, with a 3,801-byte
+  record.
 
 ## 10. What IdentityMD's pipeline did to our earlier launches, and what was checked here
 

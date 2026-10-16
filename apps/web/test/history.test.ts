@@ -4,8 +4,8 @@
  * The records are held against each other, against the shared package and against the deployments
  * book: the order header recomputed from the order's ticket, the job text's hash, the trail's order,
  * the rounds' feeds. Then the pages are loaded on the real book with a fake chain that answers as
- * mainnet did on 15 October 2026 for order 1, and must show the trail, hide what no longer applies
- * to a delivered order, and lead the front page with it.
+ * mainnet did on 15 October 2026 for order 1 (and on 16 October 2026 for order 2), and must show the
+ * trail, hide what no longer applies to a delivered order, and lead the front page with it.
  */
 import { encodeEventTopics, encodeAbiParameters, keccak256, stringToHex, type Hex } from "viem";
 import { describe, expect, it } from "vitest";
@@ -40,11 +40,12 @@ import {
   pinnedPrint,
   pinnedRounds,
   pinnedRings,
+  pinnedRule,
   pinnedTipClaims,
   PRINT_HISTORY,
   RING_HISTORY,
   ROUND_HISTORY,
-  SECOND_KIND_JOB,
+  RULE_HISTORY,
   UNUSED_FEATURES,
   VERIFIED_SOURCE,
 } from "~/config/history";
@@ -77,6 +78,9 @@ const DESK = BOOK.workOrders.address as string;
 const BELL = BOOK.doorbell.address as string;
 const PAYROLL = BOOK.payroll.address as string;
 const FIRST = ORDER_HISTORY.orders[0]!;
+const SECOND = ORDER_HISTORY.orders[1]!;
+const RULES = BOOK.rules.address as string;
+const RULE_ONE = RULE_HISTORY.entries[0]!;
 
 type Views = NonNullable<FakeChainOptions["views"]>;
 
@@ -148,6 +152,62 @@ function orderOne(overrides: { state?: number; proven?: boolean; account?: unkno
   };
 }
 
+/** Order 2 as the desk answered for it on 16 October 2026, after it was settled (orderOf and claimOf read on chain). */
+function orderTwo(): Views {
+  return {
+    [`${DESK}:orderCount`]: { abi: workOrdersAbi, result: 2n },
+    [`${DESK}:accountOf`]: {
+      abi: workOrdersAbi,
+      result: [6, RULES, 0n, 560_050_000_000_000_000n, 39_950_000_000_000_000n],
+    },
+    [`${DESK}:orderOf`]: {
+      abi: workOrdersAbi,
+      result: {
+        employer: RULES,
+        expiresAt: 1_792_405_727,
+        rampFrom: 1_792_146_527,
+        state: 6,
+        flags: 2,
+        kindHash: SECOND.prove.kindHash,
+        specHash: SECOND.prove.specHash,
+        minPay: 560_000_000_000_000_000n,
+        maxPay: 600_000_000_000_000_000n,
+        rampSecs: 86_400,
+        deliverySecs: 604_800,
+        runnerOnly: ZERO,
+        bond: IMD / 4n,
+        arbiter: ZERO,
+        escrow: 0n,
+        condTarget: ZERO,
+        condSelector: "0x00000000",
+        condCmp: 0,
+        condMet: true,
+        proven: true,
+        notified: true,
+        seq: 1,
+        condArg: `0x${"0".repeat(64)}`,
+        condThreshold: 0n,
+        spent: 560_050_000_000_000_000n,
+        returned: 39_950_000_000_000_000n,
+      },
+    },
+    [`${DESK}:claimOf`]: {
+      abi: workOrdersAbi,
+      result: {
+        runner: H1,
+        claimedAt: 1_792_146_635,
+        registeredAt: 1_792_146_959,
+        price: 560_050_000_000_000_000n,
+        jobId: "0x42f26c64eea946f2822a33547ec18abf",
+        challenger: ZERO,
+        assertedAt: 0,
+        recordHash: SECOND.prove.recordHash,
+      },
+    },
+    [`${PAYROLL}:tipOwed`]: { abi: payrollAbi, result: 0n },
+  };
+}
+
 const mainnet = (views: Views = orderOne()) => testSources({ book: DEPLOYMENT_BOOK, chain: { views } });
 
 async function page<M>(world: ReturnType<typeof testSources>, path: string) {
@@ -161,10 +221,16 @@ describe("the history kept with the site", () => {
     expect(ROUND_HISTORY.questions).toBe(BOOK.questions.address);
     expect(PRINT_HISTORY.jobsReport).toBe(BOOK.jobsReport.address);
     expect(pinnedOrder(DESK, 1)).toBe(FIRST);
-    expect(pinnedOrder(DESK, 2)).toBeNull();
+    expect(pinnedOrder(DESK, 2)).toBe(SECOND);
+    expect(pinnedOrder(DESK, 3)).toBeNull();
+    expect(RULE_HISTORY.rules).toBe(RULES);
+    expect(pinnedRule(RULES, 1)).toBe(RULE_ONE);
+    expect(pinnedRule(RULES, 2)).toBeNull();
     // A test book's stand-in desk borrows nothing from mainnet.
     const standIn = resolveDeployments({}, BOOKS.aAndB).contracts;
     expect(pinnedOrder(standIn.workOrders.address, 1)).toBeNull();
+    expect(pinnedOrder(standIn.workOrders.address, 2)).toBeNull();
+    expect(pinnedRule(resolveDeployments({}, BOOKS.all).contracts.rules.address, 1)).toBeNull();
     expect(pinnedRounds(standIn.questions.address)).toEqual([]);
     expect(pinnedPrint(standIn.jobsReport.address, 0)).toBeNull();
     // The contracts checked on the explorers are the ten the book holds, in its order.
@@ -222,6 +288,75 @@ describe("the history kept with the site", () => {
     expect(FIRST.tipClaims[0]!.tx.block).toBeGreaterThan(blocks.at(-1)!);
   });
 
+  it("order 2: its header, its job text, its trail and its rule agree with each other", () => {
+    // The ticket of claim 1 by the runner, recomputed: its header is the one prove hashed, and the
+    // one headerOf(2) answered on mainnet.
+    const ticket = orderTicket({
+      chainId: CHAIN_ID,
+      workOrders: DESK as `0x${string}`,
+      orderId: SECOND.id,
+      claimSeq: 1,
+      runner: H1,
+    });
+    expect(ticket).toBe("0xbd623ece89b1c600768011d08b9f77f00f169c6b6f31d2e3c37d61515189c407");
+    expect(orderHeadHash(ticket)).toBe(SECOND.prove.headHash);
+    expect(keccak256(stringToHex(SECOND.spec))).toBe(SECOND.prove.specHash);
+    expect(kindHash("skill:research-report")).toBe(SECOND.prove.kindHash);
+    expect(SECOND.prove.stateHash).toBe(FIRST.prove.stateHash);
+    expect(SECOND.prove.agentIds).toEqual(["52142"]);
+    expect(SECOND.read).toBe("16 October 2026");
+    expect(SECOND.prove.read).toBe(SECOND.read);
+    expect(FIRST.read).toBe("15 October 2026");
+    // The steps, in the order they happened: the receipt was written before the job was registered.
+    expect(SECOND.trail.map((s) => s.key)).toEqual([
+      "opened",
+      "claimed",
+      "paid",
+      "receipt",
+      "registered",
+      "settled",
+    ]);
+    const blocks = SECOND.trail.map((s) => s.tx.block);
+    expect([...blocks].sort((a, b) => a - b)).toEqual(blocks);
+    expect(new Set(SECOND.trail.map((s) => s.tx.hash)).size).toBe(SECOND.trail.length);
+    for (const step of SECOND.trail) expect(Date.parse(step.tx.at)).toBeGreaterThan(0);
+    // Who sent what: H1 fired the rule and ran the runner; IdentityMD sent the payment and the receipt.
+    const from = Object.fromEntries(SECOND.trail.map((s) => [s.key, s.tx.from]));
+    expect(from).toMatchObject({ opened: H1, claimed: H1, registered: H1, settled: H1 });
+    expect(from.paid).toBe(MAINNET.FEE_PAYEE);
+    expect(from.receipt).toBe(MAINNET.WORK_REGISTRY_WRITER);
+    expect(SECOND.trail.find((s) => s.key === "paid")?.what).toContain(OFFCHAIN.X402_EXACT_PERMIT2_PROXY);
+    // A receipt-only order: no delivery claim in its trail.
+    expect(SECOND.trail.some((s) => s.key === "asserted")).toBe(false);
+    expect(SECOND.trail.find((s) => s.key === "settled")?.what).toContain("the bonded-claim path was off");
+    const paid = HOUSE_X402.payments.find((p) => p.jobId === SECOND.jobId);
+    expect(paid).toMatchObject({ payer: "H1" });
+    expect(paid?.tx.hash).toBe(SECOND.trail.find((s) => s.key === "paid")?.tx.hash);
+    // The tip was claimed by H1 after the settlement, for the agent the record names, and paid to
+    // an address that had no code.
+    expect(SECOND.tipClaims.map((c) => c.agentId)).toEqual(SECOND.prove.agentIds);
+    expect(SECOND.tipClaims[0]).toMatchObject({ tokenId: "1978", paidToHasCode: false });
+    expect(SECOND.tipClaims[0]!.amountWei).toBe(28_002_500_000_000_000n);
+    expect(SECOND.tipClaims[0]!.tx.from).toBe(H1);
+    expect(SECOND.tipClaims[0]!.tx.block).toBeGreaterThan(blocks.at(-1)!);
+    // The work is a report IdentityMD serves; the order kept for it is a picture's no more.
+    expect(SECOND.work?.url).toBe(
+      "https://api.imd.fun/artifacts/4dcebdb382dd91a82e53a629dc7620f811feb6146e011d3a6e799fdf7c6482f0",
+    );
+    expect(FIRST.work).toBeUndefined();
+    // Its rule: created and fired by H1, the fire is the order's opening, and the creator took the
+    // change back after the settlement.
+    expect(RULE_ONE).toMatchObject({ id: 1, creator: H1, orderId: SECOND.id, read: SECOND.read });
+    expect(RULE_ONE.trail.map((s) => s.label)).toEqual(["Rule created", "Rule fired", "Change withdrawn"]);
+    for (const step of RULE_ONE.trail) {
+      expect(step.tx.from).toBe(H1);
+      expect(step.tx.block).toBeGreaterThan(LAUNCH_C_ON_CHAIN.tx.block);
+    }
+    expect(RULE_ONE.trail[1]!.tx).toEqual(SECOND.trail[0]!.tx);
+    expect(RULE_ONE.trail[0]!.tx.block).toBeLessThan(SECOND.trail[0]!.tx.block);
+    expect(RULE_ONE.trail[2]!.tx.block).toBeGreaterThan(blocks.at(-1)!);
+  });
+
   it("the first rounds: one per house feed, opened by H1, answered twice by submit and once by the callback", () => {
     expect(ROUND_HISTORY.rounds.map((r) => r.feed)).toEqual(["payrolls", "hires", "employers"]);
     for (const r of ROUND_HISTORY.rounds) {
@@ -242,10 +377,12 @@ describe("the history kept with the site", () => {
     );
   });
 
-  it("x402: seven payments from house wallets, each its own transaction, all sent through IdentityMD", () => {
-    expect(HOUSE_X402.payments).toHaveLength(7);
+  it("x402: eight payments from house wallets, each its own transaction, all sent through IdentityMD", () => {
+    expect(HOUSE_X402.payments).toHaveLength(8);
     expect(HOUSE_X402.payments.filter((p) => p.payer === "W1")).toHaveLength(6);
-    expect(new Set(HOUSE_X402.payments.map((p) => p.tx.hash)).size).toBe(7);
+    expect(HOUSE_X402.payments.filter((p) => p.payer === "H1")).toHaveLength(2);
+    expect(new Set(HOUSE_X402.payments.map((p) => p.tx.hash)).size).toBe(8);
+    expect(HOUSE_X402.read).toBe("16 October 2026");
     for (const p of HOUSE_X402.payments) {
       expect(p.tx.from).toBe(MAINNET.FEE_PAYEE);
       expect(p.tx.block).toBeGreaterThanOrEqual(HOUSE_X402.fromBlock);
@@ -335,7 +472,15 @@ describe("the history kept with the site", () => {
 
   it("uses none of the words the site does not use", () => {
     const text = JSON.stringify(
-      { ORDER_HISTORY, ROUND_HISTORY, HOUSE_X402, LAUNCH_PRS, UNUSED_FEATURES, ENDOWMENT_HISTORY },
+      {
+        ORDER_HISTORY,
+        ROUND_HISTORY,
+        HOUSE_X402,
+        LAUNCH_PRS,
+        UNUSED_FEATURES,
+        ENDOWMENT_HISTORY,
+        RULE_HISTORY,
+      },
       (_k, v) => (typeof v === "bigint" ? v.toString() : v),
     );
     expect(text).not.toMatch(BANNED);
@@ -493,6 +638,81 @@ describe("order 1 on its page", () => {
   });
 });
 
+describe("order 2 on its page", () => {
+  const two = () => testSources({ book: DEPLOYMENT_BOOK, chain: { views: orderTwo() } });
+
+  it("shows the rule's order: its trail, its job text, the proof, the tip and the report, read on 16 October 2026", async () => {
+    const { model, markdown } = await page<OrderModel>(two(), "/orders/2");
+    expect(model.order?.state).toBe("Delivered");
+    expect(model.delivered).toBe(true);
+    expect(model.trail.map((s) => s.label)).toEqual([
+      "Opened",
+      "Claimed",
+      "x402 payment",
+      "Receipt written",
+      "Registered",
+      "Settled on proof",
+    ]);
+    for (const step of SECOND.trail) expect(markdown).toContain(`https://etherscan.io/tx/${step.tx.hash}`);
+    // Its trail was read on its own day, not on the day order 1's was.
+    expect(model.trailNote).toContain("read from the chain on 16 October 2026");
+    expect(model.order?.spec).toBe(SECOND.spec);
+    // The ticket of the runner's claim gives the header prove hashed.
+    expect(model.ticket).toBe("0xbd623ece89b1c600768011d08b9f77f00f169c6b6f31d2e3c37d61515189c407");
+    expect(model.proof?.source).toBe("pinned");
+    expect(model.proof?.printed).toContain("[52142]");
+    expect(model.proof?.words).toContain("As called on 16 October 2026");
+    expect(model.proof?.words).toContain("The objective begins with this claim's 85-byte order header.");
+    expect(model.proof?.words).toContain("The kind is the order's.");
+    expect(model.tips[0]).toMatchObject({ agentId: "52142", owedImd: "0" });
+    expect(model.tips[0]?.words).toContain(
+      "Claimed: on 16 Oct 2026, 10:46 UTC house wallet H1 called claimTip(52142)",
+    );
+    expect(model.tips[0]?.words).toContain("had no code when read on 16 October 2026");
+    // A price on a ramp is not a round number: the page gives every amount to the wei.
+    expect(model.tips[0]?.words).toContain("Payroll paid the 0.0280025 IMD tip credited for agent 52142");
+    expect(Object.fromEntries(model.money.map((m) => [m.label, m.imd]))).toMatchObject({
+      "Paid out for delivered work": "0.56005",
+      "Sent back to the employer": "0.03995",
+      "Price fixed by the runner's claim": "0.56005",
+      "of which fee (to Payroll)": "0.0280025",
+      "of which to the runner": "0.504045",
+    });
+    // A report, not a picture: the link is to the file IdentityMD serves, and no copy is kept here.
+    expect(model.picture).toBeNull();
+    expect(model.work).toMatchObject({ label: "See the report the rule paid for", url: SECOND.work!.url });
+    expect(markdown).toContain("## The work");
+    expect(markdown).toContain(
+      `See the report the rule paid for: [${SECOND.work!.url}](${SECOND.work!.url})`,
+    );
+    expect(markdown).toContain("This site serves no copy.");
+    expect(model.flows).toEqual([]);
+  });
+
+  it("/rules/new names rule 1 as the team's own, with its transactions and its order", async () => {
+    const { model, markdown } = await page<RulesNewModel>(mainnet(), "/rules/new");
+    expect(model.firstRule?.words).toContain("Rule 1 is the team's own.");
+    expect(model.firstRule?.words).toContain(
+      "House wallet H1 created it on 16 October 2026 (block 26,204,482)",
+    );
+    expect(model.firstRule?.words).toContain("This is HOUSE use, not outside use.");
+    expect(model.firstRule?.links.map((l) => l.url)).toEqual([
+      ...RULE_ONE.trail.map((step) => `https://etherscan.io/tx/${step.tx.hash}`),
+      "/orders/2",
+      `https://etherscan.io/tx/${SECOND.trail.at(-1)!.tx.hash}`,
+    ]);
+    expect(markdown).toContain("Rule 1 is the team's own.");
+    // The form's example is the view-call rule of launch C's document, not called its first rule.
+    expect(markdown).not.toContain("the first rule proposed in launch C's launch document");
+    expect(markdown).toContain(
+      "The example is a rule on a view call, the one launch C's launch document gives in section 6",
+    );
+    // A book whose Rules is not mainnet's says nothing of rule 1.
+    const other = await page<RulesNewModel>(testSources({ book: BOOKS.all }), "/rules/new");
+    expect(other.model.firstRule).toBeNull();
+  });
+});
+
 describe("the front page on mainnet's book", () => {
   it("leads with the order paid on proof, its links, the four lines and the three actions", async () => {
     const { loaded, model, markdown } = await page<WireModel>(mainnet(), "/");
@@ -509,6 +729,28 @@ describe("the front page on mainnet's book", () => {
       "the tip for agent 51519, claimed for seat #1049's owner",
     ]);
     expect(model.lead?.now).toBe("Read for this page: order 1 is Delivered and marked proven.");
+    // Order 2 follows in the same form: a rule hired, and it was the team's own.
+    expect(model.lead?.next?.orderPath).toBe("/orders/2");
+    expect(model.lead?.next?.verifyPath).toBe(`/verify/${SECOND.jobId}`);
+    expect(model.lead?.next?.deck).toContain(
+      "On 16 October 2026 rule 1 on our Rules contract read launch A's hires feed, which reported 223, and opened order 2 for a research report",
+    );
+    expect(model.lead?.next?.deck).toContain(
+      "was paid on IdentityMD's receipt at 10:37 UTC, under nine minutes after the fire",
+    );
+    expect(model.lead?.next?.deck).toContain(
+      "The rule's creator, the wallet that fired it (by hand) and the runner were all house wallet H1.",
+    );
+    expect(model.lead?.next?.links.map((l) => l.label)).toEqual([
+      "the rule's fire",
+      "the settlement",
+      "the x402 payment",
+      "the tip for agent 52142, claimed for seat #1978's owner",
+    ]);
+    expect(model.lead?.next?.work?.url).toBe(SECOND.work!.url);
+    expect(markdown).toContain(
+      `See the report the rule paid for: [${SECOND.work!.url}](${SECOND.work!.url})`,
+    );
     expect(model.whatIsNew).toHaveLength(4);
     // WorkProof checks the hash and returns the record's hashes; the desk compares them with the order.
     expect(model.whatIsNew[2]).toContain(
@@ -552,8 +794,43 @@ describe("the judges page on mainnet's book", () => {
       "The first Robot Jobs Report",
       "The Doorbell's 25 rings",
       "Order 1: opened by a contract, paid on proof",
+      "Order 2: opened by a rule, paid on proof",
       "Endowment 1: the team's own drill, with the team's own IMD",
     ]);
+    // Order 2's group: the rule's creation, the order's trail, the change taken back (block
+    // 26,204,586), then the tip (block 26,204,587): oldest first, as the intro says.
+    const second = model.live?.groups.find((g) => g.title === "Order 2: opened by a rule, paid on proof");
+    expect(second?.rows.map((r) => r.label)).toEqual([
+      "Rule created",
+      "Opened",
+      "Claimed",
+      "x402 payment",
+      "Receipt written",
+      "Registered",
+      "Settled on proof",
+      "Change withdrawn",
+      "Tip claimed",
+    ]);
+    // Each order's group is oldest first: no row's block comes before the row above it.
+    for (const group of model.live?.groups.filter((g) => g.title.startsWith("Order ")) ?? []) {
+      const blocks = group.rows.map((r) => r.block).filter((b): b is number => b !== null);
+      expect(blocks, group.title).toEqual([...blocks].sort((a, b) => a - b));
+    }
+    expect(second?.rows.find((r) => r.label === "Tip claimed")?.what).toContain(
+      "eth_getCode, read on 16 October 2026",
+    );
+    expect(second?.rows.find((r) => r.label === "Tip claimed")?.what).toContain(
+      "The seat's owner is a wallet outside the team. It did nothing to be paid",
+    );
+    expect(model.live?.intro).toContain(
+      "read from the chain on 15 October 2026 (order 2 and rule 1: 16 October 2026)",
+    );
+    // What happened: both orders, and who was behind the second.
+    expect(model.thirtySeconds[1]).toContain("opened order 2 for a research report");
+    expect(model.thirtySeconds[1]).toContain("44 blocks after the fire");
+    expect(model.thirtySeconds[1]).toContain(
+      "The rule's creator, the wallet that fired it (by hand) and the runner were all house wallet H1 (HOUSE).",
+    );
     // All three launches are among the transactions, launch C's included.
     expect(model.live?.groups[0]?.rows.map((r) => r.label)).toEqual([
       "Launch A, IdentityMD launch 1531",
@@ -608,8 +885,8 @@ describe("the judges page on mainnet's book", () => {
     );
     // A kept figure is dated; only a figure read for the page is said to be read for it.
     expect(markdown).not.toContain("Counted now");
-    expect(x402?.usage.countedOn).toBe("15 October 2026");
-    expect(markdown).toContain("Counted on 15 October 2026: 7 x402 payments");
+    expect(x402?.usage.countedOn).toBe("16 October 2026");
+    expect(markdown).toContain("Counted on 16 October 2026: 8 x402 payments");
     const legacy = model.integration.find((r) => r.primitive.startsWith("Intake, version 1"));
     expect(legacy?.usage.countedOn).toBe("15 October 2026");
     const audits = model.integration.find((r) => r.primitive.startsWith("Audit jobs"));
@@ -754,9 +1031,9 @@ describe("who takes orders today", () => {
     expect(hire.markdown).toContain("## Who this is for");
   });
 
-  it("states the team's word on its runner beside the chain's, dated 15 October 2026", async () => {
+  it("states the team's word on its runner beside the chain's, dated 16 October 2026", async () => {
     const { model, markdown } = await page<RunnersModel>(mainnet(), "/runners");
-    expect(model.runnerStatement?.heading).toBe("What the team says, 15 October 2026");
+    expect(model.runnerStatement?.heading).toBe("What the team says, 16 October 2026");
     expect(model.runnerStatement?.lines).toEqual([...RUNNER_STATEMENT.lines, RUNNER_STATEMENT.keeper]);
     const said = model.runnerStatement!.lines.join(" ");
     expect(said).toContain("runs on a hosted server (Railway), around the clock");
@@ -768,8 +1045,15 @@ describe("who takes orders today", () => {
     expect(said).toContain(
       "On 15 October 2026 it was set to ask for no margin: an order need only pay it the swarm's 0.5 IMD fee, and the gas is its own cost.",
     );
+    // What came of it, said in the past: it served order 2.
+    expect(said).toContain(
+      "so that it could serve the first order that a rule of the team's, in launch C, opened",
+    );
+    expect(said).toContain(
+      "On 16 October 2026 it took order 2, the first order a rule of the team's opened, and settled it on its receipt",
+    );
     expect(said).toContain("The keeper (bots/keeper) is not hosted: it is run by hand.");
-    expect(markdown).toContain("What the team says, 15 October 2026. A statement, not a reading:");
+    expect(markdown).toContain("What the team says, 16 October 2026. A statement, not a reading:");
     // The chain's line comes first, then the team's word.
     expect(markdown.indexOf("What the chain shows:")).toBeLessThan(markdown.indexOf("What the team says"));
     // /hire carries the runner's lines; the keeper is said where runners are.
@@ -780,7 +1064,7 @@ describe("who takes orders today", () => {
     expect(research.model.runnerTakes).toContain("The team says its runner takes this kind of order");
     // With the limits the team gives: the order's bond, one at a time, one swarm fee a day.
     expect(research.model.runnerTakes).toContain(
-      "when the order's bond is at most 0.25 IMD, one order at a time, and that it pays at most one 0.5 IMD swarm fee a day (15 October 2026)",
+      "when the order's bond is at most 0.25 IMD, one order at a time, and that it pays at most one 0.5 IMD swarm fee a day (16 October 2026)",
     );
     const audit = await page<HireTemplateModel>(mainnet(), "/hire/audit");
     expect(audit.model.runnerTakes).toContain("The team says its runner does not take this kind of order");
@@ -875,6 +1159,33 @@ describe("the corrected wordings", () => {
     expect(other.markdown).not.toContain("Tips paid to");
     expect(pinnedTipClaims(null, 1049)).toEqual([]);
     expect(pinnedTipClaims(BELL, 1049)).toEqual([]);
+  });
+
+  it("/seats/1978 lists order 2's tip, to the wei", async () => {
+    const claim = SECOND.tipClaims[0]!;
+    const world = mainnet({
+      ...orderOne(),
+      [`${PAYROLL}:seatClaimable`]: { abi: payrollAbi, result: 0n },
+      [`${PAYROLL}:seatPaid`]: { abi: payrollAbi, result: 0n },
+    });
+    const { model, markdown } = await page<SeatModel>(world, "/seats/1978");
+    expect(model.tipsPaidImd).toBe("0.0280025");
+    expect(model.tipsPaid).toEqual([
+      {
+        orderId: 2,
+        agentId: "52142",
+        amountImd: "0.0280025",
+        paidTo: claim.paidTo,
+        at: "16 Oct 2026, 10:46 UTC",
+        txUrl: `https://etherscan.io/tx/${claim.tx.hash}`,
+      },
+    ]);
+    expect(markdown).toContain(
+      "each read on the day its order was read (15 October 2026 and 16 October 2026)",
+    );
+    expect(markdown).toContain(`Payroll paid order 2's 0.0280025 IMD tip for agent 52142 to ${claim.paidTo}`);
+    expect(markdown).toContain("| Tips paid to its owner (orders on record here) | 0.0280025 IMD |");
+    expect(markdown).toContain(claim.tx.hash);
   });
 });
 
@@ -1163,14 +1474,30 @@ describe("launch C's pages on mainnet's book", () => {
 });
 
 describe("what a mock judging found, on mainnet's book", () => {
-  it("/judges gives three things our contracts and IdentityMD's did together, each with its transaction", async () => {
+  it("/judges gives what our contracts and IdentityMD's did together, each with its transaction", async () => {
     const { model, markdown } = await page<JudgesModel>(mainnet(), "/judges");
     expect(model.provenOnChain.map((p) => p.tx)).toEqual([
       "0x9fea43c9e0fd05c8c55b977284e6e543410f71c74363e5448747b1b482056b06",
       "0xfed277e7525f289f8e8bad0333148c8823f42c779836280189ff874500de051b",
       "0x9edc8ba2ae4cfbabe95d6ca11e7a93f349f09729b7a699d575eac6f8466e1fe8",
+      "0x9f790aae9db07625dc86b6c107d7ed55b43f96ba5bfaf5b02c64269ab963e37b",
+      "0xd7a75e9c71968ba67badb671c96103a55364d78b563e6b6561a08b98603f6273",
     ]);
-    const [paid, delivered, tip] = model.provenOnChain;
+    const [paid, delivered, tip, fire, secondTip] = model.provenOnChain;
+    // A standing rule fired a hire on a feed answer, and the team's own wallet sent it.
+    expect(fire?.title).toBe("A standing rule read a Standing Question and hired the swarm");
+    expect(fire?.words).toContain("house wallet H1 called Rules.fire(1) by hand");
+    expect(fire?.words).toContain(
+      "The rule's creator, the wallet that fired it and the runner were the team's own (HOUSE).",
+    );
+    expect(fire?.commands.map((c) => c.command).join("\n")).toContain(
+      `cast call ${RULES} "statusOf(uint256)(uint8)" 1`,
+    );
+    expect(secondTip?.title).toBe(
+      "A tip followed the agent to its seat's owner: claimTip(52142) → bindingOf → seat #1978 → ownerOf → 0x5C7d92736A6Db05b85eF1aEBBc3190f05cff3008",
+    );
+    expect(secondTip?.words).toContain("not outside use of HELP WANTED");
+    expect(secondTip?.commands[0]?.comment).toContain("it read seat 1978 on 16 October 2026");
     expect(paid?.title).toBe("Our Questions contract paid IdentityMD's Intake, version 2");
     expect(paid?.words).toContain("A contract, not a wallet, bought the work.");
     expect(delivered?.title).toBe("IdentityMD's callback delivered an answer to our contract");
@@ -1198,21 +1525,23 @@ describe("what a mock judging found, on mainnet's book", () => {
     expect(markdown).not.toContain('"bindingOf(uint256)((uint8,address,uint256))" 52211');
   });
 
-  it("/judges proves a research report through WorkProof as well, free, with the agent its record names", async () => {
+  it("/judges proves order 2, a research report, through WorkProof as well, free, with the agent its record names", async () => {
     const { model, markdown } = await page<JudgesModel>(mainnet(), "/judges");
     const second = model.live?.proveSecond;
-    expect(SECOND_KIND_JOB.kind).toBe("skill:research-report");
-    expect(SECOND_KIND_JOB.kindHash).toBe(kindHash(SECOND_KIND_JOB.kind));
-    expect(SECOND_KIND_JOB.jobIdBytes16).toBe(`0x${SECOND_KIND_JOB.jobId.replace(/-/g, "")}`);
+    expect(second?.commands[0]?.command).toContain(SECOND.prove.recordHash.slice(2));
     expect(second?.commands[1]?.command).toContain(
       `cast call ${BOOK.workProof.address} "prove(bytes16,bytes,uint256)`,
     );
-    expect(second?.commands[1]?.command).toContain(` ${SECOND_KIND_JOB.jobIdBytes16} `);
-    expect(second?.commands[1]?.command).toMatch(/report-record\.json \| tr -d '\\n'\)" 0 --rpc-url/);
-    expect(second?.answer).toContain(`(${SECOND_KIND_JOB.recordHash}, ${SECOND_KIND_JOB.kindHash},`);
-    expect(second?.answer).toContain("[53933]");
-    expect(second?.note).toContain("It did not come through HELP WANTED and nobody of ours paid for it");
-    expect(markdown).toContain("### The same proof for a research report");
+    expect(second?.commands[1]?.command).toContain(" 0x42f26c64eea946f2822a33547ec18abf ");
+    expect(second?.commands[1]?.command).toMatch(/report-record\.json \| tr -d '\\n'\)" 85 --rpc-url/);
+    expect(second?.answer).toBe(
+      `(${SECOND.prove.recordHash}, ${SECOND.prove.kindHash}, ${SECOND.prove.headHash}, ${SECOND.prove.specHash}, ${SECOND.prove.stateHash}, [52142])`,
+    );
+    expect(second?.note).toContain(
+      "Rule 1 on our Rules contract ordered it, and the team's runner, house wallet H1, paid IdentityMD for it (HOUSE).",
+    );
+    expect(second?.note).toContain("What prove answered on 16 October 2026");
+    expect(markdown).toContain("### The same proof for order 2, a research report");
   });
 
   it("the Doorbell: 25 rings, all HOUSE, what it needs to hire again, and that no watcher is running", async () => {
@@ -1272,7 +1601,7 @@ describe("what a mock judging found, on mainnet's book", () => {
     expect(order.markdown).toContain("this site serves no copy");
   });
 
-  it("/llms.txt lists the three together, the research report's proof, and the bindingOf of agent 51519", async () => {
+  it("/llms.txt lists what was done together, order 2's proof, and the bindingOf of agent 51519", async () => {
     const text = await llmsTxt(ctxFor(mainnet()));
     const proven = text.slice(text.indexOf("## Proven on the live system"), text.indexOf("## Addresses"));
     expect(proven).toContain(
@@ -1295,10 +1624,23 @@ describe("what a mock judging found, on mainnet's book", () => {
     expect(proven).toContain(
       "https://etherscan.io/tx/0x9edc8ba2ae4cfbabe95d6ca11e7a93f349f09729b7a699d575eac6f8466e1fe8",
     );
-    expect(proven).toContain(`job ${SECOND_KIND_JOB.jobId} was done by the swarm for somebody else`);
+    // Order 2, opened by a rule, with its prove command and its tip.
     expect(proven).toContain(
-      ` ${SECOND_KIND_JOB.jobIdBytes16} "0x$(xxd -p report-record.json | tr -d '\\n')" 0 `,
+      "Order 2 on the hire desk, opened by rule 1 of our Rules contract when launch A's hires feed read 223",
     );
+    expect(proven).toContain(
+      "The rule was created and fired, by hand, by house wallet H1, and the runner was H1 (HOUSE).",
+    );
+    expect(proven).toContain(
+      "https://etherscan.io/tx/0x35bb49cc9576a425b94a94137e8fe24e496017cc154456eeee255d22fc020516",
+    );
+    expect(proven).toContain(
+      ` 0x42f26c64eea946f2822a33547ec18abf "0x$(xxd -p report-record.json | tr -d '\\n')" 85 `,
+    );
+    expect(proven).toContain(
+      "claimTip(52142) → the seat Adapter's bindingOf(52142) → seat #1978 → the Seats token's ownerOf(1978) → 0x5C7d92736A6Db05b85eF1aEBBc3190f05cff3008",
+    );
+    expect(proven).toContain("not outside use of HELP WANTED");
     expect(proven).toContain(`"bindingOf(uint256)((uint8,address,uint256))" 51519`);
     expect(proven).not.toContain(`"bindingOf(uint256)((uint8,address,uint256))" 52211`);
     expect(proven).toContain(`cast call ${MAINNET.SEATS} "ownerOf(uint256)(address)" 1049`);

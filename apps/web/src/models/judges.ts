@@ -13,6 +13,7 @@ import {
   MAINNET,
   orderHeadHash,
   orderHeader,
+  rulesAbi,
   sameAddress,
   scanWorkRecord,
   workProofAbi,
@@ -38,9 +39,10 @@ import {
   pinnedPrint,
   pinnedRings,
   pinnedRounds,
-  SECOND_KIND_JOB,
+  pinnedRule,
   UNUSED_FEATURES,
   VERIFIED_SOURCE,
+  type PinnedOrder,
   type PinnedTx,
 } from "~/config/history";
 import { HOUSE_WALLETS, houseSet } from "~/config/house";
@@ -302,20 +304,21 @@ export interface JudgesModel {
   generatedAt: string;
   /**
    * The transactions behind what is live on mainnet: the launches, the first rounds and print, the
-   * first order from opening to settlement, and the proof command with its answer. Null where the
-   * deployments book is not mainnet's (a fork, a rehearsal, a test).
+   * first two orders from opening to settlement (order 2 opened by a rule), and the proof command
+   * with its answer. Null where the deployments book is not mainnet's (a fork, a rehearsal, a test).
    */
   live: {
     intro: string;
     groups: { title: string; rows: LiveTx[] }[];
     prove: { commands: { comment: string; command: string }[]; answer: string; note: string } | null;
-    /** The same call for a job of the other kind the team's runner takes: a research report. */
+    /** The same call for order 2, a job of the other kind the team's runner takes: a research report. */
     proveSecond: { commands: { comment: string; command: string }[]; answer: string; note: string } | null;
   } | null;
   /**
    * Our contracts and IdentityMD's working together on mainnet, each with its transaction, kept in
    * config/history.ts: Questions paying the Intake, the Intake's own callback delivering an answer,
-   * and a tip paid through the seat Adapter to a seat's owner. Empty where the book is not mainnet's.
+   * a standing rule firing a hire on a feed answer, and the tips paid through the seat Adapter to
+   * seats' owners. Empty where the book is not mainnet's.
    */
   provenOnChain: ProvenOnChain[];
   /** Five lines: what it is, what happened, how to check it, what is live, what is not. */
@@ -498,7 +501,7 @@ const NEVER_CLAIMED = [
  * list of its first entry is left out: addresses on this site come from the deployments book).
  */
 export const DESK_FROM_ITS_DOCUMENTS = {
-  asOf: "15 October 2026",
+  asOf: "16 October 2026",
   what: "Launch B is four contracts for Ethereum mainnet with no owner and no token: WorkProof, WorkOrders, CrowdPots and the Doorbell.",
   points: [
     "WorkOrders is a job board on which the employer can be a contract: an employer escrows IMD against a pinned job text, a bonded runner opens the job with IdentityMD's swarm, and the escrow pays when the job's work record is proven on chain against IdentityMD's WorkRegistry.",
@@ -512,8 +515,9 @@ export const DESK_FROM_ITS_DOCUMENTS = {
     "The central claim holds through the launched WorkProof. Called on mainnet with the served record of the real job e9efec16-56f3-40d3-9243-52c453effc7d, prove answers with the record's hash and the agent the record names.",
     "Payroll, the one contract this launch pays and does not create, is live. The tests that need no network use a stand-in for it.",
     "The desk's first order was settled by a real job, on proof. The order is Delivered and marked proven. The ringer, the runner and the Doorbell's IMD were all the team's own.",
+    "The desk's second order was opened by a contract of launch C and settled on proof. It was a research report that only a receipt can pay, at 0.56 rising to 0.60 IMD, with Rules as its employer and the delivery callback on. IdentityMD's writer wrote the job's receipt two blocks before the runner registered the job. The order is Delivered and marked proven. The rule's creator, the wallet that fired it and the runner were all the team's own.",
     "The earlier header job is proven too.",
-    "IdentityMD's receipts stalled from about 8 to 14 October 2026. While receipts are late, only orders that allow the bonded-claim path can be paid, which is why the Doorbell was launched with that path on.",
+    "IdentityMD's receipts stalled from about 8 to 14 October 2026. While receipts are late, only orders that allow the bonded-claim path can be paid, which is why the Doorbell was launched with that path on. The registry has kept writing since: on 16 October the receipt of order 2's job landed two blocks before its runner registered the job.",
     "Audited by IdentityMD's launch pipeline, and by nobody outside IdentityMD's network. Before deploying, its audit agents and an independent reviewer read this code and reported one medium and several info findings. None changed the compiled code; each is answered in ADAPTATION.md, and the medium one (a receipt-only pot can be ended in a refund with no bond forfeited) is now stated as a limit in docs/THREATS.md, C2. Of the eleven findings on IdentityMD's record of the pipeline job, ADAPTATION.md answers seven by name, and the other four through the judge's findings they were merged into.",
   ],
 } as const;
@@ -526,6 +530,7 @@ const SAID_OF_THE_LAUNCHED_DESK = [
   "Live on Ethereum mainnet",
   "The central claim holds through the launched",
   "The desk's first order was settled",
+  "The desk's second order was opened",
   "Audited by IdentityMD's launch pipeline",
 ] as const;
 
@@ -1073,6 +1078,11 @@ export const judgesPage: PageDef<JudgesModel> = {
         : null;
     const firstOrder = pinnedOrder(deployments.contracts.workOrders.address, 1);
     const firstTip = firstOrder?.tipClaims[0] ?? null;
+    // Order 2, opened by rule 1 on Rules: kept with its rule, for the book's desk and Rules only.
+    const secondOrder = pinnedOrder(deployments.contracts.workOrders.address, 2);
+    const firstRule = secondOrder ? pinnedRule(deployments.contracts.rules.address, 1) : null;
+    const ruleOrder = firstRule ? secondOrder : null;
+    const pinnedOrders = [firstOrder, ruleOrder].filter((o): o is PinnedOrder => o !== null);
     const launchesRecorded = LAUNCH_KEYS.filter((key) => deployments.launches[key].txHash !== null);
     const answeredFeeds = feedBook ? feedBook.feeds.filter((f) => f.latest.updatedAt > 0).length : null;
     const questionsLaunched = deployments.contracts.questions.address !== null;
@@ -1140,6 +1150,17 @@ export const judgesPage: PageDef<JudgesModel> = {
         proofs: [
           { label: "the reference job, checked live", url: referencePath },
           { label: "its receipt transaction", url: etherscanTx(REFERENCE_JOB.receiptTx) },
+          ...pinnedOrders.flatMap((order) => {
+            const settled = order.trail.find((step) => step.key === "settled");
+            return settled
+              ? [
+                  {
+                    label: `order ${order.id}, settled against its receipt`,
+                    url: etherscanTx(settled.tx.hash),
+                  },
+                ]
+              : [];
+          }),
         ],
         proofNote: v
           ? `Read for this page: ${v.stamp}.`
@@ -1162,6 +1183,10 @@ export const judgesPage: PageDef<JudgesModel> = {
         proofs: [
           { label: "the reference record", url: IMD_LINK.workRecord(hashNo0x(REFERENCE_JOB.receipt)) },
           { label: "the header job's record", url: headerJobView.recordUrl },
+          ...pinnedOrders.map((order) => ({
+            label: `order ${order.id}'s record, which carries its order header`,
+            url: IMD_LINK.workRecord(hashNo0x(order.prove.recordHash)),
+          })),
         ],
         proofNote: "Each hashes to the hash it is served under; the second carries our 85-byte order header.",
         command: verifyCmds[1]?.command ?? null,
@@ -1178,7 +1203,7 @@ export const judgesPage: PageDef<JudgesModel> = {
           count: formatInt(HOUSE_X402.payments.length),
           what: `x402 payments for swarm jobs from house wallets (W1 ${HOUSE_X402.payments.filter((p) => p.payer === "W1").length}, H1 ${HOUSE_X402.payments.filter((p) => p.payer === "H1").length}), each one's transaction linked in this row: every IMD Transfer from W1 or H1 to the fee address in blocks ${formatInt(HOUSE_X402.fromBlock)} to ${formatInt(HOUSE_X402.toBlock)}, less the four oracle requests W1 bought through the legacy Intake (three attested, one not)`,
           reason: null,
-          countedOn: HISTORY_READ_ON,
+          countedOn: HOUSE_X402.read,
         },
         proofs: [
           { label: `the header job ${HEADER_JOB.jobId.slice(0, 8)}`, url: headerJobView.jobUrl },
@@ -1375,12 +1400,12 @@ export const judgesPage: PageDef<JudgesModel> = {
           reason: l ? null : ledgerReason,
         },
         proofs: firstTip
-          ? [
-              {
-                label: `order ${firstOrder!.id}'s tip: claimTip(${firstTip.agentId}) paid seat #${firstTip.tokenId}'s owner`,
-                url: etherscanTx(firstTip.tx.hash),
-              },
-            ]
+          ? pinnedOrders.flatMap((order) =>
+              order.tipClaims.map((claim) => ({
+                label: `order ${order.id}'s tip: claimTip(${claim.agentId}) paid seat #${claim.tokenId}'s owner`,
+                url: etherscanTx(claim.tx.hash),
+              })),
+            )
           : [{ label: `look up agent ${TIP_AGENT}'s seat`, url: `/seats?agent=${TIP_AGENT}` }],
         proofNote: binding?.bound
           ? `Read for this page: agent ${TIP_AGENT}, the agent order 1's work record names, is bound to seat #${binding.tokenId}.`
@@ -1743,7 +1768,7 @@ export const judgesPage: PageDef<JudgesModel> = {
     }
     notLive.push(
       deskLaunched
-        ? `The keeper, the runner and the indexer are in the repository (bots/keeper, bots/runner, apps/indexer). ${RUNNER_STATEMENT.short} The indexer folds launch A's events into tables; ${launchIsLive(deployments, "C") ? "for the hire desk, the crowd pots, the Doorbell and launch C's three contracts it stores the raw logs and its handlers are still stubs, so it holds no table of orders, claims, pots, rules or endowments" : "for the hire desk, the crowd pots and the Doorbell it stores the raw logs and its handlers are still stubs, so it holds no table of orders, claims or pots"}. This site does not read from the indexer; it reads the chain and IdentityMD's API directly, so an order's or a pot's job text is shown only while its opening log is within about a day, or where this site keeps the history itself (config/history.ts holds order 1's${pinnedRings(deployments.contracts.doorbell.address) ? ", and who sent the Doorbell's rings up to its first hire" : ""})${pinnedRings(deployments.contracts.doorbell.address) ? "; a later ring's sender is known only while its log is within about a day" : ", and there is no history of rings"}.`
+        ? `The keeper, the runner and the indexer are in the repository (bots/keeper, bots/runner, apps/indexer). ${RUNNER_STATEMENT.short} The indexer folds launch A's events into tables; ${launchIsLive(deployments, "C") ? "for the hire desk, the crowd pots, the Doorbell and launch C's three contracts it stores the raw logs and its handlers are still stubs, so it holds no table of orders, claims, pots, rules or endowments" : "for the hire desk, the crowd pots and the Doorbell it stores the raw logs and its handlers are still stubs, so it holds no table of orders, claims or pots"}. This site does not read from the indexer; it reads the chain and IdentityMD's API directly, so an order's or a pot's job text is shown only while its opening log is within about a day, or where this site keeps the history itself (config/history.ts holds ${pinnedOrders.length > 0 ? `${listWords(pinnedOrders.map((o) => `order ${o.id}'s`))}` : "order 1's"}${pinnedRings(deployments.contracts.doorbell.address) ? ", and who sent the Doorbell's rings up to its first hire" : ""})${pinnedRings(deployments.contracts.doorbell.address) ? "; a later ring's sender is known only while its log is within about a day" : ", and there is no history of rings"}.`
         : questionsLaunched
           ? "The keeper, the runner and the indexer are in the repository (bots/keeper, bots/runner, apps/indexer). Since launch A the keeper has feeds to keep; the runner has no desk to take orders from. This site does not read from the indexer; it reads the chain and IdentityMD's API directly."
           : "The keeper, the runner and the indexer are in the repository (bots/keeper, bots/runner, apps/indexer). None has anything to act on yet: there is no feed to keep and no desk to take orders from. This site does not read from the indexer; it reads the chain and IdentityMD's API directly.",
@@ -1838,18 +1863,49 @@ export const judgesPage: PageDef<JudgesModel> = {
         ],
       });
     }
+    // A tip's claim, in the words of the rule Payroll enforces, read on the day its order was read.
+    const tipClaimRow = (order: PinnedOrder, claim: PinnedOrder["tipClaims"][number]): LiveTx =>
+      liveTx(
+        "Tip claimed",
+        `${houseLabel(claim.tx.from) ? `House wallet ${houseLabel(claim.tx.from)}` : claim.tx.from} called Payroll.claimTip(${claim.agentId}). Payroll paid the ${formatImd(claim.amountWei, 18)} IMD tip credited for agent ${claim.agentId}, the agent IdentityMD's work record names, to the owner of seat #${claim.tokenId}, ${claim.paidTo}. ${claim.paidToHasCode ? `That owner's address had code (eth_getCode, read on ${order.read}), so only the owner could send the call.` : `That owner's address had no code (eth_getCode, read on ${order.read}), so anyone could send the call; had it held code, only the owner could have sent it.`}${houseLabel(claim.paidTo) ? "" : " The seat's owner is a wallet outside the team. It did nothing to be paid: this is a payment to the owner of the seat bound to the agent the record names, not use of HELP WANTED by anyone outside the team."}`,
+        claim.tx,
+      );
     if (firstOrder) {
       groups.push({
         title: `Order ${firstOrder.id}: opened by a contract, paid on proof`,
         rows: [
           ...firstOrder.trail.map((step) => liveTx(step.label, step.what, step.tx)),
-          ...firstOrder.tipClaims.map((claim) =>
-            liveTx(
-              "Tip claimed",
-              `${houseLabel(claim.tx.from) ? `House wallet ${houseLabel(claim.tx.from)}` : claim.tx.from} called Payroll.claimTip(${claim.agentId}). Payroll paid the ${formatImd(claim.amountWei)} IMD tip credited for agent ${claim.agentId}, the agent IdentityMD's work record names, to the owner of seat #${claim.tokenId}, ${claim.paidTo}. ${claim.paidToHasCode ? `That owner's address had code (eth_getCode, read on ${HISTORY_READ_ON}), so only the owner could send the call.` : `That owner's address had no code (eth_getCode, read on ${HISTORY_READ_ON}), so anyone could send the call; had it held code, only the owner could have sent it.`}`,
-              claim.tx,
-            ),
-          ),
+          ...firstOrder.tipClaims.map((claim) => tipClaimRow(firstOrder, claim)),
+        ],
+      });
+    }
+    if (ruleOrder && firstRule) {
+      const ruleStep = (label: string) => firstRule.trail.find((step) => step.label === label) ?? null;
+      const created = ruleStep("Rule created");
+      const withdrawn = ruleStep("Change withdrawn");
+      groups.push({
+        title: `Order ${ruleOrder.id}: opened by a rule, paid on proof`,
+        rows: [
+          ...(created
+            ? [
+                liveTx(
+                  created.label,
+                  `${created.what} Sent by house wallet ${houseLabel(created.tx.from) ?? created.tx.from}.`,
+                  created.tx,
+                ),
+              ]
+            : []),
+          ...ruleOrder.trail.map((step) => liveTx(step.label, step.what, step.tx)),
+          ...(withdrawn
+            ? [
+                liveTx(
+                  withdrawn.label,
+                  `${withdrawn.what} Sent by house wallet ${houseLabel(withdrawn.tx.from) ?? withdrawn.tx.from}.`,
+                  withdrawn.tx,
+                ),
+              ]
+            : []),
+          ...ruleOrder.tipClaims.map((claim) => tipClaimRow(ruleOrder, claim)),
         ],
       });
     }
@@ -1871,7 +1927,7 @@ export const judgesPage: PageDef<JudgesModel> = {
       groups.length === 0
         ? null
         : {
-            intro: `The main transactions behind what is live, oldest first in each group. The public RPC serves logs for about a day, so the hashes of older ones were read from the chain on ${HISTORY_READ_ON} and are kept with this site (config/history.ts); every state a page states, it reads live. All of it was sent by the team's own wallets, by IdentityMD's services, or by our own contracts.`,
+            intro: `The main transactions behind what is live, oldest first in each group. The public RPC serves logs for about a day, so the hashes of older ones were read from the chain on ${HISTORY_READ_ON}${ruleOrder ? ` (order ${ruleOrder.id} and rule 1: ${ruleOrder.read})` : ""} and are kept with this site (config/history.ts); every state a page states, it reads live. All of it was sent by the team's own wallets, by IdentityMD's services, or by our own contracts.`,
             groups,
             prove:
               firstOrder && workProofAddress
@@ -1895,25 +1951,24 @@ export const judgesPage: PageDef<JudgesModel> = {
                   }
                 : null,
             proveSecond:
-              firstOrder && workProofAddress
+              ruleOrder && workProofAddress
                 ? {
                     commands: [
                       {
-                        comment: `A research report's work record (job ${SECOND_KIND_JOB.jobId.slice(0, 8)}), exactly as IdentityMD serves it`,
-                        command: `curl -s ${IMD_LINK.workRecord(hashNo0x(SECOND_KIND_JOB.recordHash))} -o report-record.json`,
+                        comment: `Order ${ruleOrder.id}'s work record (job ${ruleOrder.jobId.slice(0, 8)}), exactly as IdentityMD serves it`,
+                        command: `curl -s ${IMD_LINK.workRecord(hashNo0x(ruleOrder.prove.recordHash))} -o report-record.json`,
                       },
                       {
-                        comment:
-                          "The same call, free: no key, no transaction. The job carries no order header, so the header length is 0",
+                        comment: "The same call, free: no key, no transaction",
                         command: castView(workProofAddress, "WORK_PROOF", workProofAbi, "prove", [
-                          SECOND_KIND_JOB.jobIdBytes16,
+                          jobIdToBytes16(ruleOrder.jobId),
                           `"0x$(xxd -p report-record.json | tr -d '\\n')"`,
-                          "0",
+                          "85",
                         ]),
                       },
                     ],
-                    answer: `(${SECOND_KIND_JOB.recordHash}, ${SECOND_KIND_JOB.kindHash}, …, [${SECOND_KIND_JOB.agentIds.join(", ")}])`,
-                    note: `Order ${firstOrder.id}'s job is a picture (skill:create-image). This is the other kind the team's runner takes, a research report (skill:research-report): job ${SECOND_KIND_JOB.jobId}, done by the swarm for somebody else. It did not come through HELP WANTED and nobody of ours paid for it; it is here because its receipt is on chain, written by IdentityMD's registry writer on ${formatUtc(SECOND_KIND_JOB.receiptTx.at)} (${SECOND_KIND_JOB.receiptTx.hash}). Called on ${SECOND_KIND_JOB.read}, prove answered with the record's hash first, the kind hash of skill:research-report second and agent ${SECOND_KIND_JOB.agentIds.join(", ")} last. A later receipt for the same job would make this call revert. A proof shows what IdentityMD recorded, not that the work is good.`,
+                    answer: `(${[ruleOrder.prove.recordHash, ruleOrder.prove.kindHash, ruleOrder.prove.headHash, ruleOrder.prove.specHash, ruleOrder.prove.stateHash].join(", ")}, [${ruleOrder.prove.agentIds.join(", ")}])`,
+                    note: `Order ${firstOrder ? `${firstOrder.id}'s job is a picture (skill:create-image); order ` : ""}${ruleOrder.id}'s is the other kind the team's runner takes, a research report (skill:research-report), job ${ruleOrder.jobId}. Rule 1 on our Rules contract ordered it, and the team's runner, house wallet H1, paid IdentityMD for it (HOUSE). What prove answered on ${ruleOrder.prove.read}: the record's hash (the receipt), then the hashes of its kind, its 85-byte order header, its job text and its state, then the agent the record names. Change one byte of the record and it reverts. A proof shows what IdentityMD recorded, not that the work is good. The order page calls it live: /orders/${ruleOrder.id}.`,
                   }
                 : null,
           };
@@ -1952,29 +2007,58 @@ export const judgesPage: PageDef<JudgesModel> = {
         ],
       });
     }
+    // A tip that followed the agent to its seat's owner, for each pinned order whose tip was claimed.
+    const tipProof = (order: PinnedOrder, tipClaim: PinnedOrder["tipClaims"][number]): ProvenOnChain => ({
+      title: `A tip followed the agent to its seat's owner: claimTip(${tipClaim.agentId}) → bindingOf → seat #${tipClaim.tokenId} → ownerOf → ${tipClaim.paidTo}`,
+      words: `On ${formatUtc(tipClaim.tx.at)}, ${houseLabel(tipClaim.tx.from) ? `house wallet ${houseLabel(tipClaim.tx.from)}` : tipClaim.tx.from} called Payroll.claimTip(${tipClaim.agentId}). Agent ${tipClaim.agentId} is the agent order ${order.id}'s work record names. Payroll asked IdentityMD's seat Adapter which seat the agent is bound to (bindingOf: seat #${tipClaim.tokenId}), asked the Seats token who owns that seat (ownerOf: ${tipClaim.paidTo}), and paid that address the ${formatImd(tipClaim.amountWei, 18)} IMD tip the settlement credited. Its TipClaimed log names the agent, the seat and the owner.${houseLabel(tipClaim.paidTo) ? "" : " The seat's owner is a wallet outside the team that did nothing to be paid: a payment to an outside wallet, not outside use of HELP WANTED."}`,
+      at: tipClaim.tx.at,
+      tx: tipClaim.tx.hash,
+      txUrl: etherscanTx(tipClaim.tx.hash),
+      commands: [
+        {
+          comment: `The seat agent ${tipClaim.agentId} is bound to now (it read seat ${tipClaim.tokenId} on ${order.read})`,
+          command: `cast call ${MAINNET.SEAT_ADAPTER} "bindingOf(uint256)((uint8,address,uint256))" ${tipClaim.agentId} --rpc-url ${PUBLIC_RPC}`,
+        },
+        {
+          comment: `Who owns seat ${tipClaim.tokenId} now (it read ${tipClaim.paidTo} on ${order.read})`,
+          command: `cast call ${MAINNET.SEATS} "ownerOf(uint256)(address)" ${tipClaim.tokenId} --rpc-url ${PUBLIC_RPC}`,
+        },
+        {
+          comment: "The claim's logs: TipClaimed(agent, seat, owner, amount) and the IMD transfer",
+          command: `cast receipt ${tipClaim.tx.hash} logs --rpc-url ${PUBLIC_RPC}`,
+        },
+      ],
+    });
     const tipClaim = firstOrder?.tipClaims[0] ?? null;
-    if (firstOrder && tipClaim) {
+    if (firstOrder && tipClaim) provenOnChain.push(tipProof(firstOrder, tipClaim));
+    const ruleFire = ruleOrder?.trail.find((step) => step.key === "opened") ?? null;
+    const ruleSettled = ruleOrder?.trail.find((step) => step.key === "settled") ?? null;
+    const rulesAddress = deployments.contracts.rules.address;
+    if (ruleOrder && firstRule && ruleFire && rulesAddress) {
       provenOnChain.push({
-        title: `A tip followed the agent to its seat's owner: claimTip(${tipClaim.agentId}) → bindingOf → seat #${tipClaim.tokenId} → ownerOf → ${tipClaim.paidTo}`,
-        words: `On ${formatUtc(tipClaim.tx.at)}, ${houseLabel(tipClaim.tx.from) ? `house wallet ${houseLabel(tipClaim.tx.from)}` : tipClaim.tx.from} called Payroll.claimTip(${tipClaim.agentId}). Agent ${tipClaim.agentId} is the agent order ${firstOrder.id}'s work record names. Payroll asked IdentityMD's seat Adapter which seat the agent is bound to (bindingOf: seat #${tipClaim.tokenId}), asked the Seats token who owns that seat (ownerOf: ${tipClaim.paidTo}), and paid that address the ${formatImd(tipClaim.amountWei)} IMD tip the settlement credited. Its TipClaimed log names the agent, the seat and the owner.`,
-        at: tipClaim.tx.at,
-        tx: tipClaim.tx.hash,
-        txUrl: etherscanTx(tipClaim.tx.hash),
+        title: "A standing rule read a Standing Question and hired the swarm",
+        words: `On ${formatUtc(ruleFire.tx.at)}, house wallet ${houseLabel(ruleFire.tx.from) ?? ruleFire.tx.from} called Rules.fire(${firstRule.id}) by hand; anyone may fire a rule whose condition holds. Rules read our Questions contract's hires feed (an answer the live oracle attested: 223, round 1, against a line of 100) and opened order ${ruleOrder.id} on WorkOrders with Rules as the employer and 0.60 IMD in escrow.${ruleSettled ? ` The desk settled it on IdentityMD's receipt on ${formatUtc(ruleSettled.tx.at)} and called Rules back with the change.` : ""} The rule's creator, the wallet that fired it and the runner were the team's own (HOUSE).`,
+        at: ruleFire.tx.at,
+        tx: ruleFire.tx.hash,
+        txUrl: etherscanTx(ruleFire.tx.hash),
         commands: [
           {
-            comment: `The seat agent ${tipClaim.agentId} is bound to now (it read seat ${tipClaim.tokenId} on ${HISTORY_READ_ON})`,
-            command: `cast call ${MAINNET.SEAT_ADAPTER} "bindingOf(uint256)((uint8,address,uint256))" ${tipClaim.agentId} --rpc-url ${PUBLIC_RPC}`,
+            comment:
+              "Its logs: the 0.60 IMD into the desk, the 0.01 IMD tip, the desk's OrderOpened and Rules' Fired",
+            command: `cast receipt ${ruleFire.tx.hash} logs --rpc-url ${PUBLIC_RPC}`,
           },
           {
-            comment: `Who owns seat ${tipClaim.tokenId} now (it read ${tipClaim.paidTo} on ${HISTORY_READ_ON})`,
-            command: `cast call ${MAINNET.SEATS} "ownerOf(uint256)(address)" ${tipClaim.tokenId} --rpc-url ${PUBLIC_RPC}`,
+            comment: `Rule ${firstRule.id} now: its status (3 is Cancelled: it used its one fire and its creator ended it)`,
+            command: castView(rulesAddress, "RULES", rulesAbi, "statusOf", [String(firstRule.id)]),
           },
           {
-            comment: "The claim's logs: TipClaimed(agent, seat, owner, amount) and the IMD transfer",
-            command: `cast receipt ${tipClaim.tx.hash} logs --rpc-url ${PUBLIC_RPC}`,
+            comment: `Which rule opened order ${ruleOrder.id}, what the desk took for it, and what came back`,
+            command: castView(rulesAddress, "RULES", rulesAbi, "orderOf", [String(ruleOrder.id)]),
           },
         ],
       });
+      const ruleTip = ruleOrder.tipClaims[0] ?? null;
+      if (ruleTip) provenOnChain.push(tipProof(ruleOrder, ruleTip));
     }
 
     // ---- What the explorers show for each launched contract's source. ----
@@ -2011,10 +2095,10 @@ export const judgesPage: PageDef<JudgesModel> = {
     const thirtySeconds = [
       `What it is: a job board on which a contract can be the employer. The escrow ${PAYS_WHEN}; otherwise it refunds.`,
       firstOrder
-        ? `What happened: on 13 Oct 2026 the Doorbell, a contract with no owner, opened order ${firstOrder.id}; on 14 Oct the desk paid the runner on the job's WorkRegistry receipt. The ringer, the runner and the IMD were the team's own (HOUSE).`
+        ? `What happened: on 13 Oct 2026 the Doorbell, a contract with no owner, opened order ${firstOrder.id}; on 14 Oct the desk paid the runner on the job's WorkRegistry receipt. The ringer, the runner and the IMD were the team's own (HOUSE).${ruleOrder && ruleSettled && ruleFire ? ` On 16 Oct rule 1, a standing rule on our Rules contract (launch C), read launch A's hires feed (223, at least 100) and opened order ${ruleOrder.id} for a research report. The desk paid the runner on the job's receipt ${ruleSettled.tx.block - ruleFire.tx.block} blocks after the fire. The rule's creator, the wallet that fired it (by hand) and the runner were all house wallet H1 (HOUSE).` : ""}`
         : "What happened: see what is live below, launch by launch.",
       firstOrder
-        ? `How to check: WorkProof.prove(${jobIdToBytes16(firstOrder.jobId)}, record, 85) answers with the record's hash and agent [${firstOrder.prove.agentIds.join(", ")}]; or check job ${firstOrder.jobId} in your browser at /verify/${firstOrder.jobId}.`
+        ? `How to check: WorkProof.prove(${jobIdToBytes16(firstOrder.jobId)}, record, 85) answers with the record's hash and agent [${firstOrder.prove.agentIds.join(", ")}]${ruleOrder ? `, or WorkProof.prove(${jobIdToBytes16(ruleOrder.jobId)}, record, 85) for order ${ruleOrder.id}, which answers agent [${ruleOrder.prove.agentIds.join(", ")}]` : ""}; or check job ${firstOrder.jobId} in your browser at /verify/${firstOrder.jobId}.`
         : `How to check: /verify/${REFERENCE_JOB.jobId} hashes a real job's work record and holds it against its WorkRegistry receipt, in your browser.`,
       `What is live: ${deployments.launchedCount} of ${Object.keys(deployments.contracts).length} contracts in this site's deployments book${launchedNumbers.length > 0 ? `, from IdentityMD ${launchedNumbers.length === 1 ? "launch" : "launches"} ${listWords(launchedNumbers.map(String))}` : ""}${allVerified ? `, each with source verified on Etherscan (Exact Match, checked ${VERIFIED_SOURCE.checked})` : ""}.`,
       `What is not: ${
@@ -2343,7 +2427,7 @@ export const judgesPage: PageDef<JudgesModel> = {
               : null,
             m.live.proveSecond
               ? doc(
-                  "### The same proof for a research report",
+                  "### The same proof for order 2, a research report",
                   fence(
                     m.live.proveSecond.commands.map((c) => `# ${c.comment}\n${c.command}`).join("\n\n"),
                     "sh",

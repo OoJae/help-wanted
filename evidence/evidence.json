@@ -3,10 +3,10 @@
   "about": "What exists on chain of HELP WANTED, read at one pinned block. Written by scripts/evidence/build.ts (pnpm evidence) and by nothing else; do not edit by hand.",
   "chainId": 1,
   "pinnedBlock": {
-    "number": 26200139,
-    "hash": "0x5ba89450466ec7979fd0ab037d86077799089630aab9d8923cf63753a7cb11be",
-    "timestamp": 1792094039,
-    "time": "2026-10-15T19:53:59Z",
+    "number": 26205115,
+    "hash": "0xfeaf6215261f9ea5c65d2b7845139d781b806379fc877c2163e88983ff348a44",
+    "timestamp": 1792153943,
+    "time": "2026-10-16T12:32:23Z",
     "finality": "finalized"
   },
   "houseRule": "HOUSE is the activity of the wallets the team publishes in evidence/house-wallets.json and of HELP WANTED's own contracts; everything else is OUTSIDE. Each event is counted for one account: the one that made the call, the one the event pays, or the one an earlier event settled (the opener of a round, the employer of an order). When the account made the call itself, the count is HOUSE if that account or the sender of the transaction is on the list. scripts/evidence/contracts.ts holds the rule of every event.",
@@ -89,8 +89,8 @@
     "contractsLaunched": 10,
     "contractsWithCode": 10,
     "transactions": {
-      "total": 64,
-      "house": 63,
+      "total": 71,
+      "house": 70,
       "outside": 0,
       "byIdentityMd": 1
     }
@@ -275,11 +275,11 @@
             "keccak256": "0xa962b0633998d594b2720984ad5f76fce369148592da0762b9d9acf399367236"
           },
           "namedInLaunchTransaction": true,
-          "imdHeldWei": "37920634920634919",
+          "imdHeldWei": "65923134920634919",
           "events": {
             "Booked": {
-              "total": 1,
-              "house": 1,
+              "total": 2,
+              "house": 2,
               "outside": 0,
               "countedFor": "the sender of the transaction that booked the IMD"
             },
@@ -314,8 +314,8 @@
               "countedFor": "the sender of the transaction that called fundFeeds"
             },
             "Paid": {
-              "total": 1,
-              "house": 1,
+              "total": 2,
+              "house": 2,
               "outside": 0,
               "countedFor": "the payer; for a fee the hire desk pays, the employer of the order named in the memo"
             },
@@ -326,15 +326,15 @@
               "countedFor": "the seat's owner, who is paid"
             },
             "StreamLevelled": {
-              "total": 1,
-              "house": 1,
+              "total": 2,
+              "house": 2,
               "outside": 0,
               "countedFor": "the sender of the transaction"
             },
             "TipClaimed": {
-              "total": 1,
+              "total": 2,
               "house": 0,
-              "outside": 1,
+              "outside": 2,
               "countedFor": "the seat's owner, who is paid"
             },
             "TipSwept": {
@@ -344,8 +344,8 @@
               "countedFor": "the sender of the transaction"
             },
             "Tipped": {
-              "total": 1,
-              "house": 1,
+              "total": 2,
+              "house": 2,
               "outside": 0,
               "countedFor": "the payer; for a tip the hire desk pays, the employer of the order settled in the same transaction"
             }
@@ -354,9 +354,9 @@
       ],
       "logs": {
         "fromBlock": 26182869,
-        "toBlock": 26200139,
-        "count": 44,
-        "transactions": 33
+        "toBlock": 26205115,
+        "count": 49,
+        "transactions": 35
       },
       "evidence": {
         "questions": {
@@ -693,64 +693,64 @@
         },
         "payroll": {
           "ledger": {
-            "receivedWei": "50000000000000000",
-            "toStakersWei": "25000000000000000",
-            "toSeatsWei": "15000000000000000",
-            "toFeedsWei": "10000000000000000",
+            "receivedWei": "78002500000000000",
+            "toStakersWei": "39001250000000000",
+            "toSeatsWei": "23400750000000000",
+            "toFeedsWei": "15600500000000000",
             "drippedWei": "2079365079365081",
             "seatClaimedWei": "0",
-            "tipsInWei": "50000000000000000",
-            "tipsClaimedWei": "50000000000000000",
+            "tipsInWei": "78002500000000000",
+            "tipsClaimedWei": "78002500000000000",
             "feedsFundedWei": "10000000000000000",
             "tipsToSeatsWei": "0",
             "feedsReleasedWei": "0"
           },
           "owed": {
-            "stakersWei": "22920634920634919",
-            "seatsWei": "15000000000000000",
+            "stakersWei": "36921884920634919",
+            "seatsWei": "23400750000000000",
             "tipsWei": "0",
-            "feedsWei": "0",
-            "totalWei": "37920634920634919"
+            "feedsWei": "5600500000000000",
+            "totalWei": "65923134920634919"
           },
           "unbookedWei": "0",
           "paid": {
-            "total": 1,
-            "house": 1,
+            "total": 2,
+            "house": 2,
             "outside": 0,
             "imd": {
-              "totalWei": "50000000000000000",
-              "houseWei": "50000000000000000",
+              "totalWei": "78002500000000000",
+              "houseWei": "78002500000000000",
               "outsideWei": "0"
             }
           },
           "booked": {
-            "total": 1,
-            "house": 1,
+            "total": 2,
+            "house": 2,
             "outside": 0,
             "imd": {
-              "totalWei": "50000000000000000",
-              "houseWei": "50000000000000000",
+              "totalWei": "78002500000000000",
+              "houseWei": "78002500000000000",
               "outsideWei": "0"
             }
           },
           "tips": {
-            "total": 1,
-            "house": 1,
+            "total": 2,
+            "house": 2,
             "outside": 0,
             "imd": {
-              "totalWei": "50000000000000000",
-              "houseWei": "50000000000000000",
+              "totalWei": "78002500000000000",
+              "houseWei": "78002500000000000",
               "outsideWei": "0"
             }
           },
           "tipsClaimed": {
-            "total": 1,
+            "total": 2,
             "house": 0,
-            "outside": 1,
+            "outside": 2,
             "imd": {
-              "totalWei": "50000000000000000",
+              "totalWei": "78002500000000000",
               "houseWei": "0",
-              "outsideWei": "50000000000000000"
+              "outsideWei": "78002500000000000"
             }
           },
           "tipsSwept": {
@@ -876,14 +876,14 @@
               "countedFor": "the runner whose claim ended"
             },
             "Claimed": {
-              "total": 1,
-              "house": 1,
+              "total": 2,
+              "house": 2,
               "outside": 0,
               "countedFor": "the runner"
             },
             "Delivered": {
-              "total": 1,
-              "house": 1,
+              "total": 2,
+              "house": 2,
               "outside": 0,
               "countedFor": "the order's employer"
             },
@@ -900,8 +900,8 @@
               "countedFor": "the order's employer"
             },
             "OrderOpened": {
-              "total": 1,
-              "house": 1,
+              "total": 2,
+              "house": 2,
               "outside": 0,
               "countedFor": "the employer"
             },
@@ -930,8 +930,8 @@
               "countedFor": "the order's employer"
             },
             "Registered": {
-              "total": 1,
-              "house": 1,
+              "total": 2,
+              "house": 2,
               "outside": 0,
               "countedFor": "the runner that holds the order"
             },
@@ -1060,44 +1060,44 @@
       ],
       "logs": {
         "fromBlock": 26184581,
-        "toBlock": 26200139,
-        "count": 32,
-        "transactions": 29
+        "toBlock": 26205115,
+        "count": 36,
+        "transactions": 33
       },
       "evidence": {
         "workOrders": {
           "ordersOpened": {
-            "total": 1,
-            "house": 1,
+            "total": 2,
+            "house": 2,
             "outside": 0,
             "imd": {
-              "totalWei": "1000000000000000000",
-              "houseWei": "1000000000000000000",
+              "totalWei": "1600000000000000000",
+              "houseWei": "1600000000000000000",
               "outsideWei": "0"
             }
           },
           "openedByOurEmployers": {
             "doorbell": 1,
             "crowdPots": 0,
-            "rules": 0
+            "rules": 1
           },
           "claimsTaken": {
-            "total": 1,
-            "house": 1,
+            "total": 2,
+            "house": 2,
             "outside": 0
           },
           "jobsRegistered": {
-            "total": 1,
-            "house": 1,
+            "total": 2,
+            "house": 2,
             "outside": 0
           },
           "settledProven": {
-            "total": 1,
-            "house": 1,
+            "total": 2,
+            "house": 2,
             "outside": 0,
             "imd": {
-              "totalWei": "1000000000000000000",
-              "houseWei": "1000000000000000000",
+              "totalWei": "1560050000000000000",
+              "houseWei": "1560050000000000000",
               "outsideWei": "0"
             }
           },
@@ -1161,9 +1161,9 @@
             "house": 0,
             "outside": 0
           },
-          "paidToRunnersWei": "900000000000000000",
-          "feesWei": "50000000000000000",
-          "tipsWei": "50000000000000000",
+          "paidToRunnersWei": "1404045000000000000",
+          "feesWei": "78002500000000000",
+          "tipsWei": "78002500000000000",
           "payrollFallbacks": {
             "total": 0,
             "house": 0,
@@ -1184,6 +1184,21 @@
               "jobId": "f7bd80ba-3e8b-483f-ad02-6ffbd16fef92",
               "recordHash": "0x59f81da0ce7cde62693fca46e8dd10411c1dfae52102ffd68d25a66821451b68",
               "settledTx": "0xa3f5b783fe194c35f348e411a10f0a199589ea89b668a16d1597794931217628"
+            },
+            {
+              "id": "2",
+              "employer": "0xcbF0dddF07C00a78E2E7561a6F47C275B8c05D7E",
+              "side": "HOUSE",
+              "openedBy": "Rules",
+              "openedTx": "0x9f790aae9db07625dc86b6c107d7ed55b43f96ba5bfaf5b02c64269ab963e37b",
+              "openedBlock": 26204499,
+              "maxPayWei": "600000000000000000",
+              "allowsClaimedPath": false,
+              "outcome": "settled, proven by a receipt",
+              "runner": "0x60CcC928eb8EEE1d64CA0164565BfA9858669560",
+              "jobId": "42f26c64-eea9-46f2-822a-33547ec18abf",
+              "recordHash": "0xf6d0bd11b43fc36a3720db09a65612a03a4be7b5b12476bcdace4d1383176a85",
+              "settledTx": "0x35bb49cc9576a425b94a94137e8fe24e496017cc154456eeee255d22fc020516"
             }
           ]
         },
@@ -1297,8 +1312,8 @@
           "imdHeldWei": "0",
           "events": {
             "Fired": {
-              "total": 0,
-              "house": 0,
+              "total": 1,
+              "house": 1,
               "outside": 0,
               "countedFor": "the rule's creator"
             },
@@ -1309,20 +1324,20 @@
               "countedFor": "the rule's creator"
             },
             "Reconciled": {
-              "total": 0,
-              "house": 0,
+              "total": 1,
+              "house": 1,
               "outside": 0,
               "countedFor": "the rule's creator"
             },
             "RuleCancelled": {
-              "total": 0,
-              "house": 0,
+              "total": 1,
+              "house": 1,
               "outside": 0,
               "countedFor": "the rule's creator"
             },
             "RuleCreated": {
-              "total": 0,
-              "house": 0,
+              "total": 1,
+              "house": 1,
               "outside": 0,
               "countedFor": "the rule's creator"
             },
@@ -1333,8 +1348,8 @@
               "countedFor": "the payer of the top-up"
             },
             "WorkDelivered": {
-              "total": 0,
-              "house": 0,
+              "total": 1,
+              "house": 1,
               "outside": 0,
               "countedFor": "the rule's creator"
             }
@@ -1451,35 +1466,35 @@
       ],
       "logs": {
         "fromBlock": 26198165,
-        "toBlock": 26200139,
-        "count": 6,
-        "transactions": 4
+        "toBlock": 26205115,
+        "count": 11,
+        "transactions": 8
       },
       "evidence": {
         "rules": {
           "created": {
-            "total": 0,
-            "house": 0,
+            "total": 1,
+            "house": 1,
             "outside": 0,
             "imd": {
-              "totalWei": "0",
-              "houseWei": "0",
+              "totalWei": "610000000000000000",
+              "houseWei": "610000000000000000",
               "outsideWei": "0"
             }
           },
           "fired": {
-            "total": 0,
-            "house": 0,
+            "total": 1,
+            "house": 1,
             "outside": 0
           },
           "firedByCaller": {
-            "total": 0,
-            "house": 0,
+            "total": 1,
+            "house": 1,
             "outside": 0
           },
           "hires": {
-            "total": 0,
-            "house": 0,
+            "total": 1,
+            "house": 1,
             "outside": 0
           },
           "pays": {
@@ -1498,13 +1513,13 @@
             }
           },
           "cancelled": {
-            "total": 0,
-            "house": 0,
+            "total": 1,
+            "house": 1,
             "outside": 0
           },
           "reconciled": {
-            "total": 0,
-            "house": 0,
+            "total": 1,
+            "house": 1,
             "outside": 0
           },
           "totalEscrowedWei": "0"
@@ -1764,16 +1779,16 @@
     },
     {
       "what": "Payroll: IMD booked, in wei",
-      "expected": "50000000000000000",
+      "expected": "78002500000000000",
       "expectedFrom": "logs",
-      "contractSays": "50000000000000000",
+      "contractSays": "78002500000000000",
       "agree": true
     },
     {
       "what": "Payroll: tips taken in, in wei",
-      "expected": "50000000000000000",
+      "expected": "78002500000000000",
       "expectedFrom": "logs",
-      "contractSays": "50000000000000000",
+      "contractSays": "78002500000000000",
       "agree": true
     },
     {
@@ -1792,9 +1807,9 @@
     },
     {
       "what": "Payroll: tips claimed, in wei",
-      "expected": "50000000000000000",
+      "expected": "78002500000000000",
       "expectedFrom": "logs",
-      "contractSays": "50000000000000000",
+      "contractSays": "78002500000000000",
       "agree": true
     },
     {
@@ -1820,9 +1835,9 @@
     },
     {
       "what": "WorkOrders: orders opened",
-      "expected": "1",
+      "expected": "2",
       "expectedFrom": "logs",
-      "contractSays": "1",
+      "contractSays": "2",
       "agree": true
     },
     {
@@ -1890,9 +1905,9 @@
     },
     {
       "what": "Rules: rules created",
-      "expected": "0",
+      "expected": "1",
       "expectedFrom": "logs",
-      "contractSays": "0",
+      "contractSays": "1",
       "agree": true
     },
     {
@@ -2005,7 +2020,7 @@
     "read": true,
     "reason": null,
     "base": "https://api.imd.fun",
-    "fetchedAt": "2026-10-15T20:10:12.275Z",
+    "fetchedAt": "2026-10-16T12:49:28.343Z",
     "launches": [
       {
         "launch": "a",
@@ -2113,6 +2128,6 @@
       "rpc.mevblocker.io"
     ],
     "chunkSize": 2000,
-    "logChunks": 18
+    "logChunks": 27
   }
 }

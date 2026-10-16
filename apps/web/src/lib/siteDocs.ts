@@ -5,7 +5,7 @@
 import { HOUSE_FEEDS, HOUSE_FEED_NAMES, IMD_API_BASE, MAINNET, workProofAbi } from "@help-wanted/shared";
 import { etherscanTx, IMD_LINK, REFERENCE_JOB } from "~/config/chain";
 import { DEPLOYMENT_BOOK_PATH } from "~/config/deployments";
-import { LAUNCH_PRS, pinnedOrder, pinnedRounds, SECOND_KIND_JOB } from "~/config/history";
+import { LAUNCH_PRS, pinnedOrder, pinnedRounds, pinnedRule } from "~/config/history";
 import { houseSet } from "~/config/house";
 import { DISCLOSED_LIMITS } from "~/config/limits";
 import { AUDITS, DESK_ADAPTATION, deskGradingWords, deskOnRecordWords, FEED_PROOFS } from "~/config/proofs";
@@ -249,6 +249,15 @@ export async function llmsTxt(ctx: LoadContext): Promise<string> {
   const paidIntake = rounds.find((r) => r.feed === "payrolls") ?? null;
   const callback = rounds.find((r) => r.answered.byCallback) ?? null;
   const tipClaim = firstOrder?.tipClaims[0] ?? null;
+  // Order 2, opened by rule 1 on Rules: said only where the book's desk and Rules are mainnet's.
+  const secondOrder = pinnedOrder(deployments.contracts.workOrders.address, 2);
+  const firstRule = secondOrder ? pinnedRule(deployments.contracts.rules.address, 1) : null;
+  const ruleOrder = firstRule ? secondOrder : null;
+  const ruleSettled = ruleOrder?.trail.find((step) => step.key === "settled") ?? null;
+  const ruleFire = ruleOrder?.trail.find((step) => step.key === "opened") ?? null;
+  const ruleTip = ruleOrder?.tipClaims[0] ?? null;
+  const tipWords = (orderId: number, claim: NonNullable<typeof tipClaim>) =>
+    `A tip followed the agent to its seat's owner: claimTip(${claim.agentId}) → the seat Adapter's bindingOf(${claim.agentId}) → seat #${claim.tokenId} → the Seats token's ownerOf(${claim.tokenId}) → ${claim.paidTo}. On ${formatUtc(claim.tx.at)} Payroll paid that address the ${formatImd(claim.amountWei, 18)} IMD tip order ${orderId}'s settlement credited for agent ${claim.agentId}, the agent its work record names (${etherscanTx(claim.tx.hash)}).`;
   const together: string[] = [
     ...(paidIntake
       ? [
@@ -260,25 +269,26 @@ export async function llmsTxt(ctx: LoadContext): Promise<string> {
           `IdentityMD's callback delivered an answer to our contract: on ${formatUtc(callback.answered.at)}, IdentityMD's Intake writer sent the Intake the ${callback.feed} feed's answer and the Intake called Questions back; Questions checked the oracle's signature (${callback.answered.agreed} of 7 agreed) and stored it, and the Intake's Completed log reads answered, delivered (${etherscanTx(callback.answered.hash)}).`,
         ]
       : []),
-    ...(firstOrder && tipClaim
+    ...(firstOrder && tipClaim ? [tipWords(firstOrder.id, tipClaim)] : []),
+    ...(ruleOrder && ruleTip
       ? [
-          `A tip followed the agent to its seat's owner: claimTip(${tipClaim.agentId}) → the seat Adapter's bindingOf(${tipClaim.agentId}) → seat #${tipClaim.tokenId} → the Seats token's ownerOf(${tipClaim.tokenId}) → ${tipClaim.paidTo}. On ${formatUtc(tipClaim.tx.at)} Payroll paid that address the ${formatImd(tipClaim.amountWei)} IMD tip order ${firstOrder.id}'s settlement credited for agent ${tipClaim.agentId}, the agent its work record names (${etherscanTx(tipClaim.tx.hash)}).`,
+          `${tipWords(ruleOrder.id, ruleTip)} House wallet H1 sent the call. The seat's owner is a wallet outside the team that did nothing to be paid: a payment to an outside wallet, not outside use of HELP WANTED.`,
         ]
       : []),
   ];
-  const secondKind =
-    firstOrderProof && workProof
+  const secondOrderProof =
+    ruleOrder && ruleSettled && ruleFire && workProof
       ? {
-          words: `The same check on the other kind the team's runner takes, a research report: job ${SECOND_KIND_JOB.jobId} was done by the swarm for somebody else and did not come through HELP WANTED; it is here because its receipt is on chain (${etherscanTx(SECOND_KIND_JOB.receiptTx.hash)}). Called on ${SECOND_KIND_JOB.read}, WorkProof.prove answered with its record's hash, ${SECOND_KIND_JOB.recordHash}, the kind hash of ${SECOND_KIND_JOB.kind} and agent ${SECOND_KIND_JOB.agentIds.join(", ")}. The command is under "Check the central claim yourself".`,
+          words: `Order ${ruleOrder.id} on the hire desk, opened by rule 1 of our Rules contract when launch A's hires feed read 223 (${etherscanTx(ruleFire.tx.hash)}), was settled on proof on ${formatUtc(ruleSettled.tx.at)}: the desk had WorkProof check swarm job ${ruleOrder.jobId}'s work record, a research report, against its WorkRegistry receipt, then paid (${etherscanTx(ruleSettled.tx.hash)}). The rule was created and fired, by hand, by house wallet H1, and the runner was H1 (HOUSE). A proof shows what IdentityMD recorded, not that the work is good. The prove command is under "Check the central claim yourself".`,
           commands: [
-            `# A research report's work record (job ${SECOND_KIND_JOB.jobId.slice(0, 8)}), exactly as IdentityMD serves it`,
-            `curl -s ${IMD_LINK.workRecord(hashNo0x(SECOND_KIND_JOB.recordHash))} -o report-record.json`,
+            `# Order ${ruleOrder.id}'s work record (job ${ruleOrder.jobId.slice(0, 8)}), exactly as IdentityMD serves it`,
+            `curl -s ${IMD_LINK.workRecord(hashNo0x(ruleOrder.prove.recordHash))} -o report-record.json`,
             "",
-            "# The same free call; the job carries no order header, so the header length is 0",
+            "# The same free call on order 2's record, which carries its 85-byte order header",
             castView(workProof, "WORK_PROOF", workProofAbi, "prove", [
-              SECOND_KIND_JOB.jobIdBytes16,
+              jobIdToBytes16(ruleOrder.jobId),
               `"0x$(xxd -p report-record.json | tr -d '\\n')"`,
-              "0",
+              "85",
             ]),
           ],
         }
@@ -339,7 +349,7 @@ export async function llmsTxt(ctx: LoadContext): Promise<string> {
       ),
       `A real job carried our 85-byte order header unchanged into its work record: job ${HEADER_JOB.jobId}, record ${IMD_LINK.workRecord(HEADER_JOB.recordHash.slice(2))}. ${headerReceiptWords}`,
       ...(firstOrderProof ? [firstOrderProof.words] : []),
-      ...(secondKind ? [secondKind.words] : []),
+      ...(secondOrderProof ? [secondOrderProof.words] : []),
       ...together,
     ]),
     launchRecorded(deployments, "B")
@@ -371,7 +381,7 @@ export async function llmsTxt(ctx: LoadContext): Promise<string> {
       "sh",
     ),
     firstOrderProof ? fence(firstOrderProof.commands.join("\n"), "sh") : null,
-    secondKind ? fence(secondKind.commands.join("\n"), "sh") : null,
+    secondOrderProof ? fence(secondOrderProof.commands.join("\n"), "sh") : null,
     "## Addresses",
     "IdentityMD's contracts on Ethereum mainnet:",
     table(

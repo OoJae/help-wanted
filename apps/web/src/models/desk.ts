@@ -107,12 +107,13 @@ export function whoTakesOrders(read: Live<OrderBook>, house: ReadonlySet<string>
  * the page prints it beside what the chain shows (`whoTakesOrders`), and never in its place.
  */
 export const RUNNER_STATEMENT = {
-  asOf: "15 October 2026",
+  asOf: "16 October 2026",
   lines: [
     "HELP WANTED's runner bot runs on a hosted server (Railway), around the clock. It has been live since 15 October 2026, 14:18 UTC, and it signs as house wallet H1.",
     "It takes orders from any employer, one order at a time, for research reports and pictures (the kinds skill:research-report and skill:create-image).",
     "It pays at most one 0.5 IMD swarm fee a day, and posts bonds of at most 0.25 IMD.",
-    "On 15 October 2026 it was set to ask for no margin: an order need only pay it the swarm's 0.5 IMD fee, and the gas is its own cost. The team did this so that it can serve the first order that a rule of the team's, in launch C, opens on the desk.",
+    "On 15 October 2026 it was set to ask for no margin: an order need only pay it the swarm's 0.5 IMD fee, and the gas is its own cost. The team did this so that it could serve the first order that a rule of the team's, in launch C, opened on the desk.",
+    "On 16 October 2026 it took order 2, the first order a rule of the team's opened, and settled it on its receipt with nobody at the keyboard. It was paid 0.504045 IMD and its 0.25 IMD bond back, against the 0.5 IMD it paid IdentityMD.",
   ],
   /** The other bot, said where runners are: it is not hosted. */
   keeper: "The keeper (bots/keeper) is not hosted: it is run by hand.",
@@ -623,6 +624,11 @@ export interface OrderModel {
    * copy of it. Null for an order whose job made no picture or is not delivered.
    */
   picture: { label: string; url: string } | null;
+  /**
+   * The work of a delivered order whose history is kept, where IdentityMD serves it as a file (a
+   * report): the link, and what the file is. This site serves no copy. Null otherwise.
+   */
+  work: { label: string; url: string; what: string } | null;
   commands: { comment: string; command: string }[];
   flows: FlowPreview[];
   sources: SourceNote[];
@@ -695,6 +701,9 @@ function timeline(order: Order): TimelineStep[] {
   return steps;
 }
 
+/** Amounts on an order's page are given to the wei: a price on a ramp is rarely a round number. */
+const EXACT = 18;
+
 export const orderPage: PageDef<OrderModel> = {
   id: "order",
   pattern: "/orders/:id",
@@ -730,12 +739,12 @@ export const orderPage: PageDef<OrderModel> = {
     const c = order?.claim ?? null;
     const money: OrderModel["money"] = [];
     if (order) {
-      money.push({ label: "Still in escrow", imd: formatImd(order.escrowWei) });
-      money.push({ label: "Paid out for delivered work", imd: formatImd(order.spentWei) });
-      money.push({ label: "Sent back to the employer", imd: formatImd(order.returnedWei) });
+      money.push({ label: "Still in escrow", imd: formatImd(order.escrowWei, EXACT) });
+      money.push({ label: "Paid out for delivered work", imd: formatImd(order.spentWei, EXACT) });
+      money.push({ label: "Sent back to the employer", imd: formatImd(order.returnedWei, EXACT) });
       if (t) {
-        money.push({ label: "Opening price", imd: formatImd(t.minPayWei) });
-        money.push({ label: "Most it can cost", imd: formatImd(t.maxPayWei) });
+        money.push({ label: "Opening price", imd: formatImd(t.minPayWei, EXACT) });
+        money.push({ label: "Most it can cost", imd: formatImd(t.maxPayWei, EXACT) });
         if (order.state === "Open") {
           // The same straight line the desk draws; `priceNow(id)` on chain is the authority.
           const price = priceAt({
@@ -747,17 +756,17 @@ export const orderPage: PageDef<OrderModel> = {
           });
           money.push({ label: "Price if a runner took it now", imd: formatImd(price) });
         }
-        money.push({ label: "Runner's bond", imd: formatImd(t.bondWei) });
+        money.push({ label: "Runner's bond", imd: formatImd(t.bondWei, EXACT) });
       }
       if (c) {
         const split = splitPrice(c.priceWei);
-        money.push({ label: "Price fixed by the runner's claim", imd: formatImd(c.priceWei) });
-        money.push({ label: "of which fee (to Payroll)", imd: formatImd(split.fee) });
+        money.push({ label: "Price fixed by the runner's claim", imd: formatImd(c.priceWei, EXACT) });
+        money.push({ label: "of which fee (to Payroll)", imd: formatImd(split.fee, EXACT) });
         money.push({
           label: "of which tip (to the seats of the agents the record names)",
-          imd: formatImd(split.tip),
+          imd: formatImd(split.tip, EXACT),
         });
-        money.push({ label: "of which to the runner", imd: formatImd(split.runnerPay) });
+        money.push({ label: "of which to the runner", imd: formatImd(split.runnerPay, EXACT) });
       }
     }
     // The ticket binds the swarm job to this order, this claim and this runner. It is recomputed
@@ -928,7 +937,7 @@ export const orderPage: PageDef<OrderModel> = {
           const claimed = claim
             ? {
                 at: claim.tx.at,
-                amountImd: formatImd(claim.amountWei),
+                amountImd: formatImd(claim.amountWei, EXACT),
                 paidTo: claim.paidTo,
                 from: claim.tx.from,
                 txUrl: etherscanTx(claim.tx.hash),
@@ -939,15 +948,15 @@ export const orderPage: PageDef<OrderModel> = {
             owedWei === null
               ? `What Payroll owes for agent ${agentId} could not be read just now.`
               : owedWei > 0n
-                ? `Unclaimed: ${formatImd(owedWei)} IMD waits in Payroll for ${seatWords}'s owner (Payroll.tipOwed, read for this page). ${CLAIM_TIP_RULE.replace("claimTip", `claimTip(${agentId})`)} The call also fails, and the tip stays owed, while the agent is bound to no seat or to a seat that is not one of Payroll's.`
+                ? `Unclaimed: ${formatImd(owedWei, EXACT)} IMD waits in Payroll for ${seatWords}'s owner (Payroll.tipOwed, read for this page). ${CLAIM_TIP_RULE.replace("claimTip", `claimTip(${agentId})`)} The call also fails, and the tip stays owed, while the agent is bound to no seat or to a seat that is not one of Payroll's.`
                 : claim
-                  ? `Claimed: on ${formatUtc(claim.tx.at)} ${caller === "W1" || caller === "H1" ? `house wallet ${caller}` : caller} called claimTip(${agentId}), and Payroll paid the ${formatImd(claim.amountWei)} IMD tip credited for agent ${agentId}, the agent IdentityMD's work record names, to the owner of seat #${claim.tokenId}, ${claim.paidTo}. ${claim.paidToHasCode ? `That owner's address had code when read on ${HISTORY_READ_ON}, so only the owner could send the call.` : `That owner's address had no code when read on ${HISTORY_READ_ON}, so anyone could send the call.`} Payroll.tipOwed reads 0 for this page.`
+                  ? `Claimed: on ${formatUtc(claim.tx.at)} ${caller === "W1" || caller === "H1" ? `house wallet ${caller}` : caller} called claimTip(${agentId}), and Payroll paid the ${formatImd(claim.amountWei, EXACT)} IMD tip credited for agent ${agentId}, the agent IdentityMD's work record names, to the owner of seat #${claim.tokenId}, ${claim.paidTo}. ${claim.paidToHasCode ? `That owner's address had code when read on ${pinned?.read ?? HISTORY_READ_ON}, so only the owner could send the call.` : `That owner's address had no code when read on ${pinned?.read ?? HISTORY_READ_ON}, so anyone could send the call.`} Payroll.tipOwed reads 0 for this page.`
                   : `Payroll.tipOwed reads 0 for agent ${agentId} for this page: nothing is waiting for it.`;
           return {
             agentId,
             seat,
             owner: binding?.owner ?? null,
-            owedImd: owedWei === null ? null : formatImd(owedWei),
+            owedImd: owedWei === null ? null : formatImd(owedWei, EXACT),
             claimed,
             words,
           };
@@ -989,7 +998,7 @@ export const orderPage: PageDef<OrderModel> = {
       trail,
       trailNote:
         trail.length > 0
-          ? `Every transaction of the order, oldest first. The public RPC no longer serves their logs, so their hashes were read from the chain on ${HISTORY_READ_ON} and are kept with this site (config/history.ts); the order's state and money above are read live.`
+          ? `Every transaction of the order, oldest first. The public RPC serves logs for about a day, so their hashes were read from the chain on ${pinned?.read ?? HISTORY_READ_ON} and are kept with this site (config/history.ts); the order's state and money above are read live.`
           : null,
       proof,
       tips,
@@ -1004,6 +1013,7 @@ export const orderPage: PageDef<OrderModel> = {
               url: explorerJob(c.jobId),
             }
           : null,
+      work: delivered && pinned?.work && c?.jobId === pinned.jobId ? { ...pinned.work } : null,
       commands: [
         {
           comment: "The order's state and money: (state, employer, escrow, spent, returned).",
@@ -1126,11 +1136,14 @@ export const orderPage: PageDef<OrderModel> = {
             ),
           ).trimEnd()
         : null,
-      m.picture || m.mediaCid
+      m.picture || m.mediaCid || m.work
         ? doc(
             "## The work",
             m.picture
               ? `${m.picture.label}: ${link(m.picture.url, m.picture.url)} (IdentityMD's page of the job, which shows it; this site serves no copy).`
+              : null,
+            m.work
+              ? `${m.work.label}: ${link(m.work.url, m.work.url)}. ${m.work.what} This site serves no copy.`
               : null,
             m.mediaCid
               ? `IdentityMD's API gives the job's media the IPFS CID ${inline(m.mediaCid)} (GET /jobs/${m.order?.claim?.jobId ?? "<job id>"}, media.cid).`

@@ -941,7 +941,7 @@ describe("pages that work on today's data", () => {
     // x402 payments kept with their source, the same whatever the book holds.
     const paid = model.integration.find((row) => row.primitive.includes("x402"));
     expect(paid?.usage).toMatchObject({ count: String(HOUSE_X402.payments.length), reason: null });
-    expect(paid?.usage.what).toContain("x402 payments for swarm jobs from house wallets (W1 6, H1 1)");
+    expect(paid?.usage.what).toContain("x402 payments for swarm jobs from house wallets (W1 6, H1 2)");
     expect(paid?.proofNote).toContain("In the newest day of blocks the tally counts 0 payments");
     // Its proof is the header job, and the row says what that job does not yet prove.
     expect(paid?.proofs[0]?.url).toBe("https://api.imd.fun/jobs/e70c56ce-60f0-4c2c-b413-67e5ae37ddce");

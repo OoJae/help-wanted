@@ -73,6 +73,36 @@ const specimenText = specimen
               ))}
               . {lead.now}
             </p>
+            {lead.next && (
+              <>
+                <p class="deck">{lead.next.deck}</p>
+                <p class="actions">
+                  <a class="btn" href={lead.next.verifyPath}>
+                    See the proof
+                  </a>
+                  <a class="btn btn--ghost" href={lead.next.orderPath}>
+                    Order {lead.next.orderPath.split("/").pop()}, step by step
+                  </a>
+                  {lead.next.work && (
+                    <a class="btn btn--ghost" href={lead.next.work.url} rel="noopener">
+                      {lead.next.work.label}
+                    </a>
+                  )}
+                </p>
+                <p class="small">
+                  On Etherscan:{" "}
+                  {lead.next.links.map((l, index) => (
+                    <>
+                      {index > 0 && " · "}
+                      <a href={l.url} rel="noopener">
+                        {l.label}
+                      </a>
+                    </>
+                  ))}
+                  . {lead.next.now}
+                </p>
+              </>
+            )}
           </>
         ) : (
           <p class="actions">

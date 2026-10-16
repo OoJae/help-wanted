@@ -37,17 +37,17 @@ does not ask how a job was paid for. The team's runner buys each job through Ide
 It has five parts, in ten contracts, in three launches, all three live on Ethereum mainnet. No
 contract has an owner, an admin or a setter, and there is no token of ours.
 
-| Part                      | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Launch | Live today                                                    |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------- |
-| **Standing Questions**    | A contract that buys its own oracle answers. IdentityMD's oracle has a panel of its agents answer a question about the chain, and signs the answer. Anyone creates a feed: a question, asked again every so many blocks. Anyone puts IMD on the feed's meter. When the feed is due, the contract pays for the answer from the meter. The signed answer comes back when IdentityMD calls the contract (the callback), or anyone hands it in (`submit`). The contract checks it and stores it. | A      | **Yes**                                                       |
-| **The Robot Jobs Report** | A public record of what the swarm was paid: IMD paid and number of payments, each taken from a Standing Question. One print so far (13 October 2026).                                                                                                                                                                                                                                                                                                                                        | A      | **Yes**                                                       |
-| **Payroll**               | Splits every IMD it receives by fixed code: half to those who stake IMD in IdentityMD's vault, 30% to the owners of IdentityMD's 2,000 seats (the tokens its agents work under), 20% to keep the report's questions funded.                                                                                                                                                                                                                                                                  | A      | **Yes**                                                       |
-| **The hire desk**         | The job board itself. An employer escrows IMD. A runner, which is anyone who posts a bond, buys the job from the swarm. The escrow pays against the job's receipt, or, if the employer allows it, against a bonded delivery claim nobody challenges for 24 hours or that the order's arbiter upholds. Two employers that are contracts come with it: a crowd pot, and a doorbell anyone can ring until it hires.                                                                             | B      | **Yes**. Its first order was paid on proof on 14 October 2026 |
-| **The company**           | Rules of the form "when this is true, hire", endowments whose yield pays for a question or a pot, and a way to pay with ETH.                                                                                                                                                                                                                                                                                                                                                                 | C      | **Yes**, since 15 October 2026                                |
+| Part                      | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Launch | Live today                                                                                                                                   |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Standing Questions**    | A contract that buys its own oracle answers. IdentityMD's oracle has a panel of its agents answer a question about the chain, and signs the answer. Anyone creates a feed: a question, asked again every so many blocks. Anyone puts IMD on the feed's meter. When the feed is due, the contract pays for the answer from the meter. The signed answer comes back when IdentityMD calls the contract (the callback), or anyone hands it in (`submit`). The contract checks it and stores it. | A      | **Yes**                                                                                                                                      |
+| **The Robot Jobs Report** | A public record of what the swarm was paid: IMD paid and number of payments, each taken from a Standing Question. One print so far (13 October 2026).                                                                                                                                                                                                                                                                                                                                        | A      | **Yes**                                                                                                                                      |
+| **Payroll**               | Splits every IMD it receives by fixed code: half to those who stake IMD in IdentityMD's vault, 30% to the owners of IdentityMD's 2,000 seats (the tokens its agents work under), 20% to keep the report's questions funded.                                                                                                                                                                                                                                                                  | A      | **Yes**                                                                                                                                      |
+| **The hire desk**         | The job board itself. An employer escrows IMD. A runner, which is anyone who posts a bond, buys the job from the swarm. The escrow pays against the job's receipt, or, if the employer allows it, against a bonded delivery claim nobody challenges for 24 hours or that the order's arbiter upholds. Two employers that are contracts come with it: a crowd pot, and a doorbell anyone can ring until it hires.                                                                             | B      | **Yes**. Its first order was paid on proof on 14 October 2026, and its second, opened by a rule of launch C, on 16 October 2026              |
+| **The company**           | Rules of the form "when this is true, hire", endowments whose yield pays for a question or a pot, and a way to pay with ETH.                                                                                                                                                                                                                                                                                                                                                                 | C      | **Yes**, since 15 October 2026. On 16 October 2026 the team's wallet fired its first rule by hand, and the order it opened was paid on proof |
 
 HELP WANTED is an entry in IdentityMD's builder competition.
 
-## Read this first: what is true on 15 October 2026
+## Read this first: what is true on 16 October 2026
 
 - **Launch A is live on Ethereum mainnet** since 13 October 2026. Three contracts, created by
   IdentityMD's launch pipeline in one transaction (IdentityMD launch 1531).
@@ -81,17 +81,39 @@ HELP WANTED is an entry in IdentityMD's builder competition.
   Payroll its 0.05 IMD fee and a 0.05 IMD tip, which Payroll credited to agent 51519, the agent
   the work record names. On 15 October Payroll paid that tip to the owner of the seat the agent is
   bound to. Check 6 below repeats the proof.
+- **The desk's second order was opened by a rule and paid on proof, and all of it was the team's.**
+  On 16 October 2026 the team's wallet H1 created rule 1 on `Rules`, the first rule of
+  [`launches/c-company/docs/LAUNCH.md`](launches/c-company/docs/LAUNCH.md) (section 6): when launch
+  A's hires feed reports at least 100, hire a research report that only a receipt can pay. Anyone
+  may fire a rule whose condition holds. This time H1 fired it, by hand, with
+  `scripts/first-rule.sh`. The fire read the hires feed (223) and opened order 2 on the desk, with
+  `Rules` as its employer and 0.60 IMD in escrow
+  ([`0x9f790aae…e37b`](https://etherscan.io/tx/0x9f790aae9db07625dc86b6c107d7ed55b43f96ba5bfaf5b02c64269ab963e37b)).
+  The team's runner, hosted and running unattended, took it, paid IdentityMD 0.5 IMD by x402 for
+  the job, and settled the order on the job's receipt under nine minutes after the fire
+  ([`0x35bb49cc…0516`](https://etherscan.io/tx/0x35bb49cc9576a425b94a94137e8fe24e496017cc154456eeee255d22fc020516)).
+  The desk paid the runner 0.504045 IMD and its bond, and Payroll a 0.0280025 IMD fee and a
+  0.0280025 IMD tip for agent 52142, the agent the work record names. It sent the 0.03995 IMD the
+  order did not spend back to `Rules`, which credited it to the rule. H1 then took that back by
+  cancelling the rule, and called `claimTip`, which paid the tip to the owner of seat 1978. Check 7
+  below repeats the proof. It shows a rule hiring the swarm on mainnet against a real IdentityMD
+  receipt. It is not use by anyone outside the team: the rule's creator, the wallet that fired it
+  and the runner were all H1.
 - **Nobody outside the team has used the contracts.** Every transaction that touched them after
   their launch was sent by the team's own wallets, apart from one: IdentityMD's Intake delivering an
   oracle answer the team had paid for. The contracts have still sent IMD outside the team: to
   IdentityMD's fee address, which every paid request to IdentityMD pays (`Questions` paid it 0.5 IMD
-  for each of the three answers it bought); to sIMD, IdentityMD's staking vault; and to one wallet,
-  the owner of seat 1049, paid the tip of agent 51519. "What is not shown yet", below, has the
-  figures.
+  for each of the three answers it bought); to sIMD, IdentityMD's staking vault; and to two
+  wallets: the owner of seat 1049, paid the tip of agent 51519, and, on 16 October, the owner of
+  seat 1978, paid the tip of agent 52142, the agent order 2's work record names. Neither owner did
+  anything to be paid: a tip goes to the owner of the seat bound to the agent a work record names,
+  and receiving one is not use of HELP WANTED. "What is not shown yet", below, has the figures.
 
 [`EVIDENCE.md`](EVIDENCE.md) is the record of what exists. It is generated from the chain at one
-pinned block, by a command you can run, for every launch the deployments book holds. Where this
-page and that file differ about such a launch, believe that file.
+pinned block, which it names, by a command you can run, for every launch the deployments book
+holds; check 8 below says when it was last run. Where this page and that file differ about what
+existed at that block, believe that file. What happened after that block is not in it until the
+command is run again.
 
 ## Status of each launch
 
@@ -117,9 +139,9 @@ public repository, <https://github.com/OoJae/help-wanted>, also has a branch per
 
 ## Check it yourself
 
-Every command below was run on 13 or 15 October 2026 and printed what is shown. They read only.
-You need [Foundry](https://getfoundry.sh) (`cast`, `forge`), `curl`, `jq`, `xxd` and `bc`. Check 2
-also needs Node 18 or newer; check 7 needs Node 22 and pnpm 11.
+Every command below was run on 13, 15 or 16 October 2026 and printed what is shown. They read
+only. You need [Foundry](https://getfoundry.sh) (`cast`, `forge`), `curl`, `jq`, `xxd` and `bc`.
+Check 2 also needs Node 18 or newer; check 8 needs Node 22 and pnpm 11.
 
 ```sh
 export RPC=https://ethereum-rpc.publicnode.com
@@ -320,7 +342,105 @@ cast call $DESK "accountOf(uint256)(uint8,address,uint96,uint96,uint96)" 1 --rpc
 [See the picture the Doorbell paid for](https://explorer.imd.fun/jobs/f7bd80ba-3e8b-483f-ad02-6ffbd16fef92)
 (IdentityMD's explorer, job `f7bd80ba-3e8b-483f-ad02-6ffbd16fef92`).
 
-### 7. Everything counted, at one block
+### 7. Order 2 was opened by a rule and paid on proof
+
+The team's wallet H1 created rule 1 on `Rules`
+([`0x8c69fca9…548b`](https://etherscan.io/tx/0x8c69fca9fcdd1893181832d708cfbf69fb7227c127206c4bcdd00bc0028e548b),
+block 26,204,482) and fired it by hand with `scripts/first-rule.sh`
+([`0x9f790aae…e37b`](https://etherscan.io/tx/0x9f790aae9db07625dc86b6c107d7ed55b43f96ba5bfaf5b02c64269ab963e37b),
+block 26,204,499, 10:28 UTC). The fire read launch A's hires feed (223, at least 100) and opened
+order 2 on the desk with `Rules` as the employer. Anyone may fire a rule whose condition holds;
+this time the team's own wallet did, and the rule's 0.01 IMD tip went back to it.
+
+The team's runner, which signs as H1, claimed the order at 0.56005 IMD
+([`0x27fc5a9f…0cb1`](https://etherscan.io/tx/0x27fc5a9fa12302a79d9f8b97fa82a541c9ab01ba07e78c2980d86db2c9b20cb1),
+block 26,204,508) and bought the job by x402: IdentityMD's fee address sent the settlement through
+x402's contract, which moved 0.5 IMD from the runner's wallet to that address
+([`0x2fc7fa99…ca70`](https://etherscan.io/tx/0x2fc7fa990bb74b015cff16c5c69e8d97eccdad38c79307c8b1a02bfbcea3ca70),
+block 26,204,514). IdentityMD's writer wrote the job's receipt
+([`0x3a604fc1…5abf`](https://etherscan.io/tx/0x3a604fc1d0a83a25d0f8b89142007d665557ca6bb7ee2ff80ddaca67eadb5abf),
+block 26,204,533), two blocks before the runner registered the job
+([`0x20ef3770…4467`](https://etherscan.io/tx/0x20ef3770d86475c944ce46a42fce15234549e53c17245f29759ca3c3dfe54467),
+block 26,204,535). The runner settled the order on that receipt
+([`0x35bb49cc…0516`](https://etherscan.io/tx/0x35bb49cc9576a425b94a94137e8fe24e496017cc154456eeee255d22fc020516),
+block 26,204,543, 10:37 UTC), 44 blocks and under nine minutes after the fire. IdentityMD names the
+same wallet as the payer of the job:
+
+```sh
+curl -s https://api.imd.fun/jobs/42f26c64-eea9-46f2-822a-33547ec18abf | jq '{state, template, paidBy}'
+# completed, skill:research-report, paid by 0x60cc…9560 (H1, the runner's wallet)
+```
+
+The order on the desk, the job that was bought for it, and the receipt IdentityMD wrote for that
+job:
+
+```sh
+cast call $DESK "headerOf(uint256)(bytes)" 2 --rpc-url $RPC | xargs cast to-utf8
+# [help-wanted order bd623ece89b1c600768011d08b9f77f00f169c6b6f31d2e3c37d61515189c407] and a space
+cast call 0xb6d0a187b050FA5Bb0B87033a203f37BECF4a775 "latest(bytes16)(bytes32)" \
+  0x42f26c64eea946f2822a33547ec18abf --rpc-url $RPC
+# 0xf6d0bd11b43fc36a3720db09a65612a03a4be7b5b12476bcdace4d1383176a85
+curl -s https://api.imd.fun/work-records/f6d0bd11b43fc36a3720db09a65612a03a4be7b5b12476bcdace4d1383176a85.json -o report.json
+cast keccak "0x$(xxd -p report.json | tr -d '\n')"   # the same hash (the record is 3,801 bytes)
+jq -j .objective report.json | head -c 85            # the same header
+jq -r '.kind, .state' report.json                    # skill:research-report, completed
+```
+
+And through the launched `WorkProof`: the record's hash, the hash of the kind the rule pins, of the
+header, of the rule's job text, and the agent the record names.
+
+```sh
+cast call 0xB268297dB06985ba0b806Ba97BcB90364b137469 \
+  "prove(bytes16,bytes,uint256)((bytes32,bytes32,bytes32,bytes32,bytes32,uint256[]))" \
+  0x42f26c64eea946f2822a33547ec18abf "0x$(xxd -p report.json | tr -d '\n')" 85 --rpc-url $RPC
+# (0xf6d0bd11…6a85, 0x1eca7729…988b, 0x390b14f4…3f8f, 0xc6413a52…31e2, …, [52142])
+```
+
+The order is `Delivered` (state 6) and marked proven, with 0.56005 IMD spent and the 0.03995 IMD
+it did not spend returned to `Rules`. The settlement's `Delivered` event gives the split:
+
+```sh
+cast call $DESK "stateOf(uint256)(uint8)" 2 --rpc-url $RPC
+# 6
+cast call $DESK "accountOf(uint256)(uint8,address,uint96,uint96,uint96)" 2 --rpc-url $RPC
+# 6, Rules, 0 left in escrow, 560050000000000000 spent, 39950000000000000 returned
+cast logs --address $DESK --from-block 26204543 --to-block 26204543 \
+  "Delivered(uint256 indexed,bytes16 indexed,address indexed,bytes32,bool,uint256,uint256,uint256,uint256,uint256,uint256[])" 2 \
+  --rpc-url $LOGS_RPC --json | jq -r '.[0].data' \
+  | xargs cast decode-abi --input "x(bytes32,bool,uint256,uint256,uint256,uint256,uint256,uint256[])"
+# the record hash; true (proven); 504045000000000000 to the runner; 28002500000000000 fee and
+# 28002500000000000 tip to Payroll; 39950000000000000 back to Rules; 250000000000000000, the bond,
+# back to the runner; [52142]
+```
+
+`Rules` received the 0.03995 IMD inside the settlement, through the desk's callback, and credited
+it to rule 1. H1 cancelled the rule, which had used its one fire, and took that amount back
+([`0x9c062d89…6846`](https://etherscan.io/tx/0x9c062d891f69d829be26a31cbc8cd7ed7a55bdfae3f3f0fcd7d2853ec3cb6846),
+block 26,204,586). H1 then called `claimTip(52142)`, and Payroll paid the 0.0280025 IMD tip to the
+owner of seat 1978, the seat agent 52142 is bound to, a wallet outside the team that did nothing to
+be paid
+([`0xd7a75e9c…f273`](https://etherscan.io/tx/0xd7a75e9c71968ba67badb671c96103a55364d78b563e6b6561a08b98603f6273),
+block 26,204,587). The whole hire cost the team 0.556005 IMD and gas: IdentityMD's 0.5 IMD job fee,
+and the fee and the tip paid to Payroll (H1 held 1.4 IMD before block 26,204,480 and 0.843995 IMD
+after block 26,204,587).
+
+The report counts the payments of IdentityMD's job fee in blocks 26,197,518 to 26,204,517: 220
+transfers of 0.5 IMD to the fee address, 110 IMD in all, from 52 wallets, one row per wallet, each
+row linking one of that wallet's transactions. We counted the same logs again (with `$IMD`,
+`$TRANSFER` and `$FEE_ADDRESS` from check 3) and got the same figures. Among them are the team's
+own payment for this job and one by the team's wallet W1.
+
+```sh
+cast logs --address $IMD --from-block 26197518 --to-block 26204517 $TRANSFER "" $FEE_ADDRESS \
+  --rpc-url $LOGS_RPC --json | jq '[length, ([.[].topics[1]] | unique | length), ([.[].data] | unique | length)]'
+# [220, 52, 1]: 220 transfers, 52 senders, one amount (0.5 IMD)
+```
+
+[See the report the rule paid for](https://api.imd.fun/artifacts/4dcebdb382dd91a82e53a629dc7620f811feb6146e011d3a6e799fdf7c6482f0)
+(`report.md`, 10,523 bytes, served by IdentityMD's API; IdentityMD's explorer has the job at
+<https://explorer.imd.fun/jobs/42f26c64-eea9-46f2-822a-33547ec18abf>).
+
+### 8. Everything counted, at one block
 
 ```sh
 pnpm install
@@ -333,7 +453,7 @@ writes nothing if a read fails or a count disagrees. It holds no key and sends n
 no setting it reads from `https://ethereum-rpc.publicnode.com,https://rpc.mevblocker.io`, and asks
 the first node for each range of blocks before the second. The first serves logs for about the last
 9,000 blocks only, so older logs, such as the early logs of launches A and B, come from the second.
-Run this way on 15 October 2026, it pinned block 26,200,139, read logs in ranges of 2,000 blocks and
+Run this way on 16 October 2026, it pinned block 26,205,115, read logs in ranges of 2,000 blocks and
 found all 56 of its checks against the contracts in agreement. `RPC_URL` (one URL, or several
 separated by commas) and `CHUNK_SIZE` change that.
 
@@ -344,7 +464,10 @@ Stated as plainly as what is.
 - **Launch C went live on 15 October 2026, at 13:18 UTC.** By block 26,198,957 every event its
   contracts had emitted came from four calls of the team's wallet W1 to `Endowments`: creating an
   endowment for the meter of the payrolls feed, staking, depositing 1 IMD and staking again. No
-  rule had been created and nothing had gone through `Zap`. About 18 October the team means to
+  rule had been created then, and nothing had gone through `Zap`. On 16 October 2026 the team's
+  wallet H1 created the first rule (rule 1), fired it by hand, and cancelled it once its one fire
+  was used and its order paid (check 7); that day `ruleCount()` read 1, and nothing had yet gone
+  through `Zap`. About 18 October the team means to
   harvest that endowment's yield if it has reached `MIN_HARVEST` (0.001 IMD), and to withdraw the
   1 IMD deposit; the 0.000001 IMD seed paid to create the endowment is not refundable. The harvest
   may not be possible. At block 26,199,340 (15 October, 17:13 UTC) `harvestable(1)` read 0: what
@@ -355,9 +478,10 @@ Stated as plainly as what is.
   1 IMD earns well under 0.001 IMD by 18 October; a step like that of 12 October would give it
   about 0.0016 IMD, above the floor. Whether the harvest is possible depends on whether such a
   step lands before then.
-- **One order, and all of it the team's own.** Order 1 was opened by the team's Doorbell after the
-  team's own wallet rang it, and taken by the team's runner. No outside employer, runner or ringer
-  has used the desk, and no crowd pot has been opened.
+- **Two orders, and all of them the team's own.** Order 1 was opened by the team's Doorbell after
+  the team's own wallet rang it. Order 2 was opened by rule 1 on `Rules`, which the team's wallet
+  H1 created and fired. The team's runner took both. No outside employer, runner, ringer or rule
+  creator has used the desk, and no crowd pot has been opened.
 - **IdentityMD's receipts stalled for about six days.** The WorkRegistry wrote no receipt from
   about 8 October until 13 October 2026, 17:26 UTC (block 26,185,055). It then worked through its
   backlog, and the receipts of jobs bought on 13 October, order 1's among them, landed on
@@ -367,6 +491,10 @@ Stated as plainly as what is.
   during the stall with the desk's other path switched on, for good: a bonded delivery claim paid
   after 24 hours without a challenge, with its own limits (L1, L2 and D2 in the same file). Order 1
   used that path to claim delivery, and was then paid on its receipt instead, which landed first.
+  The writer has kept writing since. On 16 October it wrote the receipt of order 2's job 16
+  seconds after IdentityMD listed the job as completed (10:35:18.756 UTC; block 26,204,533 at
+  10:35:35 UTC), two blocks before the runner registered the job. Order 2 pays only on a receipt,
+  and was paid on that one.
 - **Nobody outside the team has used anything.** Every transaction that touched the contracts
   after their launch came from the team's wallets, apart from the Intake's one delivery.
   `EVIDENCE.md` has the number and splits every count HOUSE and OUTSIDE. By block 26,198,957 the
@@ -375,19 +503,26 @@ Stated as plainly as what is.
   IdentityMD's staking vault: it received Payroll's 14 drips to the stakers, about 0.0021 IMD in
   all, and the team's 1.000001 IMD that `Endowments` staked (an endowment's seed and a deposit of
   1 IMD). And one wallet: the owner of the seat agent 51519 is bound to, paid its tip by the team's
-  own call (the point on Payroll below).
+  own call (the point on Payroll below). On 16 October a second wallet was paid the same way: the
+  owner of seat 1978, which agent 52142 is bound to, was paid order 2's tip when the team's wallet
+  H1 called `claimTip`. Each payment goes to the owner of the seat bound to the agent a work record
+  names. Neither owner used HELP WANTED.
 - **Two of the three answers were handed in by the team.** The amount and the count of the first
   report were handed in with `submit` by the team's keeper wallet (the keeper is the bot that makes
   the calls anyone may make), and the contract checked the oracle's signature on each. The third,
   the weekly list of employers, can be answered by the callback only, and was.
-- **Payroll has received one fee and one tip.** Order 1's 0.05 IMD fee was split by the code
+- **Payroll has received two fees and two tips.** Order 1's 0.05 IMD fee was split by the code
   (half to the stakers' stream, of which a first part has reached sIMD, 30% to the seat pool, 20%
   to the house feeds' meters); no seat owner has claimed a share of the seat pool yet. Its
   0.05 IMD tip was credited to agent 51519. On 15 October 2026 the team's wallet W1 called
   `claimTip` for that agent, which anyone may do when the seat is held by an ordinary wallet, and
   Payroll paid the tip to the owner of seat 1049, the seat the agent is bound to
   ([`0x9edc8ba2…1fe8`](https://etherscan.io/tx/0x9edc8ba2ae4cfbabe95d6ca11e7a93f349f09729b7a699d575eac6f8466e1fe8)).
-  `EVIDENCE.md` has every figure.
+  Order 2's fee and tip, 0.0280025 IMD each, came on 16 October, and the fee was split the same
+  way. The tip was credited to agent 52142. The team's wallet H1 called `claimTip(52142)`, and
+  Payroll paid it to the owner of seat 1978
+  ([`0xd7a75e9c…f273`](https://etherscan.io/tx/0xd7a75e9c71968ba67badb671c96103a55364d78b563e6b6561a08b98603f6273)).
+  `EVIDENCE.md` has every figure up to the block it pins.
 - **One day of the report exists.** Each feed's first request spent the IMD its meter held, and
   the feed budget has put back 0.01 IMD since. A meter needs 0.55 IMD to ask again.
   `EVIDENCE.md` shows each meter's balance.
@@ -423,8 +558,8 @@ Stated as plainly as what is.
   15 October 2026 (R11, E7, E9 and Z4). A test of launch C's suite shows each of the four, three of
   them in tests added on 15 October 2026. Nobody outside IdentityMD's network has audited any of
   the three launches, and IdentityMD records no outside audit or bounty for any of them.
-- **One runner has taken one order.** The team's runner took order 1, and no other runner has
-  claimed an order on the desk. Since 15 October 2026, 14:18 UTC, the team's runner has run around
+- **One runner has taken two orders.** The team's runner took orders 1 and 2, and no other runner
+  has claimed an order on the desk. Since 15 October 2026, 14:18 UTC, the team's runner has run around
   the clock on a hosted server (Railway), signing as H1. It takes orders from any employer, one
   order at a time, pays at most one 0.5 IMD swarm fee a day, posts bonds of at most 0.25 IMD, and
   takes research-report and picture jobs ([`bots/runner/README.md`](bots/runner/README.md)). Its
@@ -433,9 +568,11 @@ Stated as plainly as what is.
   what serving anyone can cost it, for as long as it runs: at most 0.5 IMD in swarm fees a day,
   and at most 0.25 IMD in bonds at any one time, which it can lose order by order, plus gas. On
   15 October 2026 the team also set it to take an order that leaves it no margin
-  (`MIN_MARGIN_IMD=0`, `EXPECTED_FAILURE_BPS=0`), so that it can serve the first order that a rule
-  of the team's, in launch C, opens on the desk. At block 26,200,224 only one order had been opened
-  on the desk, order 1. The keeper is not hosted: the team runs it by hand. The site is public (its
+  (`MIN_MARGIN_IMD=0`, `EXPECTED_FAILURE_BPS=0`), so that it could serve the first order that a
+  rule of the team's, in launch C, opened on the desk. It did. On 16 October 2026, running
+  unattended, it took order 2, paid IdentityMD's 0.5 IMD job fee and settled the order on its
+  receipt. It was paid 0.504045 IMD and its bond back, about 0.004 IMD more than the fee, before
+  gas. Two orders have been opened on the desk, both by the team. The keeper is not hosted: the team runs it by hand. The site is public (its
   address is at the top of this page); this page names no public address for the indexer or the
   bots.
 
@@ -516,6 +653,8 @@ apps/web/             The site: the receipt checker, the report, the hire desk's
                       also answers as JSON and as Markdown.
 scripts/evidence/     The evidence builder (pnpm evidence) and its tests.
 scripts/repro.sh      The comparison of deployed code with a build of this source (pnpm repro).
+scripts/first-rule.sh How rule 1 of launch C was created and fired on 16 October 2026 (cast, with
+                      the wallet's own keystore).
 scripts/proof-requests.sh
                       How the three questions of the report were first bought from the live oracle.
 evidence/             The house list, the list of launches requested and not yet in the book

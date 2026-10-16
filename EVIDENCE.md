@@ -2,19 +2,19 @@
 
 This file is written by `pnpm evidence` (`scripts/evidence/build.ts`) and by nothing else. Do not edit it: run the command again. The same facts, for a program, are in `evidence/evidence.json`.
 
-Everything below was read from Ethereum mainnet (chain 1) at **block 26,200,139**, hash `0x5ba89450466ec7979fd0ab037d86077799089630aab9d8923cf63753a7cb11be`, mined 15 Oct 2026, 19:53:59 UTC. It was the node's finalized block when the run began, so it can no longer change. Logs were read from each launch's own block up to that block, in ranges of at most 2,000 blocks; code and views were read at that block. Read through `ethereum-rpc.publicnode.com`, `rpc.mevblocker.io`.
+Everything below was read from Ethereum mainnet (chain 1) at **block 26,205,115**, hash `0xfeaf6215261f9ea5c65d2b7845139d781b806379fc877c2163e88983ff348a44`, mined 16 Oct 2026, 12:32:23 UTC. It was the node's finalized block when the run began, so it can no longer change. Logs were read from each launch's own block up to that block, in ranges of at most 2,000 blocks; code and views were read at that block. Read through `ethereum-rpc.publicnode.com`, `rpc.mevblocker.io`.
 
 A number is here only if it was read. A zero is a count that was read and is zero. "Not launched" means there is nothing to read.
 
 ## In one screen
 
 - **10 of 10 contracts are launched**, and each of them has code at its address (launch A, launch B, launch C).
-- **Transactions that touched the launched contracts after their launch: 64. HOUSE 63, OUTSIDE 0, and 1 sent by IdentityMD's own service.** IdentityMD's service sends a transaction when its Intake delivers an oracle answer that was paid for; that is nobody's use of the contracts, and it is counted apart. Every other one was sent by the team's own wallets: nobody outside the team has used these contracts yet.
+- **Transactions that touched the launched contracts after their launch: 71. HOUSE 70, OUTSIDE 0, and 1 sent by IdentityMD's own service.** IdentityMD's service sends a transaction when its Intake delivers an oracle answer that was paid for; that is nobody's use of the contracts, and it is counted apart. Every other one was sent by the team's own wallets: nobody outside the team has used these contracts yet.
 - Standing Questions: 3 feeds created (HOUSE 3, OUTSIDE 0); 3 oracle requests bought (HOUSE 3, OUTSIDE 0), of which 2 answered by `submit`, 1 by the Intake's callback, 0 closed without an answer and 0 pending.
 - Robot Jobs Report: 1 print (HOUSE 1, OUTSIDE 0), 112 IMD and 223 payments recorded in all.
-- Payroll: 0.05 IMD received since launch, 0.05 IMD in tips.
-- Hire desk: 1 orders opened (HOUSE 1, OUTSIDE 0); 1 settled against a receipt, 0 paid on a claim, 0 refunded.
-- Rules: 0 created, 0 fires. Endowments: 1 created.
+- Payroll: 0.0780025 IMD received since launch, 0.0780025 IMD in tips.
+- Hire desk: 2 orders opened (HOUSE 2, OUTSIDE 0); 2 settled against a receipt, 0 paid on a claim, 0 refunded.
+- Rules: 1 created, 1 fires. Endowments: 1 created.
 
 ## HOUSE and OUTSIDE
 
@@ -49,7 +49,7 @@ HOUSE is the activity of the wallets the team publishes in evidence/house-wallet
 | --- | --- | --- | --- | --- | --- | --- |
 | A | `Questions` | [`0xEECE4628ceb091C13393fc64056Be8b8501fD3F6`](https://etherscan.io/address/0xEECE4628ceb091C13393fc64056Be8b8501fD3F6) | yes: 22,233 bytes, keccak256 `0xf876f5265e4ae5015645fbbee2c47e280391c23fc8256b46b688688a388618f7` | yes | 0.01 | `launches/a-payroll/src/questions/Questions.sol` |
 | A | `JobsReport` | [`0x58963B57E179f7fE4E95090C21E8e9D75353BCE4`](https://etherscan.io/address/0x58963B57E179f7fE4E95090C21E8e9D75353BCE4) | yes: 9,320 bytes, keccak256 `0xb050a81690b40963e1cbdffb17aafb3fcdf42ddd432a05023be7e23873207432` | yes | 0 | `launches/a-payroll/src/payroll/JobsReport.sol` |
-| A | `Payroll` | [`0x6e4362a5cEc59Eb3F611af6b2d81915CF5b45f1F`](https://etherscan.io/address/0x6e4362a5cEc59Eb3F611af6b2d81915CF5b45f1F) | yes: 11,846 bytes, keccak256 `0xa962b0633998d594b2720984ad5f76fce369148592da0762b9d9acf399367236` | yes | 0.037920634920634919 | `launches/a-payroll/src/payroll/Payroll.sol` |
+| A | `Payroll` | [`0x6e4362a5cEc59Eb3F611af6b2d81915CF5b45f1F`](https://etherscan.io/address/0x6e4362a5cEc59Eb3F611af6b2d81915CF5b45f1F) | yes: 11,846 bytes, keccak256 `0xa962b0633998d594b2720984ad5f76fce369148592da0762b9d9acf399367236` | yes | 0.065923134920634919 | `launches/a-payroll/src/payroll/Payroll.sol` |
 | B | `WorkProof` | [`0xB268297dB06985ba0b806Ba97BcB90364b137469`](https://etherscan.io/address/0xB268297dB06985ba0b806Ba97BcB90364b137469) | yes: 4,579 bytes, keccak256 `0x0a514db427f7f3845166e923929d67816f4a27e661d8ed510b7e910d730e5fba` | yes | 0 | `launches/b-desk/src/proof/WorkProof.sol` |
 | B | `WorkOrders` | [`0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2`](https://etherscan.io/address/0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2) | yes: 19,289 bytes, keccak256 `0xb06dfaf6410132828e12647f4ee5199a092f8c0fb9f0c0d2275b5f655262ffb3` | yes | 0 | `launches/b-desk/src/desk/WorkOrders.sol` |
 | B | `CrowdPots` | [`0x8C2FfCdcb103659aa05c772b8F2059868B496EB5`](https://etherscan.io/address/0x8C2FfCdcb103659aa05c772b8F2059868B496EB5) | yes: 14,177 bytes, keccak256 `0x282560809f9474cbb416a8d6235fac38fe2679ff3e729a87ff88859006beb1c2` | yes | 0 | `launches/b-desk/src/pots/CrowdPots.sol` |
@@ -64,7 +64,7 @@ HOUSE is the activity of the wallets the team publishes in evidence/house-wallet
 
 **Live.** IdentityMD launch 1531. Created in transaction [`0x9ce6111c9f454373ac208cc9b54ebd0a4b09e58706f20e568f0f9e8bbb392c58`](https://etherscan.io/tx/0x9ce6111c9f454373ac208cc9b54ebd0a4b09e58706f20e568f0f9e8bbb392c58), block 26,182,869 (13 Oct 2026, 10:07:59 UTC), sent by `0xcECc29B037f5064fCdF45a5C318F132ef76aA551` to `0xfF03410d0Fe5fa8f7F59F743de35E333D9857120`; the transaction succeeded.
 
-44 logs of these contracts, in 33 transactions, were read from block 26,182,869 to block 26,200,139. The source is in `launches/a-payroll`; its known limits are in `launches/a-payroll/docs/THREATS.md`.
+49 logs of these contracts, in 35 transactions, were read from block 26,182,869 to block 26,205,115. The source is in `launches/a-payroll`; its known limits are in `launches/a-payroll/docs/THREATS.md`.
 
 ### Standing Questions (`Questions`)
 
@@ -133,30 +133,30 @@ The contract's own summary at the pinned block: 1 print, 112 IMD in all; 1 count
 
 | Payroll's own total since launch | IMD |
 | --- | --- |
-| Received and booked | 0.05 |
-| Of that, to the stakers' stream | 0.025 |
-| Of that, to the seat pool | 0.015 |
-| Of that, to the feed budget | 0.01 |
+| Received and booked | 0.0780025 |
+| Of that, to the stakers' stream | 0.03900125 |
+| Of that, to the seat pool | 0.02340075 |
+| Of that, to the feed budget | 0.0156005 |
 | Sent on to sIMD stakers | 0.002079365079365081 |
 | Claimed by seat owners | 0 |
-| Tips taken in | 0.05 |
-| Tips claimed | 0.05 |
+| Tips taken in | 0.0780025 |
+| Tips claimed | 0.0780025 |
 | Tips that joined the seat pool | 0 |
 | Placed on the house feeds' meters | 0.01 |
 | Feed budget released to stakers | 0 |
-| Still owed, all told | 0.037920634920634919 |
+| Still owed, all told | 0.065923134920634919 |
 | Arrived by plain transfer and not booked yet | 0 |
 
 | What | Total | HOUSE | OUTSIDE |
 | --- | --- | --- | --- |
-| Payments through `pay`, by payer | 1 | 1 | 0 |
-| Paid through `pay`, IMD | 0.05 | 0.05 | 0 |
-| Bookings (`pay` and plain transfers), by who sent the booking | 1 | 1 | 0 |
-| Booked, IMD | 0.05 | 0.05 | 0 |
-| Tips through `tip`, by payer | 1 | 1 | 0 |
-| Tipped, IMD | 0.05 | 0.05 | 0 |
-| Tip claims, by the seat owner paid | 1 | 0 | 1 |
-| Tips claimed, IMD | 0.05 | 0 | 0.05 |
+| Payments through `pay`, by payer | 2 | 2 | 0 |
+| Paid through `pay`, IMD | 0.0780025 | 0.0780025 | 0 |
+| Bookings (`pay` and plain transfers), by who sent the booking | 2 | 2 | 0 |
+| Booked, IMD | 0.0780025 | 0.0780025 | 0 |
+| Tips through `tip`, by payer | 2 | 2 | 0 |
+| Tipped, IMD | 0.0780025 | 0.0780025 | 0 |
+| Tip claims, by the seat owner paid | 2 | 0 | 2 |
+| Tips claimed, IMD | 0.0780025 | 0 | 0.0780025 |
 | Sweeps of unclaimed tips to the seat pool | 0 | 0 | 0 |
 | Tips swept, IMD | 0 | 0 | 0 |
 | Drips to sIMD, by caller | 14 | 14 | 0 |
@@ -194,35 +194,35 @@ Every event in each contract's ABI, with how often it was logged. A row of zeros
 | `JobsReport` | `EmployersOfTheWeek` | 1 | 1 | 0 | whoever called crown (the sender of the transaction) |
 | `JobsReport` | `Printed` | 1 | 1 | 0 | whoever called print (the sender of the transaction) |
 | `JobsReport` | `RoundSkipped` | 0 | 0 | 0 | whoever called print (the sender of the transaction) |
-| `Payroll` | `Booked` | 1 | 1 | 0 | the sender of the transaction that booked the IMD |
+| `Payroll` | `Booked` | 2 | 2 | 0 | the sender of the transaction that booked the IMD |
 | `Payroll` | `Dripped` | 14 | 14 | 0 | the caller of drip |
 | `Payroll` | `FeedBudgetAged` | 0 | 0 | 0 | the sender of the transaction |
 | `Payroll` | `FeedBudgetReleased` | 0 | 0 | 0 | the sender of the transaction that called fundFeeds |
 | `Payroll` | `FeedFunded` | 2 | 2 | 0 | the sender of the transaction that called fundFeeds |
 | `Payroll` | `FeedFundingFailed` | 0 | 0 | 0 | the sender of the transaction that called fundFeeds |
-| `Payroll` | `Paid` | 1 | 1 | 0 | the payer; for a fee the hire desk pays, the employer of the order named in the memo |
+| `Payroll` | `Paid` | 2 | 2 | 0 | the payer; for a fee the hire desk pays, the employer of the order named in the memo |
 | `Payroll` | `SeatClaimed` | 0 | 0 | 0 | the seat's owner, who is paid |
-| `Payroll` | `StreamLevelled` | 1 | 1 | 0 | the sender of the transaction |
-| `Payroll` | `TipClaimed` | 1 | 0 | 1 | the seat's owner, who is paid |
+| `Payroll` | `StreamLevelled` | 2 | 2 | 0 | the sender of the transaction |
+| `Payroll` | `TipClaimed` | 2 | 0 | 2 | the seat's owner, who is paid |
 | `Payroll` | `TipSwept` | 0 | 0 | 0 | the sender of the transaction |
-| `Payroll` | `Tipped` | 1 | 1 | 0 | the payer; for a tip the hire desk pays, the employer of the order settled in the same transaction |
+| `Payroll` | `Tipped` | 2 | 2 | 0 | the payer; for a tip the hire desk pays, the employer of the order settled in the same transaction |
 
 ## Launch B: WorkProof, the hire desk, crowd pots and the Doorbell
 
 **Live.** IdentityMD launch 1573. Created in transaction [`0xfb28bef9c477cfe3777231d8c41f202e691673fc4cec98ecb8b07f1bfff7bf9c`](https://etherscan.io/tx/0xfb28bef9c477cfe3777231d8c41f202e691673fc4cec98ecb8b07f1bfff7bf9c), block 26,184,581 (13 Oct 2026, 15:51:11 UTC), sent by `0xcECc29B037f5064fCdF45a5C318F132ef76aA551` to `0xfF03410d0Fe5fa8f7F59F743de35E333D9857120`; the transaction succeeded.
 
-32 logs of these contracts, in 29 transactions, were read from block 26,184,581 to block 26,200,139. The source is in `launches/b-desk`; its known limits are in `launches/b-desk/docs/THREATS.md`.
+36 logs of these contracts, in 33 transactions, were read from block 26,184,581 to block 26,205,115. The source is in `launches/b-desk`; its known limits are in `launches/b-desk/docs/THREATS.md`.
 
 ### The hire desk (`WorkOrders`)
 
 | What | Total | HOUSE | OUTSIDE |
 | --- | --- | --- | --- |
-| Orders opened, by employer | 1 | 1 | 0 |
-| Escrowed when opened (the top of each price range), IMD | 1 | 1 | 0 |
-| Claims taken, by runner | 1 | 1 | 0 |
-| Jobs registered, by runner | 1 | 1 | 0 |
-| Settled, proven by a receipt, by employer | 1 | 1 | 0 |
-| Price of those orders, IMD | 1 | 1 | 0 |
+| Orders opened, by employer | 2 | 2 | 0 |
+| Escrowed when opened (the top of each price range), IMD | 1.6 | 1.6 | 0 |
+| Claims taken, by runner | 2 | 2 | 0 |
+| Jobs registered, by runner | 2 | 2 | 0 |
+| Settled, proven by a receipt, by employer | 2 | 2 | 0 |
+| Price of those orders, IMD | 1.56005 | 1.56005 | 0 |
 | Paid on a claim, not proven, by employer | 0 | 0 | 0 |
 | Price of those orders, IMD | 0 | 0 | 0 |
 | Of those: proven later, when the receipt landed | 0 | 0 | 0 |
@@ -237,13 +237,14 @@ Every event in each contract's ABI, with how often it was logged. A row of zeros
 | Receipts reported that did not settle an order | 0 | 0 | 0 |
 | Settlements whose fee or tip reached Payroll by plain transfer | 0 | 0 | 0 |
 
-Of the orders opened, our own employer contracts opened: the Doorbell 1, CrowdPots 0, Rules 0. Those count as HOUSE orders; the outside part of them shows in the chips, the rings and the rules below.
+Of the orders opened, our own employer contracts opened: the Doorbell 1, CrowdPots 0, Rules 1. Those count as HOUSE orders; the outside part of them shows in the chips, the rings and the rules below.
 
-Paid out at settlement over all delivered orders: 0.9 IMD to runners, 0.05 IMD in fees to Payroll, 0.05 IMD in tips.
+Paid out at settlement over all delivered orders: 1.404045 IMD to runners, 0.0780025 IMD in fees to Payroll, 0.0780025 IMD in tips.
 
 | Order | Employer | Side | Opened in | Escrow, IMD | Allows the claimed path | Where it stands | Runner | Swarm job | Settled in |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | `0xFd5ab7E03E8554210Faa3cCd3b9D47C622fffcCb` (Doorbell) | HOUSE | [`0xa9c9f25681b4512fc51d06cdd17d575e1ef3385d881b9ff62e25447bf8d815fb`](https://etherscan.io/tx/0xa9c9f25681b4512fc51d06cdd17d575e1ef3385d881b9ff62e25447bf8d815fb) | 1 | yes | settled, proven by a receipt | `0x60CcC928eb8EEE1d64CA0164565BfA9858669560` | f7bd80ba-3e8b-483f-ad02-6ffbd16fef92 | [`0xa3f5b783fe194c35f348e411a10f0a199589ea89b668a16d1597794931217628`](https://etherscan.io/tx/0xa3f5b783fe194c35f348e411a10f0a199589ea89b668a16d1597794931217628) |
+| 2 | `0xcbF0dddF07C00a78E2E7561a6F47C275B8c05D7E` (Rules) | HOUSE | [`0x9f790aae9db07625dc86b6c107d7ed55b43f96ba5bfaf5b02c64269ab963e37b`](https://etherscan.io/tx/0x9f790aae9db07625dc86b6c107d7ed55b43f96ba5bfaf5b02c64269ab963e37b) | 0.6 | no | settled, proven by a receipt | `0x60CcC928eb8EEE1d64CA0164565BfA9858669560` | 42f26c64-eea9-46f2-822a-33547ec18abf | [`0x35bb49cc9576a425b94a94137e8fe24e496017cc154456eeee255d22fc020516`](https://etherscan.io/tx/0x35bb49cc9576a425b94a94137e8fe24e496017cc154456eeee255d22fc020516) |
 
 ### Crowd pots (`CrowdPots`)
 
@@ -281,16 +282,16 @@ Every event in each contract's ABI, with how often it was logged. A row of zeros
 | `WorkOrders` | `Cancelled` | 0 | 0 | 0 | the order's employer |
 | `WorkOrders` | `Challenged` | 0 | 0 | 0 | the challenger |
 | `WorkOrders` | `ClaimEnded` | 0 | 0 | 0 | the runner whose claim ended |
-| `WorkOrders` | `Claimed` | 1 | 1 | 0 | the runner |
-| `WorkOrders` | `Delivered` | 1 | 1 | 0 | the order's employer |
+| `WorkOrders` | `Claimed` | 2 | 2 | 0 | the runner |
+| `WorkOrders` | `Delivered` | 2 | 2 | 0 | the order's employer |
 | `WorkOrders` | `DeliveryClaimed` | 1 | 1 | 0 | the runner that holds the order |
 | `WorkOrders` | `Failed` | 0 | 0 | 0 | the order's employer |
-| `WorkOrders` | `OrderOpened` | 1 | 1 | 0 | the employer |
+| `WorkOrders` | `OrderOpened` | 2 | 2 | 0 | the employer |
 | `WorkOrders` | `PayrollFallback` | 0 | 0 | 0 | the order's employer |
 | `WorkOrders` | `Proven` | 0 | 0 | 0 | the order's employer |
 | `WorkOrders` | `Redelivered` | 0 | 0 | 0 | the order's employer |
 | `WorkOrders` | `Refunded` | 0 | 0 | 0 | the order's employer |
-| `WorkOrders` | `Registered` | 1 | 1 | 0 | the runner that holds the order |
+| `WorkOrders` | `Registered` | 2 | 2 | 0 | the runner that holds the order |
 | `WorkOrders` | `Resolved` | 0 | 0 | 0 | the arbiter |
 | `WorkOrders` | `Triggered` | 0 | 0 | 0 | the order's employer |
 | `CrowdPots` | `ChippedIn` | 0 | 0 | 0 | the payer of the chip |
@@ -311,22 +312,22 @@ Every event in each contract's ABI, with how often it was logged. A row of zeros
 
 **Live.** IdentityMD launch 1845. Created in transaction [`0x1806c02e5e38d4c8496476b3f3cf39f250a9d0c97ff5834c75a0475a12bd62fb`](https://etherscan.io/tx/0x1806c02e5e38d4c8496476b3f3cf39f250a9d0c97ff5834c75a0475a12bd62fb), block 26,198,165 (15 Oct 2026, 13:18:47 UTC), sent by `0xcECc29B037f5064fCdF45a5C318F132ef76aA551` to `0xfF03410d0Fe5fa8f7F59F743de35E333D9857120`; the transaction succeeded.
 
-6 logs of these contracts, in 4 transactions, were read from block 26,198,165 to block 26,200,139. The source is in `launches/c-company`; its known limits are in `launches/c-company/docs/THREATS.md`.
+11 logs of these contracts, in 8 transactions, were read from block 26,198,165 to block 26,205,115. The source is in `launches/c-company`; its known limits are in `launches/c-company/docs/THREATS.md`.
 
 ### Rules
 
 | What | Total | HOUSE | OUTSIDE |
 | --- | --- | --- | --- |
-| Rules created, by creator | 0 | 0 | 0 |
-| Deposited at creation, IMD | 0 | 0 | 0 |
-| Fires, by the rule's creator | 0 | 0 | 0 |
-| The same fires, by who called `fire` | 0 | 0 | 0 |
-| Of the fires: hires | 0 | 0 | 0 |
+| Rules created, by creator | 1 | 1 | 0 |
+| Deposited at creation, IMD | 0.61 | 0.61 | 0 |
+| Fires, by the rule's creator | 1 | 1 | 0 |
+| The same fires, by who called `fire` | 1 | 1 | 0 |
+| Of the fires: hires | 1 | 1 | 0 |
 | Of the fires: payments | 0 | 0 | 0 |
 | Top-ups, by payer | 0 | 0 | 0 |
 | Topped up, IMD | 0 | 0 | 0 |
-| Rules cancelled | 0 | 0 | 0 |
-| Orders reconciled | 0 | 0 | 0 |
+| Rules cancelled | 1 | 1 | 0 |
+| Orders reconciled | 1 | 1 | 0 |
 
 In escrow in Rules at the pinned block: 0 IMD.
 
@@ -366,13 +367,13 @@ Every event in each contract's ABI, with how often it was logged. A row of zeros
 
 | Contract | Event | Total | HOUSE | OUTSIDE | Counted for |
 | --- | --- | --- | --- | --- | --- |
-| `Rules` | `Fired` | 0 | 0 | 0 | the rule's creator |
+| `Rules` | `Fired` | 1 | 1 | 0 | the rule's creator |
 | `Rules` | `Recalled` | 0 | 0 | 0 | the rule's creator |
-| `Rules` | `Reconciled` | 0 | 0 | 0 | the rule's creator |
-| `Rules` | `RuleCancelled` | 0 | 0 | 0 | the rule's creator |
-| `Rules` | `RuleCreated` | 0 | 0 | 0 | the rule's creator |
+| `Rules` | `Reconciled` | 1 | 1 | 0 | the rule's creator |
+| `Rules` | `RuleCancelled` | 1 | 1 | 0 | the rule's creator |
+| `Rules` | `RuleCreated` | 1 | 1 | 0 | the rule's creator |
 | `Rules` | `ToppedUp` | 0 | 0 | 0 | the payer of the top-up |
-| `Rules` | `WorkDelivered` | 0 | 0 | 0 | the rule's creator |
+| `Rules` | `WorkDelivered` | 1 | 1 | 0 | the rule's creator |
 | `Endowments` | `Created` | 1 | 1 | 0 | the endowment's creator |
 | `Endowments` | `Deposited` | 1 | 1 | 0 | the depositor |
 | `Endowments` | `Donated` | 0 | 0 | 0 | the donor |
@@ -415,15 +416,15 @@ Before anything was written, what the builder counted from the logs, what the de
 | JobsReport: payments over all counts | logs | `223` | `223` | yes |
 | JobsReport: crowns | logs | `1` | `1` | yes |
 | JobsReport is bound to the Questions address in the book | the deployments book | `0xEECE4628ceb091C13393fc64056Be8b8501fD3F6` | `0xEECE4628ceb091C13393fc64056Be8b8501fD3F6` | yes |
-| Payroll: IMD booked, in wei | logs | `50000000000000000` | `50000000000000000` | yes |
-| Payroll: tips taken in, in wei | logs | `50000000000000000` | `50000000000000000` | yes |
+| Payroll: IMD booked, in wei | logs | `78002500000000000` | `78002500000000000` | yes |
+| Payroll: tips taken in, in wei | logs | `78002500000000000` | `78002500000000000` | yes |
 | Payroll: IMD sent to sIMD, in wei | logs | `2079365079365081` | `2079365079365081` | yes |
 | Payroll: IMD claimed by seats, in wei | logs | `0` | `0` | yes |
-| Payroll: tips claimed, in wei | logs | `50000000000000000` | `50000000000000000` | yes |
+| Payroll: tips claimed, in wei | logs | `78002500000000000` | `78002500000000000` | yes |
 | Payroll: tips that joined the seat pool, in wei | logs | `0` | `0` | yes |
 | Payroll: feed budget released to stakers, in wei | logs | `0` | `0` | yes |
 | Payroll is bound to the Questions address in the book | the deployments book | `0xEECE4628ceb091C13393fc64056Be8b8501fD3F6` | `0xEECE4628ceb091C13393fc64056Be8b8501fD3F6` | yes |
-| WorkOrders: orders opened | logs | `1` | `1` | yes |
+| WorkOrders: orders opened | logs | `2` | `2` | yes |
 | CrowdPots: pots and series opened | logs | `0` | `0` | yes |
 | Doorbell: rings | logs | `25` | `25` | yes |
 | Doorbell: hires | logs | `1` | `1` | yes |
@@ -433,7 +434,7 @@ Before anything was written, what the builder counted from the logs, what the de
 | CrowdPots is bound to the WorkOrders address in the book | the deployments book | `0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2` | `0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2` | yes |
 | The Doorbell is bound to the WorkOrders address in the book | the deployments book | `0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2` | `0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2` | yes |
 | WorkOrders is bound to the Payroll address in the book | the deployments book | `0x6e4362a5cEc59Eb3F611af6b2d81915CF5b45f1F` | `0x6e4362a5cEc59Eb3F611af6b2d81915CF5b45f1F` | yes |
-| Rules: rules created | logs | `0` | `0` | yes |
+| Rules: rules created | logs | `1` | `1` | yes |
 | Endowments: endowments created | logs | `1` | `1` | yes |
 | Rules is bound to the WorkOrders address in the book | the deployments book | `0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2` | `0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2` | yes |
 | Endowments is bound to the Questions address in the book | the deployments book | `0xEECE4628ceb091C13393fc64056Be8b8501fD3F6` | `0xEECE4628ceb091C13393fc64056Be8b8501fD3F6` | yes |
@@ -452,7 +453,7 @@ Before anything was written, what the builder counted from the logs, what the de
 
 ## What IdentityMD's API said
 
-Read from `https://api.imd.fun` with GET requests, starting at 15 Oct 2026, 20:10:12 UTC. These answers are not pinned to a block: they are what IdentityMD's service said when it was asked, and they are kept apart from the chain reads above.
+Read from `https://api.imd.fun` with GET requests, starting at 16 Oct 2026, 12:49:28 UTC. These answers are not pinned to a block: they are what IdentityMD's service said when it was asked, and they are kept apart from the chain reads above.
 
 | Launch | IdentityMD's record | Status | Kind | Source repository IdentityMD built from | Commit | Lists the book's addresses |
 | --- | --- | --- | --- | --- | --- | --- |

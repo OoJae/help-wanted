@@ -2,9 +2,10 @@
  * What has happened on chain that this site can no longer read for itself, kept here.
  *
  * The public RPC serves logs for about the newest 7,200 blocks, so the transactions behind the
- * first rounds, the first print and the first order fall out of its reach about a day after they
- * are mined. Their hashes are pinned below. Each was read from Ethereum mainnet on 15 October 2026
- * with `cast receipt <hash> --rpc-url https://ethereum-rpc.publicnode.com`, its logs decoded with
+ * first rounds, the first print and the first two orders fall out of its reach about a day after
+ * they are mined. Their hashes are pinned below. Each was read from Ethereum mainnet on 15 October
+ * 2026 with `cast receipt <hash> --rpc-url https://ethereum-rpc.publicnode.com` (order 2 and rule 1:
+ * on 16 October 2026, with the same command against https://rpc.mevblocker.io), its logs decoded with
  * the shared package's ABIs; the block, the block's time, the sender and the event each entry names
  * are what that read gave. Only past events are pinned. Whatever can still change (an order's
  * state, a meter, a tip that is owed, a seat's owner) is read live by the page that shows it.
@@ -19,6 +20,9 @@ import { MAINNET, OFFCHAIN, type HouseFeedName } from "@help-wanted/shared";
 
 /** The day the entries below were read from the chain and from the public records they cite. */
 export const HISTORY_READ_ON = "15 October 2026";
+
+/** The day order 2, rule 1 and the house x402 payments up to order 2's were read. */
+export const ORDER_2_READ_ON = "16 October 2026";
 
 export interface PinnedTx {
   hash: Hex;
@@ -174,6 +178,8 @@ export interface TrailStep {
 
 export interface PinnedOrder {
   id: number;
+  /** The day this order's transactions, and the code at its tip's payee, were read from the chain. */
+  read: string;
   /** The swarm job the order was settled with. */
   jobId: string;
   /** The job text, from the order's `OrderOpened` log. A page shows it only when it hashes to the order's specHash. */
@@ -201,6 +207,11 @@ export interface PinnedOrder {
     amountWei: bigint;
     tx: PinnedTx;
   }[];
+  /**
+   * The work itself where IdentityMD serves it as a file (a report), not as a page that shows it (a
+   * picture). This site serves no copy. Absent for a picture job.
+   */
+  work?: { label: string; url: string; what: string };
 }
 
 export const ORDER_HISTORY: { workOrders: Address; orders: readonly PinnedOrder[] } = {
@@ -208,6 +219,7 @@ export const ORDER_HISTORY: { workOrders: Address; orders: readonly PinnedOrder[
   orders: [
     {
       id: 1,
+      read: HISTORY_READ_ON,
       jobId: "f7bd80ba-3e8b-483f-ad02-6ffbd16fef92",
       spec: "Draw the doorbell of the day. Make one square picture of a single doorbell next to a front door, in a visual style chosen fresh for today so that no two days look alike. Write the current UTC date as YYYY-MM-DD in small plain lettering in the lower right corner and put no other text in the picture. This job was ordered on chain by the HELP WANTED Doorbell, a contract with no owner that hires the swarm on every 25th ring.",
       prove: {
@@ -314,8 +326,184 @@ export const ORDER_HISTORY: { workOrders: Address; orders: readonly PinnedOrder[
         },
       ],
     },
+    {
+      id: 2,
+      read: ORDER_2_READ_ON,
+      jobId: "42f26c64-eea9-46f2-822a-33547ec18abf",
+      spec: "Write a one-page plain-language report on who paid the IdentityMD swarm's job fee in the last 7,000 Ethereum blocks before this job started, from IMD Transfer events to the fee payee 0x4e0fA57Bde726079356537E2F34d671E9F41ADbc only, with every figure sourced to a transaction.",
+      prove: {
+        read: ORDER_2_READ_ON,
+        recordHash: "0xf6d0bd11b43fc36a3720db09a65612a03a4be7b5b12476bcdace4d1383176a85",
+        kindHash: "0x1eca772919112a33a7f2dec9335cff7b36a9ebb94160fa9a3c07556d47f2988b",
+        headHash: "0x390b14f4107ba442916e9ebed452a7e38eb2eb80a221e8ed90da68b0212d3f8f",
+        specHash: "0xc6413a52aaf533c2d6727f8590dd516adef39894f5c53ef5a9333039827431e2",
+        stateHash: "0x6216ba39af4188a6d7c765710d7e6075007c3444b59a22a973d1b958c43e60bb",
+        agentIds: ["52142"],
+      },
+      trail: [
+        {
+          key: "opened",
+          label: "Opened",
+          what: "Rule 1's one fire. House wallet H1 called Rules.fire(1) by hand (scripts/first-rule.sh; anyone may fire a rule whose condition holds). Rules read launch A's hires feed (223, round 1, at least 100), opened order 2 on the desk as its employer, escrowed 0.60 IMD from the rule's deposit and paid H1 the 0.01 IMD tip for firing.",
+          tx: {
+            hash: "0x9f790aae9db07625dc86b6c107d7ed55b43f96ba5bfaf5b02c64269ab963e37b",
+            block: 26204499,
+            at: "2026-10-16T10:28:47Z",
+            from: H1,
+          },
+        },
+        {
+          key: "claimed",
+          label: "Claimed",
+          what: "The team's runner (house wallet H1, on its hosted server) took the order: a bond of 0.25 IMD, the price fixed at 0.56005 IMD, claim number 1.",
+          tx: {
+            hash: "0x27fc5a9fa12302a79d9f8b97fa82a541c9ab01ba07e78c2980d86db2c9b20cb1",
+            block: 26204508,
+            at: "2026-10-16T10:30:35Z",
+            from: H1,
+          },
+        },
+        {
+          key: "paid",
+          label: "x402 payment",
+          what: `The runner's x402 payment for the swarm job, settled on chain: 0.5 IMD from H1 to IdentityMD's fee address, through the x402 Permit2 proxy (${OFFCHAIN.X402_EXACT_PERMIT2_PROXY}). IdentityMD sent the transaction on the runner's signed payment.`,
+          tx: {
+            hash: "0x2fc7fa990bb74b015cff16c5c69e8d97eccdad38c79307c8b1a02bfbcea3ca70",
+            block: 26204514,
+            at: "2026-10-16T10:31:47Z",
+            from: MAINNET.FEE_PAYEE,
+          },
+        },
+        {
+          key: "receipt",
+          label: "Receipt written",
+          what: "IdentityMD's WorkRegistry writer recorded the job's receipt: WorkRecorded for job 42f26c64 with record hash 0xf6d0bd11…6a85, 16 seconds after IdentityMD listed the job as completed and two blocks before the runner registered the job.",
+          tx: {
+            hash: "0x3a604fc1d0a83a25d0f8b89142007d665557ca6bb7ee2ff80ddaca67eadb5abf",
+            block: 26204533,
+            at: "2026-10-16T10:35:35Z",
+            from: MAINNET.WORK_REGISTRY_WRITER,
+          },
+        },
+        {
+          key: "registered",
+          label: "Registered",
+          what: "The runner registered swarm job 42f26c64-eea9-46f2-822a-33547ec18abf on the order.",
+          tx: {
+            hash: "0x20ef3770d86475c944ce46a42fce15234549e53c17245f29759ca3c3dfe54467",
+            block: 26204535,
+            at: "2026-10-16T10:35:59Z",
+            from: H1,
+          },
+        },
+        {
+          key: "settled",
+          label: "Settled on proof",
+          what: "The runner settled the order with the job's 3,801-byte work record. The desk checked it against the receipt and paid: 0.504045 IMD and the 0.25 IMD bond to the runner, a 0.0280025 IMD fee to Payroll, and a 0.0280025 IMD tip to Payroll for agent 52142. It returned the 0.03995 IMD the order did not spend to Rules and called Rules back (onWorkDelivered), which credited it to rule 1. Delivered, proven. The order pays on a receipt only: the bonded-claim path was off.",
+          tx: {
+            hash: "0x35bb49cc9576a425b94a94137e8fe24e496017cc154456eeee255d22fc020516",
+            block: 26204543,
+            at: "2026-10-16T10:37:35Z",
+            from: H1,
+          },
+        },
+      ],
+      tipClaims: [
+        {
+          agentId: "52142",
+          tokenId: "1978",
+          paidTo: "0x5C7d92736A6Db05b85eF1aEBBc3190f05cff3008",
+          paidToHasCode: false,
+          amountWei: 28_002_500_000_000_000n,
+          tx: {
+            hash: "0xd7a75e9c71968ba67badb671c96103a55364d78b563e6b6561a08b98603f6273",
+            block: 26204587,
+            at: "2026-10-16T10:46:23Z",
+            from: H1,
+          },
+        },
+      ],
+      work: {
+        label: "See the report the rule paid for",
+        url: "https://api.imd.fun/artifacts/4dcebdb382dd91a82e53a629dc7620f811feb6146e011d3a6e799fdf7c6482f0",
+        what: "report.md, 10,523 bytes, as IdentityMD's API serves it. It counts 220 payments of 0.5 IMD to IdentityMD's fee address, 110 IMD in all, from 52 senders, in blocks 26,197,518 to 26,204,517; the team counted the same logs on chain on 16 October 2026 and got the same figures. Among them are the team's own payment for this job and one by house wallet W1.",
+      },
+    },
   ],
 };
+
+// ---------------------------------------------------------------------------------------------
+// Rules: the team's first rule
+// ---------------------------------------------------------------------------------------------
+
+export interface PinnedRule {
+  id: number;
+  /** The `RuleCreated` log's creator. */
+  creator: Address;
+  /** The order on the hire desk the rule's fire opened. */
+  orderId: number;
+  read: string;
+  /** The transactions, oldest first, each sent to Rules by the wallet it names. */
+  trail: readonly { label: string; what: string; tx: PinnedTx }[];
+}
+
+/**
+ * Rule 1, created by house wallet H1 on 16 October 2026 exactly as the first rule of
+ * launches/c-company/docs/LAUNCH.md, section 6, and fired by hand from the same wallet with
+ * scripts/first-rule.sh. Its fire opened order 2 on the hire desk (above). Each transaction was read
+ * with `cast receipt` on 16 October 2026 (status 1, sent by H1 to Rules) and its logs decoded:
+ * RuleCreated with a deposit of 0.61 IMD; Fired, with 0.60 IMD moved to the desk and 0.01 IMD to H1;
+ * RuleCancelled with a refund of 0.03995 IMD to H1. The rule's state is read live.
+ */
+export const RULE_HISTORY: { rules: Address; entries: readonly PinnedRule[] } = {
+  rules: "0xcbF0dddF07C00a78E2E7561a6F47C275B8c05D7E",
+  entries: [
+    {
+      id: 1,
+      creator: H1,
+      orderId: 2,
+      read: ORDER_2_READ_ON,
+      trail: [
+        {
+          label: "Rule created",
+          what: "createRule: rule 1, WHEN launch A's hires feed reports at least 100, THEN hire a research report at 0.56 rising to 0.60 IMD that only a receipt can pay, a 0.01 IMD tip for whoever fires it, one fire. H1 deposited 0.61 IMD, one fire's cost.",
+          tx: {
+            hash: "0x8c69fca9fcdd1893181832d708cfbf69fb7227c127206c4bcdd00bc0028e548b",
+            block: 26204482,
+            at: "2026-10-16T10:25:23Z",
+            from: H1,
+          },
+        },
+        {
+          label: "Rule fired",
+          what: "fire(1), sent by hand: the hires feed read 223 (round 1), and the fire opened order 2 on the hire desk, moved 0.60 IMD into its escrow and paid H1 the 0.01 IMD tip. Anyone may fire a rule whose condition holds; this time the team's own wallet did.",
+          tx: {
+            hash: "0x9f790aae9db07625dc86b6c107d7ed55b43f96ba5bfaf5b02c64269ab963e37b",
+            block: 26204499,
+            at: "2026-10-16T10:28:47Z",
+            from: H1,
+          },
+        },
+        {
+          label: "Change withdrawn",
+          what: "cancel(1): the rule had used its one fire. Rules sent its creator, H1, the 0.03995 IMD the desk had returned for order 2.",
+          tx: {
+            hash: "0x9c062d891f69d829be26a31cbc8cd7ed7a55bdfae3f3f0fcd7d2853ec3cb6846",
+            block: 26204586,
+            at: "2026-10-16T10:46:11Z",
+            from: H1,
+          },
+        },
+      ],
+    },
+  ],
+};
+
+/** The pinned record of a rule, when the book's Rules is the one it was read from. */
+export function pinnedRule(rules: string | null, id: number): PinnedRule | null {
+  if (!rules || rules.toLowerCase() !== RULE_HISTORY.rules.toLowerCase()) return null;
+  return RULE_HISTORY.entries.find((r) => r.id === id) ?? null;
+}
 
 // ---------------------------------------------------------------------------------------------
 // The Doorbell: who rang it
@@ -372,56 +560,29 @@ export function pinnedRings(doorbell: string | null): PinnedRings | null {
 }
 
 // ---------------------------------------------------------------------------------------------
-// A second kind of job, proven through WorkProof: a research report
-// ---------------------------------------------------------------------------------------------
-
-/**
- * A research report the swarm did for somebody else, chosen because its receipt is on chain: it
- * did not come through HELP WANTED, and nobody of ours paid for it. Order 1's job is a picture
- * (skill:create-image); this one is the other kind the team's runner takes. Read on 15 October
- * 2026: IdentityMD's API gives the job as completed, template skill:research-report, paid by
- * 0x5585fd05304802980f3514427195c223d7745393. Its record (3,412 bytes, served with no trailing
- * newline) hashes to `recordHash`, and `WorkRegistry.latest` for the job held that hash, written by
- * the registry's writer in `receiptTx`. `WorkProof.prove(jobId, record, 0)` on the launched
- * WorkProof answered with that hash, the kind hash of skill:research-report and agent 53933.
- */
-export const SECOND_KIND_JOB = {
-  jobId: "08f59d80-106b-4aea-9c93-d0cb49f5c30b",
-  jobIdBytes16: "0x08f59d80106b4aea9c93d0cb49f5c30b",
-  kind: "skill:research-report",
-  recordHash: "0x83cc828f2dd79ccfcd91b3719b1d1172e4ecf10c5a6219b9674f4c37df9153e3",
-  kindHash: "0x1eca772919112a33a7f2dec9335cff7b36a9ebb94160fa9a3c07556d47f2988b",
-  recordBytes: 3412,
-  agentIds: ["53933"],
-  receiptTx: {
-    hash: "0xa4f7961432dbe834ccb82fa8e28729a20b86cbcde633f38be136a0902e47ead6",
-    block: 26199121,
-    at: "2026-10-15T16:29:59Z",
-    from: MAINNET.WORK_REGISTRY_WRITER,
-  } satisfies PinnedTx,
-  read: HISTORY_READ_ON,
-} as const;
-
-// ---------------------------------------------------------------------------------------------
 // x402: every payment for a swarm job made from a house wallet
 // ---------------------------------------------------------------------------------------------
 
 /**
  * Every x402 payment for a swarm job from a house wallet. Counted from the IMD `Transfer` logs
- * from W1 or H1 to IdentityMD's fee address in blocks 25,952,256 to 26,198,140 (read through
- * rpc.mevblocker.io): eleven logs. Four are W1's purchases through the legacy Intake (the three
- * house feed questions and the employers feed's first attempt), sent by W1 to the Intake. The
- * other seven are these: each transaction was sent by IdentityMD from its fee address to the x402
- * Permit2 proxy. Each job's payer, as IdentityMD's API gives it (`paidBy`), is the wallet named,
- * and each job was created at IdentityMD between 15 and 36 seconds after its payment was mined.
+ * from W1 or H1 to IdentityMD's fee address in blocks 25,952,256 to 26,204,876 (read through
+ * rpc.mevblocker.io: up to block 26,198,140 on 15 October 2026, the rest on 16 October 2026): twelve
+ * logs. Four are W1's purchases through the legacy Intake (the three house feed questions and the
+ * employers feed's first attempt), sent by W1 to the Intake. The other eight are these: each
+ * transaction was sent by IdentityMD from its fee address to the x402 Permit2 proxy. Each job's
+ * payer, as IdentityMD's API gives it (`paidBy`), is the wallet named, and each job was created at
+ * IdentityMD between 15 and 36 seconds after its payment was mined.
  */
 export const HOUSE_X402: {
   fromBlock: number;
   toBlock: number;
+  /** The day the count was last read. */
+  read: string;
   payments: readonly { tx: PinnedTx; payer: "W1" | "H1"; jobId: string; job: string }[];
 } = {
   fromBlock: 25_952_256,
-  toBlock: 26_198_140,
+  toBlock: 26_204_876,
+  read: ORDER_2_READ_ON,
   payments: [
     {
       payer: "W1",
@@ -497,6 +658,17 @@ export const HOUSE_X402: {
         hash: "0x1e3af995fd5eb176a30414d2ac5375ec5a67b0ba861bac819164920ed6037a27",
         block: 26197697,
         at: "2026-10-15T11:44:59Z",
+        from: MAINNET.FEE_PAYEE,
+      },
+    },
+    {
+      payer: "H1",
+      jobId: "42f26c64-eea9-46f2-822a-33547ec18abf",
+      job: "order 2's research report, bought by the runner",
+      tx: {
+        hash: "0x2fc7fa990bb74b015cff16c5c69e8d97eccdad38c79307c8b1a02bfbcea3ca70",
+        block: 26204514,
+        at: "2026-10-16T10:31:47Z",
         from: MAINNET.FEE_PAYEE,
       },
     },

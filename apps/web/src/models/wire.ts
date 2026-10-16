@@ -5,7 +5,7 @@
  */
 import type { Hex } from "viem";
 import { NOT_LAUNCHED } from "~/config/deployments";
-import { pinnedOrder } from "~/config/history";
+import { pinnedOrder, pinnedRule } from "~/config/history";
 import { houseSet } from "~/config/house";
 import { kindHash, MAINNET, PAID_ACTION_PRICE } from "@help-wanted/shared";
 import { etherscanTx, explorerJob, REFERENCE_JOB } from "~/config/chain";
@@ -45,7 +45,7 @@ const PICTURE_KIND_HASH = kindHash("skill:create-image").toLowerCase();
 /** How long the front page waits for that check before going out without it. */
 const PROOF_WAIT_MS = 2_500;
 
-/** The front page's lead: the first order paid on proof, from `config/history.ts` and live reads. */
+/** The front page's lead: the first order paid on proof, then the second, from `config/history.ts` and live reads. */
 export interface WireLead {
   headline: string;
   deck: string;
@@ -57,6 +57,20 @@ export interface WireLead {
   now: string;
   /** IdentityMD's page of the job, which shows the picture. Null for a job that made no picture. */
   picture: { label: string; url: string } | null;
+  /**
+   * The second order paid on proof, the one a standing rule opened, in the same form: kept in
+   * `config/history.ts`, its state read live. Null where the book's desk and Rules are not the ones
+   * it happened on.
+   */
+  next: {
+    deck: string;
+    orderPath: string;
+    verifyPath: string;
+    links: { label: string; url: string }[];
+    now: string;
+    /** The report IdentityMD serves for the job. This site serves no copy. */
+    work: { label: string; url: string } | null;
+  } | null;
 }
 
 /** One of the three things a visitor can do from the front page. */
@@ -179,7 +193,13 @@ export const wirePage: PageDef<WireModel> = {
       house.orders(12),
       house.doorbell(),
     ]);
-    const firstRead = first ? await house.order(first.id) : null;
+    // The second order, opened by a standing rule, when the book's desk and Rules are mainnet's.
+    const second = pinnedOrder(deployments.contracts.workOrders.address, 2);
+    const secondRule = second ? pinnedRule(deployments.contracts.rules.address, 1) : null;
+    const [firstRead, secondRead] = await Promise.all([
+      first ? house.order(first.id) : Promise.resolve(null),
+      second && secondRule ? house.order(second.id) : Promise.resolve(null),
+    ]);
 
     const health = healthRead.value?.value ?? null;
     const jobs = jobsRead.value?.value ?? [];
@@ -252,12 +272,44 @@ export const wirePage: PageDef<WireModel> = {
 
     // ---- The lead: the first order paid on proof. The history is kept; its state now is read. ----
     let lead: WireLead | null = null;
+    const readWords = (read: Awaited<ReturnType<typeof house.order>> | null, id: number): string => {
+      const now = read?.live ? read.data : null;
+      return !read?.live
+        ? "The desk is not in this server's deployments book."
+        : now
+          ? `Read for this page: order ${id} is ${now.state}${now.state === "Delivered" ? (now.terms?.proven ? " and marked proven" : ", not marked proven") : ""}.`
+          : "The desk could not be read just now, so its state now is not given here.";
+    };
+    let next: WireLead["next"] = null;
+    if (second && secondRule) {
+      const step = (key: string) => second.trail.find((s) => s.key === key) ?? null;
+      const opened = step("opened");
+      const settled = step("settled");
+      const paid = step("paid");
+      const claim = second.tipClaims[0] ?? null;
+      const links: WireLead["links"] = [];
+      if (opened) links.push({ label: "the rule's fire", url: etherscanTx(opened.tx.hash) });
+      if (settled) links.push({ label: "the settlement", url: etherscanTx(settled.tx.hash) });
+      if (paid) links.push({ label: "the x402 payment", url: etherscanTx(paid.tx.hash) });
+      if (claim)
+        links.push({
+          label: `the tip for agent ${claim.agentId}, claimed for seat #${claim.tokenId}'s owner`,
+          url: etherscanTx(claim.tx.hash),
+        });
+      next = {
+        deck: `On 16 October 2026 rule ${secondRule.id} on our Rules contract read launch A's hires feed, which reported 223, and opened order ${second.id} for a research report, escrowing 0.60 IMD. The team's runner took it at 0.56005 IMD, bought the swarm job by x402 for 0.5 IMD, and was paid on IdentityMD's receipt${settled ? ` at ${formatUtc(settled.tx.at).split(", ").pop()}` : ""}, under nine minutes after the fire. The rule's creator, the wallet that fired it (by hand) and the runner were all house wallet H1.`,
+        orderPath: `/orders/${second.id}`,
+        verifyPath: `/verify/${second.jobId}`,
+        links,
+        now: readWords(secondRead, second.id),
+        work: second.work ? { label: second.work.label, url: second.work.url } : null,
+      };
+    }
     if (first) {
       const step = (key: string) => first.trail.find((s) => s.key === key) ?? null;
       const settled = step("settled");
       const paid = step("paid");
       const claim = first.tipClaims[0] ?? null;
-      const readNow = firstRead?.live ? firstRead.data : null;
       const links: WireLead["links"] = [];
       if (settled) links.push({ label: "the settlement", url: etherscanTx(settled.tx.hash) });
       if (paid) links.push({ label: "the x402 payment", url: etherscanTx(paid.tx.hash) });
@@ -279,16 +331,13 @@ export const wirePage: PageDef<WireModel> = {
         orderPath: `/orders/${first.id}`,
         verifyPath: `/verify/${first.jobId}`,
         links,
-        now: !firstRead?.live
-          ? "The desk is not in this server's deployments book."
-          : readNow
-            ? `Read for this page: order ${first.id} is ${readNow.state}${readNow.state === "Delivered" ? (readNow.terms?.proven ? " and marked proven" : ", not marked proven") : ""}.`
-            : `The desk could not be read just now, so its state now is not given here.`,
+        now: readWords(firstRead, first.id),
         // The record names the kind; a picture job's page at IdentityMD shows the picture.
         picture:
           first.prove.kindHash.toLowerCase() === PICTURE_KIND_HASH
             ? { label: "See the picture the Doorbell paid for", url: explorerJob(first.jobId) }
             : null,
+        next,
       };
     }
 
@@ -430,6 +479,20 @@ export const wirePage: PageDef<WireModel> = {
               ),
             ]),
             m.lead.now,
+            m.lead.next ? m.lead.next.deck : null,
+            m.lead.next
+              ? bullets([
+                  `The order: ${link(m.lead.next.orderPath, m.lead.next.orderPath)}`,
+                  `The proof, checked in your browser: ${link(m.lead.next.verifyPath, m.lead.next.verifyPath)}`,
+                  ...(m.lead.next.work
+                    ? [`${m.lead.next.work.label}: ${link(m.lead.next.work.url, m.lead.next.work.url)}`]
+                    : []),
+                  ...m.lead.next.links.map(
+                    (l) => `${l.label[0]?.toUpperCase()}${l.label.slice(1)}: ${link(l.url, l.url)}`,
+                  ),
+                ])
+              : null,
+            m.lead.next ? m.lead.next.now : null,
           ).trimEnd()
         : `**${m.headline}**`,
       "## What is new",

@@ -50,6 +50,13 @@ const c = m.card;
             </a>
           </p>
         )}
+        {m.work && (
+          <p class="actions">
+            <a class="btn btn--ghost" href={m.work.url} rel="noopener">
+              {m.work.label}
+            </a>
+          </p>
+        )}
       </div>
       {c?.stamp && (
         <p class="release__stamp">
@@ -289,7 +296,7 @@ const c = m.card;
     </section>
   )}
 
-  {(m.picture || m.mediaCid) && (
+  {(m.picture || m.mediaCid || m.work) && (
     <section class="section" id="work">
       <div class="section__head">
         <h2>The work</h2>
@@ -306,6 +313,16 @@ const c = m.card;
         <p class="small">
           The link opens IdentityMD's page of the job, which shows it. This site serves no copy.
         </p>
+      )}
+      {m.work && (
+        <>
+          <p class="actions">
+            <a class="btn" href={m.work.url} rel="noopener">
+              {m.work.label}
+            </a>
+          </p>
+          <p class="small">{m.work.what} This site serves no copy.</p>
+        </>
       )}
       {m.mediaCid && (
         <>

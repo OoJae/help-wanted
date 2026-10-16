@@ -17,11 +17,18 @@ import {
   MAINNET,
   payrollAbi,
   rulesAbi,
+  sameAddress,
 } from "@help-wanted/shared";
 import { NOT_LAUNCHED } from "~/config/deployments";
 import { REFERENCE_JOB, etherscanAddress, etherscanTx } from "~/config/chain";
 import type { AgentBinding, StakingFacts } from "~/data/chain";
-import { HISTORY_READ_ON, ORDER_HISTORY, pinnedEndowment, pinnedTipClaims } from "~/config/history";
+import {
+  HISTORY_READ_ON,
+  ORDER_HISTORY,
+  pinnedEndowment,
+  pinnedRule,
+  pinnedTipClaims,
+} from "~/config/history";
 import { HOUSE_WALLETS, houseSet } from "~/config/house";
 import type {
   DoorbellRingers,
@@ -930,7 +937,7 @@ export interface SeatModel {
   tips: { agentId: string; owedImd: string | null }[];
   /**
    * Tips Payroll paid to this seat's owner through `claimTip`, for the orders this site keeps a
-   * record of (read on `HISTORY_READ_ON`). Not every tip the seat may have been paid.
+   * record of (each read on the day its order was read). Not every tip the seat may have been paid.
    */
   tipsPaid: {
     orderId: number;
@@ -952,7 +959,7 @@ export interface SeatModel {
 }
 
 /** What the seat page's list of paid tips is, and what it is not. */
-const SEAT_TIPS_PAID_NOTE = `Payroll pays a tip through claimTip, not from the seat pool, so the seat pool figure leaves tips out. This list holds only the tips of the orders this site keeps a record of, read on ${HISTORY_READ_ON}.`;
+const SEAT_TIPS_PAID_NOTE = `Payroll pays a tip through claimTip, not from the seat pool, so the seat pool figure leaves tips out. This list holds only the tips of the orders this site keeps a record of, each read on the day its order was read (${[...new Set(ORDER_HISTORY.orders.map((o) => o.read))].join(" and ")}).`;
 
 /** One paid tip, in the words both twins of the seat page use. */
 export function seatTipPaidWords(tip: SeatModel["tipsPaid"][number]): string {
@@ -966,8 +973,9 @@ export const seatPage: PageDef<SeatModel> = {
     const tokenId = parseIndex(params.tokenId, MAINNET.SEAT_COUNT - 1);
     if (tokenId === null) return null;
     const { chain, house, deployments } = sources;
-    // The reference job's agent and order 1's are looked up every time, so their seats show them.
-    await chain.bindings(["52211", "51519"]).catch(() => []);
+    // The reference job's agent and those of the kept orders are looked up every time, so their
+    // seats show them.
+    await chain.bindings(["52211", "51519", "52142"]).catch(() => []);
     const [owner, pay] = await Promise.all([
       chain.seatOwner(tokenId).then(
         (value) => ({ value, error: null as string | null }),
@@ -1001,13 +1009,18 @@ export const seatPage: PageDef<SeatModel> = {
       tipsPaid: tipClaims.map((claim) => ({
         orderId: claim.orderId,
         agentId: claim.agentId,
-        amountImd: formatImd(claim.amountWei),
+        amountImd: formatImd(claim.amountWei, 18),
         paidTo: claim.paidTo,
         at: formatUtc(claim.tx.at),
         txUrl: etherscanTx(claim.tx.hash),
       })),
       tipsPaidImd:
-        tipClaims.length > 0 ? formatImd(tipClaims.reduce((sum, claim) => sum + claim.amountWei, 0n)) : null,
+        tipClaims.length > 0
+          ? formatImd(
+              tipClaims.reduce((sum, claim) => sum + claim.amountWei, 0n),
+              18,
+            )
+          : null,
       tipsPaidNote: SEAT_TIPS_PAID_NOTE,
       notLive: notLiveNotes(deployments, SEATS_NOT_LIVE),
       flows: [
@@ -1454,6 +1467,11 @@ export interface RulesNewModel {
   ruleRows: RuleRow[];
   ruleCount: number | null;
   rulesError: string | null;
+  /**
+   * What rule 1 did, kept in config/history.ts for the book's Rules only: the team's own rule, with
+   * its transactions and the order it opened. Null on any other book.
+   */
+  firstRule: { words: string; links: { label: string; url: string }[] } | null;
   /** The one-shot version on the hire desk: an order with a condition (launch B). */
   flow: FlowPreview;
   ringFlow: FlowPreview;
@@ -1496,7 +1514,11 @@ const PRESETS: RulePreset[] = [
   },
 ];
 
-/** The first rule proposed in launch C's launch document: a report when sIMD first holds two million IMD. */
+/**
+ * The example of a rule on a view call that launch C's launch document gives (section 6): a report
+ * when sIMD first holds two million IMD. (The first rule of that section, a FEED rule on the hires
+ * feed, is rule 1 on mainnet; this form makes the view kind.)
+ */
 const FIRST_RULE_EXAMPLE = {
   condKind: "view",
   condTarget: MAINNET.SIMD,
@@ -1716,6 +1738,33 @@ export const rulesNewPage: PageDef<RulesNewModel> = {
     };
     const rules = contractStatus(deployments, "rules");
     const book = rulesRead.live ? rulesRead.data : null;
+    // Rule 1 on mainnet is the team's own: kept with the site, said only for the book's Rules.
+    const kept = pinnedRule(rules.address, 1);
+    const keptOrder = kept
+      ? (ORDER_HISTORY.orders.find(
+          (o) =>
+            o.id === kept.orderId &&
+            sameAddress(ORDER_HISTORY.workOrders, deployments.contracts.workOrders.address ?? ""),
+        ) ?? null)
+      : null;
+    const keptStep = (label: string) => kept?.trail.find((step) => step.label === label) ?? null;
+    const keptSettled = keptOrder?.trail.find((step) => step.key === "settled") ?? null;
+    const firstRule: RulesNewModel["firstRule"] =
+      kept && keptOrder && keptSettled
+        ? {
+            words: `Rule ${kept.id} is the team's own. House wallet H1 created it on ${kept.read} (block ${formatInt(keptStep("Rule created")?.tx.block ?? 0)}) and fired it by hand in block ${formatInt(keptStep("Rule fired")?.tx.block ?? 0)}: the hires feed read 223, and the fire opened order ${keptOrder.id} on the hire desk (/orders/${keptOrder.id}). The desk paid order ${keptOrder.id} on its receipt in block ${formatInt(keptSettled.tx.block)}. H1 then cancelled the rule and took back the 0.03995 IMD the order returned (block ${formatInt(keptStep("Change withdrawn")?.tx.block ?? 0)}). Anyone may fire a rule whose condition holds; this time our own wallet did. This is HOUSE use, not outside use.`,
+            links: [
+              ...kept.trail.map((step) => ({
+                label: step.label.toLowerCase(),
+                url: etherscanTx(step.tx.hash),
+              })),
+              { label: `order ${keptOrder.id}, step by step`, url: `/orders/${keptOrder.id}` },
+              { label: `order ${keptOrder.id}'s settlement`, url: etherscanTx(keptSettled.tx.hash) },
+            ],
+          }
+        : null;
+    // The fire and reconcile examples name rule 1 as it is on mainnet: its job text and its order.
+    const ruleOneSpec = ORDER_HISTORY.orders.find((o) => o.id === 2)?.spec ?? FIRST_RULE_EXAMPLE.spec;
     return {
       generatedAt: now.toISOString(),
       desk: contractStatus(deployments, "workOrders"),
@@ -1729,13 +1778,14 @@ export const rulesNewPage: PageDef<RulesNewModel> = {
       activePreset: preset?.slug ?? null,
       ruleFlow: previewFlow("create-rule", deployments, now, {}, FIRST_RULE_EXAMPLE),
       ruleFlows: [
-        previewFlow("fire-rule", deployments, now, {}, { id: "1", spec: FIRST_RULE_EXAMPLE.spec }),
-        previewFlow("reconcile-rule", deployments, now, {}, { id: "1", orderId: "1" }),
+        previewFlow("fire-rule", deployments, now, {}, { id: "1", spec: ruleOneSpec }),
+        previewFlow("reconcile-rule", deployments, now, {}, { id: "1", orderId: "2" }),
         previewFlow("cancel-rule", deployments, now, {}, { id: "1" }),
       ],
       ruleRows: book ? book.rules.map(ruleRow) : [],
       ruleCount: book ? book.count : null,
       rulesError: rulesRead.live ? rulesRead.error : null,
+      firstRule,
       flow: previewFlow("say-when", deployments, now, preset?.values ?? {}, example),
       ringFlow: previewFlow("ring", deployments, now),
       how: HOW_SAY_WHEN_WORKS,
@@ -1777,12 +1827,15 @@ export const rulesNewPage: PageDef<RulesNewModel> = {
             m.ruleRows.map((r) => [`#${r.id}`, r.sentence, r.escrowImd, r.tipImd, r.fires, r.ready]),
           )
         : null,
+      m.firstRule
+        ? doc(m.firstRule.words, bullets(m.firstRule.links.map((l) => link(l.label, l.url)))).trimEnd()
+        : null,
       "## A standing rule",
       numbered(m.ruleHow),
       "### The limits",
       bullets(m.ruleLimits),
       "### Write one (example)",
-      "The example is the first rule proposed in launch C's launch document: when the IMD staked in sIMD reaches two million, hire a report on who staked it.",
+      "The example is a rule on a view call, the one launch C's launch document gives in section 6: when the IMD staked in sIMD reaches two million, hire a report on who staked it. The fire and reconcile examples name rule 1 as it is on mainnet: its job text, and order 2, the order it opened.",
       flowMarkdown(m.ruleFlow),
       ...m.ruleFlows.map(flowMarkdown),
       fence(m.commands.map((c) => `# ${c.comment}\n${c.command}`).join("\n\n"), "sh"),

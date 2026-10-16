@@ -134,6 +134,21 @@ const { model: m, meta } = loaded;
         </table>
       </div>
     )}
+    {m.firstRule && (
+      <>
+        <p>{m.firstRule.words}</p>
+        <p class="small">
+          {m.firstRule.links.map((l, index) => (
+            <>
+              {index > 0 && " · "}
+              <a href={l.url} rel={l.url.startsWith("http") ? "noopener" : undefined}>
+                {l.label}
+              </a>
+            </>
+          ))}
+        </p>
+      </>
+    )}
     <div class="cols cols--ruled">
       <ol>
         {m.ruleHow.map((step) => (
@@ -151,10 +166,15 @@ const { model: m, meta } = loaded;
     </div>
     <h3 class="sub">Write one</h3>
     <p>
-      The example is the first rule proposed in launch C's launch document: when the IMD staked in sIMD
-      reaches two million, hire a report on who staked it.
+      The example is a rule on a view call, the one launch C's launch document gives in section 6: when the
+      IMD staked in sIMD reaches two million, hire a report on who staked it. The fire and reconcile examples
+      name rule 1 as it is on mainnet: its job text, and order 2, the order it opened.
     </p>
-    <FlowBlock flow={m.ruleFlow} exampleNote="the first rule proposed for launch C" repeat />
+    <FlowBlock
+      flow={m.ruleFlow}
+      exampleNote="a rule on a view call, from launch C's launch document"
+      repeat
+    />
     <h3 class="sub">Fire, reconcile, cancel</h3>
     {m.ruleFlows.map((flow) => (
       <FlowBlock flow={flow} exampleNote="rule 1" repeat />

@@ -496,7 +496,12 @@ has its figure.
   the crown, as the runner, it registered the job of order 1, claimed its delivery and settled it
   on `WorkOrders` (blocks 26185053, 26185112 and 26190223; `bots/runner/README.md`). Apart from
   those three calls of the runner, the wallet sent nothing else to HELP WANTED's contracts up to
-  block 26198957 (15 October, 15:57 UTC). These are mainnet calls, not runs on a local node. The
+  block 26198957 (15 October, 15:57 UTC). On 16 October 2026 the same wallet created and fired
+  rule 1 on `Rules` by hand with `scripts/first-rule.sh`, not through this keeper. As the runner
+  it took and settled order 2. It then called `Rules.cancel(1)` and `Payroll.claimTip(52142)`
+  (blocks 26204480 to 26204587; the root `README.md` has the transactions). Apart from those calls
+  and two IMD approvals, it sent nothing from block 26198957 to block 26204756. These are mainnet
+  calls, not runs on a local node. The
   team's keeper is not hosted: the team runs it by hand. (The team's runner is hosted, since
   15 October 2026: `bots/runner/README.md`.) So no watcher is running: nothing of the team's
   watches delivery claims on the Doorbell's orders, which are all on the claimed path
@@ -510,15 +515,18 @@ has its figure.
   address, the keeper does not send it and the status file says who it was signed for; that has not
   happened on mainnet.
 - **The modules of launches B and C against the launched contracts.** Launch B is live since
-  13 October 2026, and nothing on it has needed a keeper yet: its one order was settled by its
-  runner a minute after the job's receipt landed, and no order has expired, overstayed or had a
-  delivery claim stand for 24 hours. No transaction of the desk, pots or Doorbell modules has been
+  13 October 2026, and nothing on it has needed a keeper yet: its two orders were each settled by
+  their runner within two minutes of the job's receipt landing, and no order has expired,
+  overstayed or had a delivery claim stand for 24 hours. No transaction of the desk, pots or Doorbell modules has been
   sent on mainnet. Launch C went live on 15 October 2026 (IdentityMD launch 1845, block 26198165),
   and the deployments book holds it since the same day, so its modules read its addresses from the
   book unless `RULES` and `ENDOWMENTS` say otherwise. The keeper's wallet, H1, had sent nothing to
   launch C's contracts by block 26198957; every event those contracts had emitted by then came from
   four calls of the team's wallet W1 to `Endowments` (`createForMeter`, `stake`, `deposit` and
-  `stake` again). The modules of both
+  `stake` again). On 16 October 2026 H1 created rule 1 on `Rules`, fired it and later cancelled it.
+  The fire was sent by hand with `scripts/first-rule.sh` at the repository root, not by this
+  keeper's rules module, and no transaction of the rules or endowments modules has been sent on
+  mainnet. The modules of both
   launches have run against the real contracts, built from the launch projects' own output, on a
   local node, with a stand-in for the WorkRegistry and a local server in place of IdentityMD's API.
 - **The check of a delivery claim against the live API.** The shapes of `GET /jobs/:id` and
