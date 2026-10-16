@@ -10,7 +10,11 @@ October 2026, in transaction `0xfb28bef9c477cfe3777231d8c41f202e691673fc4cec98ec
 `0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2`, `CrowdPots` at
 `0x8C2FfCdcb103659aa05c772b8F2059868B496EB5` and the `Doorbell` at
 `0xFd5ab7E03E8554210Faa3cCd3b9D47C622fffcCb`. The rest of this document is kept as it was written
-before the launch. Every number below was produced by a test or a command that is named beside it,
+before the launch. One correction: IdentityMD's receipt writer, stalled when this was written
+(sections 5 and 7), wrote again from 13 October 2026, 17:26 UTC (block 26,185,055). The desk's first
+order, the Doorbell's, was paid on its job's receipt on 14 October. Its second, a receipt-only
+research report that a rule of HELP WANTED's third launch opened, was paid on its job's receipt on
+16 October (`README.md` has the transactions). Every number below was produced by a test or a command that is named beside it,
 and where a command needs a contract's address it reads it from a shell variable: set `PROOF`,
 `DESK`, `POTS` and `BELL` to the four addresses above.
 

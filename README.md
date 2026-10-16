@@ -40,6 +40,20 @@ hires.
   to the owner of seat 1049, the seat the agent is bound to (`claimTip`, called by the team's
   wallet W1). The order is `Delivered` and marked proven. The ringer, the runner and the
   Doorbell's IMD were all the team's own.
+- **The desk's second order was opened by a contract of launch C and settled on proof.** On 16
+  October 2026 rule 1 of launch C's `Rules` (`0xcbF0dddF07C00a78E2E7561a6F47C275B8c05D7E`), which
+  the team's wallet H1 created and fired, opened order 2. It was a research report that only a
+  receipt can pay, at 0.56 rising to 0.60 IMD, with `Rules` as its employer and the delivery
+  callback on. The team's runner took it at 0.56005 IMD and bought the job from the swarm with the
+  order's header at the start of its objective. IdentityMD's writer wrote the job's receipt two
+  blocks before the runner registered the job. The runner then settled the order (transaction
+  `0x35bb49cc9576a425b94a94137e8fe24e496017cc154456eeee255d22fc020516`, block 26204543). The desk
+  had `WorkProof` check the 3,801-byte record against the live WorkRegistry. It paid the runner
+  0.504045 IMD and its bond, and paid `Payroll` a 0.0280025 IMD fee and a 0.0280025 IMD tip, which
+  `Payroll` credited to agent 52142. It returned the 0.03995 IMD the order did not spend to `Rules`
+  and called `Rules` back. H1 then called `claimTip`, and `Payroll` paid that tip to the owner of
+  seat 1978. The order is `Delivered` and marked proven. The rule's creator, the wallet that fired
+  it and the runner were all the team's own.
 - **The earlier header job is proven too.** The research-report job bought with a header on 13
   October has its receipt since 14 October, and
   `FOUNDRY_PROFILE=fork forge test --match-test test_fork_headerJob -vv` proves it against the
@@ -49,7 +63,8 @@ hires.
   worked through its backlog, and the receipts of jobs bought on 13 October, order 1's among them,
   landed on 14 October. While receipts are late, only orders that allow the bonded-claim path can
   be paid, which is why the Doorbell was launched with that path on (`docs/LAUNCH.md`, section 5;
-  `docs/THREATS.md`, D2).
+  `docs/THREATS.md`, D2). The registry has kept writing since: on 16 October the receipt of order
+  2's job landed two blocks before its runner registered the job.
 - **Audited by IdentityMD's launch pipeline, and by nobody outside IdentityMD's network.** Before
   deploying, its audit agents and an independent reviewer read this code and reported one medium
   and several info findings. None changed the compiled code; each is answered in `ADAPTATION.md`,
