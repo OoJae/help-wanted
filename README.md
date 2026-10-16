@@ -26,12 +26,16 @@ feeds funded.
   `0xfed277e7525f289f8e8bad0333148c8823f42c779836280189ff874500de051b`, block 26185017); the
   report recorded the week's top employers from it. Every other transaction that touched these
   contracts was sent by the team's own wallets: nobody outside the team has used them yet.
-- **`Payroll` has received its first fee.** On 14 October 2026 HELP WANTED's hire desk (launch B)
+- **`Payroll` has received two fees.** On 14 October 2026 HELP WANTED's hire desk (launch B)
   settled its first order and paid `Payroll` a 0.05 IMD fee and a 0.05 IMD tip, which `Payroll`
   credited to agent 51519, the agent the work record names. The code split the fee as written; no
   seat has claimed its share of it yet. On 15 October the team's wallet W1 called
   `claimTip(51519)`, and `Payroll` paid the tip to the owner of seat 1049, the seat that agent is
-  bound to (transaction `0x9edc8ba2ae4cfbabe95d6ca11e7a93f349f09729b7a699d575eac6f8466e1fe8`).
+  bound to (transaction `0x9edc8ba2ae4cfbabe95d6ca11e7a93f349f09729b7a699d575eac6f8466e1fe8`). On
+  16 October 2026 the desk settled its second order, which a rule of HELP WANTED's third launch
+  opened. It paid `Payroll` a 0.0280025 IMD fee and a 0.0280025 IMD tip, credited to agent 52142.
+  The team's wallet H1 called `claimTip(52142)`, and `Payroll` paid that tip to the owner of seat
+  1978 (transaction `0xd7a75e9c71968ba67badb671c96103a55364d78b563e6b6561a08b98603f6273`).
 - **The three house feeds have each been answered by the live oracle once.** On 12 and 13 October
   2026 one real request was bought per feed, with the bytes `Questions` sends, and all three were
   attested. The records are in `test/fixtures/questions/proofs/` and `docs/LAUNCH.md`, section 5,
