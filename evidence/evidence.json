@@ -3,10 +3,10 @@
   "about": "What exists on chain of HELP WANTED, read at one pinned block. Written by scripts/evidence/build.ts (pnpm evidence) and by nothing else; do not edit by hand.",
   "chainId": 1,
   "pinnedBlock": {
-    "number": 26205115,
-    "hash": "0xfeaf6215261f9ea5c65d2b7845139d781b806379fc877c2163e88983ff348a44",
-    "timestamp": 1792153943,
-    "time": "2026-10-16T12:32:23Z",
+    "number": 26226449,
+    "hash": "0xa386332898d4e9a3d8c11765029b14061d8e485224b35c7c3f97aa11f8ad727b",
+    "timestamp": 1792410839,
+    "time": "2026-10-19T11:53:59Z",
     "finality": "finalized"
   },
   "houseRule": "HOUSE is the activity of the wallets the team publishes in evidence/house-wallets.json and of HELP WANTED's own contracts; everything else is OUTSIDE. Each event is counted for one account: the one that made the call, the one the event pays, or the one an earlier event settled (the opener of a round, the employer of an order). When the account made the call itself, the count is HOUSE if that account or the sender of the transaction is on the list. scripts/evidence/contracts.ts holds the rule of every event.",
@@ -89,8 +89,8 @@
     "contractsLaunched": 10,
     "contractsWithCode": 10,
     "transactions": {
-      "total": 71,
-      "house": 70,
+      "total": 72,
+      "house": 71,
       "outside": 0,
       "byIdentityMd": 1
     }
@@ -354,7 +354,7 @@
       ],
       "logs": {
         "fromBlock": 26182869,
-        "toBlock": 26205115,
+        "toBlock": 26226449,
         "count": 49,
         "transactions": 35
       },
@@ -1060,7 +1060,7 @@
       ],
       "logs": {
         "fromBlock": 26184581,
-        "toBlock": 26205115,
+        "toBlock": 26226449,
         "count": 36,
         "transactions": 33
       },
@@ -1411,8 +1411,8 @@
               "countedFor": "the sender of the transaction"
             },
             "Settled": {
-              "total": 1,
-              "house": 1,
+              "total": 2,
+              "house": 2,
               "outside": 0,
               "countedFor": "the endowment's creator"
             },
@@ -1423,8 +1423,8 @@
               "countedFor": "the sender of the transaction"
             },
             "Withdrawn": {
-              "total": 0,
-              "house": 0,
+              "total": 1,
+              "house": 1,
               "outside": 0,
               "countedFor": "the depositor"
             }
@@ -1466,9 +1466,9 @@
       ],
       "logs": {
         "fromBlock": 26198165,
-        "toBlock": 26205115,
-        "count": 11,
-        "transactions": 8
+        "toBlock": 26226449,
+        "count": 13,
+        "transactions": 9
       },
       "evidence": {
         "rules": {
@@ -1551,12 +1551,12 @@
             }
           },
           "withdrawals": {
-            "total": 0,
-            "house": 0,
+            "total": 1,
+            "house": 1,
             "outside": 0,
             "imd": {
-              "totalWei": "0",
-              "houseWei": "0",
+              "totalWei": "1000000000000000000",
+              "houseWei": "1000000000000000000",
               "outsideWei": "0"
             }
           },
@@ -2020,7 +2020,7 @@
     "read": true,
     "reason": null,
     "base": "https://api.imd.fun",
-    "fetchedAt": "2026-10-16T12:49:28.343Z",
+    "fetchedAt": "2026-10-19T12:08:18.047Z",
     "launches": [
       {
         "launch": "a",
@@ -2128,6 +2128,6 @@
       "rpc.mevblocker.io"
     ],
     "chunkSize": 2000,
-    "logChunks": 27
+    "logChunks": 58
   }
 }

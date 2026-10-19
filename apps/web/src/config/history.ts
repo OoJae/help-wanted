@@ -740,9 +740,10 @@ export interface PinnedEndowment {
  * Endowment 1, created by house wallet W1 on 15 October 2026 to try the contract on mainnet with the
  * team's own IMD: the meter of the payrolls feed, 1 IMD of principal. Each transaction was read with
  * `cast receipt` on 15 October 2026 (status 1, sent by W1 to Endowments) and its logs decoded with
- * the shared ABI. The team plans to harvest and withdraw the whole principal about 18 October; a
- * page says nothing of that plan and reads the endowment's state live. Kept here because its
- * `Created` log falls out of the public RPC's reach about a day after it was mined.
+ * the shared ABI. On 19 October 2026 W1 withdrew the whole principal as exactly 1 IMD (read the same
+ * way that day); nothing was harvested, because sIMD's price did not move while the deposit was
+ * staked. A page reads the endowment's state live. Kept here because its `Created` log falls out of
+ * the public RPC's reach about a day after it was mined.
  */
 export const ENDOWMENT_HISTORY: { endowments: Address; entries: readonly PinnedEndowment[] } = {
   endowments: "0xbE916A53b9Bbe634AF7E10E604E06b6069edEE76",
@@ -789,6 +790,16 @@ export const ENDOWMENT_HISTORY: { endowments: Address; entries: readonly PinnedE
             hash: "0xc895beb4862e85f4dda0c9e3d7638054d2b3fdd852673cd374d8a8111fd7dc54",
             block: 26198303,
             at: "2026-10-15T13:46:23Z",
+            from: W1,
+          },
+        },
+        {
+          label: "Withdrawn",
+          what: "withdraw(1, 1 IMD): Withdrawn(1, W1, principal 1 IMD, imdOut 1 IMD, sharesOut 0). The whole principal came back to W1 as exactly 1 IMD.",
+          tx: {
+            hash: "0xcb48313ac8f8ac053fb6f1316dd8359795720441809c8d2503773612ba47024e",
+            block: 26226427,
+            at: "2026-10-19T11:49:35Z",
             from: W1,
           },
         },

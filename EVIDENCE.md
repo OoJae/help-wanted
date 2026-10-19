@@ -2,14 +2,14 @@
 
 This file is written by `pnpm evidence` (`scripts/evidence/build.ts`) and by nothing else. Do not edit it: run the command again. The same facts, for a program, are in `evidence/evidence.json`.
 
-Everything below was read from Ethereum mainnet (chain 1) at **block 26,205,115**, hash `0xfeaf6215261f9ea5c65d2b7845139d781b806379fc877c2163e88983ff348a44`, mined 16 Oct 2026, 12:32:23 UTC. It was the node's finalized block when the run began, so it can no longer change. Logs were read from each launch's own block up to that block, in ranges of at most 2,000 blocks; code and views were read at that block. Read through `ethereum-rpc.publicnode.com`, `rpc.mevblocker.io`.
+Everything below was read from Ethereum mainnet (chain 1) at **block 26,226,449**, hash `0xa386332898d4e9a3d8c11765029b14061d8e485224b35c7c3f97aa11f8ad727b`, mined 19 Oct 2026, 11:53:59 UTC. It was the node's finalized block when the run began, so it can no longer change. Logs were read from each launch's own block up to that block, in ranges of at most 2,000 blocks; code and views were read at that block. Read through `ethereum-rpc.publicnode.com`, `rpc.mevblocker.io`.
 
 A number is here only if it was read. A zero is a count that was read and is zero. "Not launched" means there is nothing to read.
 
 ## In one screen
 
 - **10 of 10 contracts are launched**, and each of them has code at its address (launch A, launch B, launch C).
-- **Transactions that touched the launched contracts after their launch: 71. HOUSE 70, OUTSIDE 0, and 1 sent by IdentityMD's own service.** IdentityMD's service sends a transaction when its Intake delivers an oracle answer that was paid for; that is nobody's use of the contracts, and it is counted apart. Every other one was sent by the team's own wallets: nobody outside the team has used these contracts yet.
+- **Transactions that touched the launched contracts after their launch: 72. HOUSE 71, OUTSIDE 0, and 1 sent by IdentityMD's own service.** IdentityMD's service sends a transaction when its Intake delivers an oracle answer that was paid for; that is nobody's use of the contracts, and it is counted apart. Every other one was sent by the team's own wallets: nobody outside the team has used these contracts yet.
 - Standing Questions: 3 feeds created (HOUSE 3, OUTSIDE 0); 3 oracle requests bought (HOUSE 3, OUTSIDE 0), of which 2 answered by `submit`, 1 by the Intake's callback, 0 closed without an answer and 0 pending.
 - Robot Jobs Report: 1 print (HOUSE 1, OUTSIDE 0), 112 IMD and 223 payments recorded in all.
 - Payroll: 0.0780025 IMD received since launch, 0.0780025 IMD in tips.
@@ -64,7 +64,7 @@ HOUSE is the activity of the wallets the team publishes in evidence/house-wallet
 
 **Live.** IdentityMD launch 1531. Created in transaction [`0x9ce6111c9f454373ac208cc9b54ebd0a4b09e58706f20e568f0f9e8bbb392c58`](https://etherscan.io/tx/0x9ce6111c9f454373ac208cc9b54ebd0a4b09e58706f20e568f0f9e8bbb392c58), block 26,182,869 (13 Oct 2026, 10:07:59 UTC), sent by `0xcECc29B037f5064fCdF45a5C318F132ef76aA551` to `0xfF03410d0Fe5fa8f7F59F743de35E333D9857120`; the transaction succeeded.
 
-49 logs of these contracts, in 35 transactions, were read from block 26,182,869 to block 26,205,115. The source is in `launches/a-payroll`; its known limits are in `launches/a-payroll/docs/THREATS.md`.
+49 logs of these contracts, in 35 transactions, were read from block 26,182,869 to block 26,226,449. The source is in `launches/a-payroll`; its known limits are in `launches/a-payroll/docs/THREATS.md`.
 
 ### Standing Questions (`Questions`)
 
@@ -211,7 +211,7 @@ Every event in each contract's ABI, with how often it was logged. A row of zeros
 
 **Live.** IdentityMD launch 1573. Created in transaction [`0xfb28bef9c477cfe3777231d8c41f202e691673fc4cec98ecb8b07f1bfff7bf9c`](https://etherscan.io/tx/0xfb28bef9c477cfe3777231d8c41f202e691673fc4cec98ecb8b07f1bfff7bf9c), block 26,184,581 (13 Oct 2026, 15:51:11 UTC), sent by `0xcECc29B037f5064fCdF45a5C318F132ef76aA551` to `0xfF03410d0Fe5fa8f7F59F743de35E333D9857120`; the transaction succeeded.
 
-36 logs of these contracts, in 33 transactions, were read from block 26,184,581 to block 26,205,115. The source is in `launches/b-desk`; its known limits are in `launches/b-desk/docs/THREATS.md`.
+36 logs of these contracts, in 33 transactions, were read from block 26,184,581 to block 26,226,449. The source is in `launches/b-desk`; its known limits are in `launches/b-desk/docs/THREATS.md`.
 
 ### The hire desk (`WorkOrders`)
 
@@ -312,7 +312,7 @@ Every event in each contract's ABI, with how often it was logged. A row of zeros
 
 **Live.** IdentityMD launch 1845. Created in transaction [`0x1806c02e5e38d4c8496476b3f3cf39f250a9d0c97ff5834c75a0475a12bd62fb`](https://etherscan.io/tx/0x1806c02e5e38d4c8496476b3f3cf39f250a9d0c97ff5834c75a0475a12bd62fb), block 26,198,165 (15 Oct 2026, 13:18:47 UTC), sent by `0xcECc29B037f5064fCdF45a5C318F132ef76aA551` to `0xfF03410d0Fe5fa8f7F59F743de35E333D9857120`; the transaction succeeded.
 
-11 logs of these contracts, in 8 transactions, were read from block 26,198,165 to block 26,205,115. The source is in `launches/c-company`; its known limits are in `launches/c-company/docs/THREATS.md`.
+13 logs of these contracts, in 9 transactions, were read from block 26,198,165 to block 26,226,449. The source is in `launches/c-company`; its known limits are in `launches/c-company/docs/THREATS.md`.
 
 ### Rules
 
@@ -340,8 +340,8 @@ In escrow in Rules at the pinned block: 0 IMD.
 | Deposited, IMD | 1 | 1 | 0 |
 | Donations, by donor | 0 | 0 | 0 |
 | Donated, IMD | 0 | 0 | 0 |
-| Withdrawals, by depositor | 0 | 0 | 0 |
-| Principal withdrawn, IMD | 0 | 0 | 0 |
+| Withdrawals, by depositor | 1 | 1 | 0 |
+| Principal withdrawn, IMD | 1 | 1 | 0 |
 | Harvests, by caller | 0 | 0 | 0 |
 | Yield harvested, IMD | 0 | 0 | 0 |
 | Stakes into sIMD | 2 | 2 | 0 |
@@ -381,9 +381,9 @@ Every event in each contract's ABI, with how often it was logged. A row of zeros
 | `Endowments` | `Harvested` | 0 | 0 | 0 | the caller of harvest |
 | `Endowments` | `MeterFunded` | 0 | 0 | 0 | the endowment's creator |
 | `Endowments` | `PriceMarked` | 1 | 1 | 0 | the sender of the transaction |
-| `Endowments` | `Settled` | 1 | 1 | 0 | the endowment's creator |
+| `Endowments` | `Settled` | 2 | 2 | 0 | the endowment's creator |
 | `Endowments` | `Staked` | 2 | 2 | 0 | the sender of the transaction |
-| `Endowments` | `Withdrawn` | 0 | 0 | 0 | the depositor |
+| `Endowments` | `Withdrawn` | 1 | 1 | 0 | the depositor |
 | `Zap` | `Bought` | 0 | 0 | 0 | the caller |
 | `Zap` | `ChippedIn` | 0 | 0 | 0 | the caller |
 | `Zap` | `MeterFunded` | 0 | 0 | 0 | the caller |
@@ -453,7 +453,7 @@ Before anything was written, what the builder counted from the logs, what the de
 
 ## What IdentityMD's API said
 
-Read from `https://api.imd.fun` with GET requests, starting at 16 Oct 2026, 12:49:28 UTC. These answers are not pinned to a block: they are what IdentityMD's service said when it was asked, and they are kept apart from the chain reads above.
+Read from `https://api.imd.fun` with GET requests, starting at 19 Oct 2026, 12:08:18 UTC. These answers are not pinned to a block: they are what IdentityMD's service said when it was asked, and they are kept apart from the chain reads above.
 
 | Launch | IdentityMD's record | Status | Kind | Source repository IdentityMD built from | Commit | Lists the book's addresses |
 | --- | --- | --- | --- | --- | --- | --- |

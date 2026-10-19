@@ -453,7 +453,7 @@ writes nothing if a read fails or a count disagrees. It holds no key and sends n
 no setting it reads from `https://ethereum-rpc.publicnode.com,https://rpc.mevblocker.io`, and asks
 the first node for each range of blocks before the second. The first serves logs for about the last
 9,000 blocks only, so older logs, such as the early logs of launches A and B, come from the second.
-Run this way on 16 October 2026, it pinned block 26,205,115, read logs in ranges of 2,000 blocks and
+Run this way on 19 October 2026, it pinned block 26,226,449, read logs in ranges of 2,000 blocks and
 found all 56 of its checks against the contracts in agreement. `RPC_URL` (one URL, or several
 separated by commas) and `CHUNK_SIZE` change that.
 
@@ -467,17 +467,17 @@ Stated as plainly as what is.
   rule had been created then, and nothing had gone through `Zap`. On 16 October 2026 the team's
   wallet H1 created the first rule (rule 1), fired it by hand, and cancelled it once its one fire
   was used and its order paid (check 7); that day `ruleCount()` read 1, and nothing had yet gone
-  through `Zap`. About 18 October the team means to
-  harvest that endowment's yield if it has reached `MIN_HARVEST` (0.001 IMD), and to withdraw the
-  1 IMD deposit; the 0.000001 IMD seed paid to create the endowment is not refundable. The harvest
-  may not be possible. At block 26,199,340 (15 October, 17:13 UTC) `harvestable(1)` read 0: what
-  the endowment held beyond its principal was worth about 0.000001 IMD, a thousandth of that
-  floor. sIMD's yield has come in steps. Its price rose about 0.16% in one block on 12 October
-  (block 26,173,773), then about 0.003% from block 26,183,000 (13 October) to block 26,198,165, and
-  had not moved since by block 26,199,535 (15 October, 17:52 UTC). At the rate since 13 October,
-  1 IMD earns well under 0.001 IMD by 18 October; a step like that of 12 October would give it
-  about 0.0016 IMD, above the floor. Whether the harvest is possible depends on whether such a
-  step lands before then.
+  through `Zap`.
+- **The endowment's principal came back to the wei; its yield was never enough to harvest.** On
+  19 October 2026 W1 called `withdraw(1, 1 IMD)` and received exactly 1 IMD
+  ([`0xcb48313a…024e`](https://etherscan.io/tx/0xcb48313ac8f8ac053fb6f1316dd8359795720441809c8d2503773612ba47024e),
+  block 26,226,427): `Withdrawn(1, W1, principal 1 IMD, imdOut 1 IMD, sharesOut 0)`, and
+  `principalOf(1, W1)` reads 0. Nothing was harvested. `harvest` runs only for `MIN_HARVEST`
+  (0.001 IMD) or more, and `harvestable(1)` read 0 from the deposit to the withdrawal: sIMD's price
+  (`convertToAssets`) did not move at all from block 26,198,165 (15 October) to block 26,226,427,
+  so the staked IMD earned nothing in that time. The 0.000001 IMD seed paid to create the
+  endowment is not refundable and stays in it. So the drill shows a deposit staked into IdentityMD's
+  vault and taken back in full, not yield paying for a question.
 - **Two orders, and all of them the team's own.** Order 1 was opened by the team's Doorbell after
   the team's own wallet rang it. Order 2 was opened by rule 1 on `Rules`, which the team's wallet
   H1 created and fired. The team's runner took both. No outside employer, runner, ringer or rule

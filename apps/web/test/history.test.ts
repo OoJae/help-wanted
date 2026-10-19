@@ -451,12 +451,18 @@ describe("the history kept with the site", () => {
     }
   });
 
-  it("endowment 1: the team's drill, created and funded by W1, kept for the real Endowments only", () => {
+  it("endowment 1: the team's drill, created, funded and withdrawn by W1, kept for the real Endowments only", () => {
     const endowments = BOOK.endowments.address as string;
     expect(ENDOWMENT_HISTORY.endowments).toBe(endowments);
     const drill = pinnedEndowment(endowments, 1)!;
     expect(drill.creator).toBe(HOUSE_WALLETS[0]!.address);
-    expect(drill.trail.map((s) => s.label)).toEqual(["Created", "Seed staked", "Deposited", "Staked"]);
+    expect(drill.trail.map((s) => s.label)).toEqual([
+      "Created",
+      "Seed staked",
+      "Deposited",
+      "Staked",
+      "Withdrawn",
+    ]);
     // Oldest first, each its own transaction, all sent by W1, all after launch C was created.
     const blocks = drill.trail.map((s) => s.tx.block);
     expect([...blocks].sort((a, b) => a - b)).toEqual(blocks);
@@ -1420,7 +1426,13 @@ describe("launch C's pages on mainnet's book", () => {
       `HOUSE: created by house wallet W1 (${HOUSE_WALLETS[0]!.address.toLowerCase()})`,
     );
     expect(row.originWords).toContain("the team's own drill, with the team's own IMD");
-    expect(row.trail.map((s) => s.label)).toEqual(["Created", "Seed staked", "Deposited", "Staked"]);
+    expect(row.trail.map((s) => s.label)).toEqual([
+      "Created",
+      "Seed staked",
+      "Deposited",
+      "Staked",
+      "Withdrawn",
+    ]);
     for (const step of ENDOWMENT_HISTORY.entries[0]!.trail) {
       expect(markdown).toContain(`https://etherscan.io/tx/${step.tx.hash}`);
     }

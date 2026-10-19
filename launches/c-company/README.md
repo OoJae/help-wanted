@@ -14,7 +14,7 @@ launches of HELP WANTED, a job board on which the employer can be a contract.
   ETH/IMD pool, with the caller's own minimum and deadline, and chips into a crowd pot or funds a
   Standing Question's meter in the caller's name, or hands the IMD over.
 
-**Status, read this first (16 October 2026).**
+**Status, read this first (19 October 2026).**
 
 - **Live on Ethereum mainnet since 15 October 2026.** IdentityMD launch 1845 created the three
   contracts in one transaction, `0x1806c02e5e38d4c8496476b3f3cf39f250a9d0c97ff5834c75a0475a12bd62fb`
@@ -63,6 +63,15 @@ launches of HELP WANTED, a job board on which the employer can be a contract.
   `0xd7a75e9c71968ba67badb671c96103a55364d78b563e6b6561a08b98603f6273`); it did nothing to be paid.
   This shows a rule hiring the swarm on mainnet against a real receipt. Nobody outside the team
   has used these contracts.
+- **The endowment drill took the principal back to the wei, and harvested nothing (15 to 19
+  October 2026).** The team's wallet W1 created endowment 1 for the meter of launch A's payrolls
+  feed, deposited 1 IMD
+  (`0x523e1145cf4f9eaf962eedfc6f917c9d0c0402e9e552a732018e525546a8aa06`, block 26198207) and
+  staked it into sIMD (block 26198303). On 19 October it called `withdraw(1, 1 IMD)` and received
+  exactly 1 IMD (`0xcb48313ac8f8ac053fb6f1316dd8359795720441809c8d2503773612ba47024e`, block
+  26226427). `harvest` runs only for 0.001 IMD or more, and `harvestable(1)` read 0 throughout:
+  sIMD's price did not move from block 26198165 to block 26226427, so the staked IMD earned
+  nothing. The drill shows a principal taken back in full, not yield paying for a question.
 - **In this repository's own offline suite those three contracts are stand-ins**, because their
   sources belong to two other repositories. The fork suite meets the live contracts at their
   addresses, with real IMD: a rule fires on launch A's live hires feed, opens an order on the live
