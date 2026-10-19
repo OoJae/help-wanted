@@ -23,7 +23,11 @@ ledger below. The runner was paid 0.504045 IMD and its bond, Payroll's fee and t
 IMD each, and 0.03995 IMD came back to the rule inside the callback (`accountOf` reads 6, `Rules`,
 0, 560050000000000000, 39950000000000000). The creator took that back with `cancel` (block
 26,204,586). The settlement used 488,072 gas with a 3,801-byte record, against a receipt
-IdentityMD's writer had written in block 26,204,533. Every number below was
+IdentityMD's writer had written in block 26,204,533. Step 1, the endowment drill, ran from 15 to
+19 October 2026 with W1: endowment 1 was created, 1 IMD deposited (block 26,198,207) and staked,
+and on 19 October `withdraw` paid back exactly 1 IMD (block 26,226,427). Nothing was harvested:
+sIMD's price did not move while the deposit was staked, so `harvestable` stayed below 0.001 IMD,
+unlike the estimate in step 1. Every number below was
 produced by a test or a command that is named beside it, and where a command needs one of the three
 addresses it reads it from a shell variable: set those to the addresses above.
 

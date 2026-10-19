@@ -635,7 +635,9 @@ reason in the table should treat the matching finding as open.
   deposited 1 IMD into it and called `stake` twice. No rule had been created by then, and nothing
   had gone through `Zap`. On 16 October 2026 the team's wallet H1 created rule 1, the first rule of
   `docs/LAUNCH.md`, fired it by hand, and cancelled it after its order was paid (the second entry
-  below). The entries below were written before the launch and are kept as they were, but for the
+  below). On 19 October 2026 W1 withdrew the 1 IMD from that endowment, exactly; nothing was
+  harvested, because sIMD's price did not move while it was staked. The entries below were written
+  before the launch and are kept as they were, but for the
   first, the second, the third and the one on gas figures, which now say what was shown. This note
   answers the first of them, and adds to the one on an audit.
 - **These contracts on chain.** Written before the launch, when nothing of it had been deployed.
