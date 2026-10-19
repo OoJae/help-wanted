@@ -308,7 +308,7 @@ export async function llmsTxt(ctx: LoadContext): Promise<string> {
   return doc(
     `# ${SITE_NAME}`,
     `> ${SITE_TAGLINE} An employer escrows IMD against a pinned job; a bonded runner opens the swarm job; the escrow ${PAYS_WHEN}. A second part, Standing Questions, is a contract that buys its own oracle answers and publishes them as feeds. ${STANDING_VS_SCHEDULES} Fees are split by fixed code between sIMD stakers, seat owners and the feeds. Nothing has an owner. There is no token.`,
-    `Status: an entry in the IdentityMD hackathon. **${launchSentence(deployments)}**${
+    `Status: an entry in IdentityMD's builder competition. **${launchSentence(deployments)}**${
       deployments.launches.A.txHash === null
         ? ` Launch A (Questions, JobsReport, Payroll) is in IdentityMD's launch pipeline, job ${LAUNCH_A_JOB.jobId} (${IMD_LINK.job(LAUNCH_A_JOB.jobId)}); no contract exists until its transaction is mined.`
         : ""

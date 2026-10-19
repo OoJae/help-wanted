@@ -9,6 +9,9 @@ import type { RulesNewModel } from "~/models/money";
 const loaded = await pageData<RulesNewModel>(Astro);
 if (loaded instanceof Response) return loaded;
 const { model: m, meta } = loaded;
+// The Doorbell's rings since its last 25th, from rings() as read for this page; null when unread.
+const rings = m.doorbellState?.rings ?? null;
+const sinceHire = rings === null ? null : rings % 25;
 ---
 
 <Layout title={meta.title} description={meta.description} sources={m.sources} generatedAt={m.generatedAt}>
@@ -200,11 +203,23 @@ const { model: m, meta } = loaded;
     {m.doorbellState ? (
       <>
         <p class="label">Read from the contract for this page</p>
-        <ul>
-          {m.doorbellFacts.map((fact) => (
-            <li>{fact}</li>
-          ))}
-        </ul>
+        <div class="doorbell-read">
+          {/* The ring strip: one square a ring, 25 to a hire, the rings since the last 25th filled.
+               A picture of what the first lines below say in words, so it is hidden from readers
+               that do not see it. */}
+          {sinceHire !== null && (
+            <div class="ringstrip" aria-hidden="true">
+              {Array.from({ length: 25 }, (_, index) => (
+                <span class:list={["ringstrip__ring", index < sinceHire && "is-rung"]} />
+              ))}
+            </div>
+          )}
+          <ul>
+            {m.doorbellFacts.map((fact) => (
+              <li>{fact}</li>
+            ))}
+          </ul>
+        </div>
         <p class="small">
           <a href="/judges#limit-B-D1">The Doorbell's disclosed limits, D1 to D5, are on the judges page.</a>
         </p>

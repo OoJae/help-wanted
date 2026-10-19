@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 141 62" width="141" height="62" role="img" aria-labelledby="title">
+<!-- The FILLED stamp, night edition, in enamel #ece5d6: stampSvg() from apps/web/src/lib/stamp.ts with its lettering (IBM Plex Mono SemiBold, SIL Open Font License 1.1) as outlines and the site's #stamp-ink wear, at the mid size (46.4 px tall) turned -3 degrees. Made by apps/web/scripts/brand-kit.mjs. -->
+<title id="title">Stamped: FILLED</title>
+<defs><filter id="stamp-ink" x="-6%" y="-14%" width="112%" height="128%"> <feTurbulence type="fractalNoise" baseFrequency="0.03 0.06" numOctaves="2" seed="7" result="warp"/> <feDisplacementMap in="SourceGraphic" in2="warp" scale="2.4" result="warped"/> <feTurbulence type="fractalNoise" baseFrequency="1.05" numOctaves="2" seed="11" result="grain"/> <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -7 0 0 0 5.1" result="wear"/> <feComposite in="warped" in2="wear" operator="in"/> </filter></defs>
+<g transform="translate(70.5 31) rotate(-3) translate(-64.96 -23.2)">
+<g filter="url(#stamp-ink)">
+<g transform="scale(1.16)"><rect x="2" y="2" width="108" height="36" rx="3.5" fill="none" stroke="#ece5d6" stroke-width="3.2"/><path fill="#ece5d6" d="M14.66 27L14.66 13.04L23.78 13.04L23.78 15.2L17.28 15.2L17.28 18.84L23.14 18.84L23.14 21L17.28 21L17.28 27ZM29.36 27L29.36 25.04L32.5 25.04L32.5 15L29.36 15L29.36 13.04L38.24 13.04L38.24 15L35.1 15L35.1 25.04L38.24 25.04L38.24 27ZM44.6 27L44.6 13.04L47.22 13.04L47.22 24.84L53.4 24.84L53.4 27ZM59.4 27L59.4 13.04L62.02 13.04L62.02 24.84L68.2 24.84L68.2 27ZM73.86 27L73.86 13.04L82.68 13.04L82.68 15.2L76.48 15.2L76.48 18.84L82.46 18.84L82.46 21L76.48 21L76.48 24.84L82.68 24.84L82.68 27ZM88.46 13.04L92.8 13.04Q95.52 13.04 96.85 14.84Q98.18 16.64 98.18 20.02Q98.18 23.42 96.85 25.21Q95.52 27 92.8 27L88.46 27ZM92.62 24.9Q94.06 24.9 94.75 23.96Q95.44 23.02 95.44 21.22L95.44 18.8Q95.44 17.02 94.75 16.08Q94.06 15.14 92.62 15.14L91.04 15.14L91.04 24.9Z"/></g>
+</g>
+</g>
+</svg>

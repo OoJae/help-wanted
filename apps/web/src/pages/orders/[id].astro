@@ -4,8 +4,9 @@ import FlowBlock from "~/components/FlowBlock.astro";
 import NotLaunched from "~/components/NotLaunched.astro";
 import Stamp from "~/components/Stamp.astro";
 import Theirs from "~/components/Theirs.astro";
+import TimeCard, { type TimeCardOrder } from "~/components/TimeCard.astro";
 import Layout from "~/layouts/Layout.astro";
-import { formatDuration, formatInt, formatUtc } from "~/lib/format";
+import { formatDuration, formatUtc } from "~/lib/format";
 import { pageData } from "~/lib/page";
 import { sentenceCase } from "~/lib/stamp";
 import type { OrderModel } from "~/models/desk";
@@ -18,6 +19,45 @@ const c = m.card;
 // The timeline's step names arrive in capitals ("JOB OPENED"), as the twins print them. On the page
 // they are labels, set in sentence case like every other label.
 const stepName = (label: string) => sentenceCase(label);
+
+// ---- The transaction trail, printed as the order's own time card. ----
+const first = m.trail[0];
+const last = m.trail[m.trail.length - 1];
+const opened = m.trail.find((x) => x.key === "opened");
+const settled = m.trail.find((x) => x.key === "settled");
+// "16 Oct 2026"; a card that runs over two days says both: "13 to 14 Oct 2026".
+const dayOf = (iso: string) => formatUtc(iso).split(", ")[0] ?? "";
+const span = (from: string, to: string) => {
+  const [a, b] = [dayOf(from), dayOf(to)];
+  if (a === b) return a;
+  const [ad, am, ay] = a.split(" ");
+  const [bd, bm, by] = b.split(" ");
+  if (ay !== by) return `${a} to ${b}`;
+  return am === bm ? `${ad} to ${bd} ${bm} ${by}` : `${ad} ${am} to ${bd} ${bm} ${by}`;
+};
+const timeCard: TimeCardOrder | null =
+  first && last
+    ? {
+        id: m.id,
+        path: null,
+        day: span(first.at, last.at),
+        note: null,
+        lines: m.trail.map((x) => ({
+          key: x.key,
+          label: x.label,
+          at: x.at,
+          block: x.block,
+          what: x.what,
+          tx: x.tx,
+          txUrl: x.txUrl,
+        })),
+        total: opened && settled ? formatDuration(Date.parse(settled.at) - Date.parse(opened.at)) : null,
+        after: [],
+        // Red only where the desk's live read says Delivered and proven, as on the front page's card.
+        proven: c?.stamp?.tone === "proof",
+        origin: c?.origin ?? "HOUSE",
+      }
+    : null;
 ---
 
 <Layout title={meta.title} description={meta.description} sources={m.sources} generatedAt={m.generatedAt}>
@@ -100,34 +140,8 @@ const stepName = (label: string) => sentenceCase(label);
         <p>{m.trail.length} transactions, oldest first</p>
       </div>
       {m.trailNote && <p class="small">{m.trailNote}</p>}
-      <div class="tablewrap">
-        <table class="wide stack">
-          <thead>
-            <tr>
-              <th style="width:14%">Step</th>
-              <th style="width:16%">When (UTC)</th>
-              <th style="width:22%">Transaction</th>
-              <th>What it did</th>
-            </tr>
-          </thead>
-          <tbody>
-            {m.trail.map((step) => (
-              <tr data-step={step.key}>
-                <th scope="row">{step.label}</th>
-                <td data-label="When (UTC)">{formatUtc(step.at)}</td>
-                <td class="code" data-label="Transaction">
-                  <a class="break" href={step.txUrl} rel="noopener">
-                    {step.tx}
-                  </a>
-                  <br />
-                  <span class="small">block {formatInt(step.block)}</span>
-                </td>
-                <td data-label="What it did">{step.what}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {/* The order's own time card: one line a transaction, printed once as it comes into view. */}
+      <TimeCard order={timeCard} stamp={c?.stamp ?? null} notes print />
     </section>
   )}
 

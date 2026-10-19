@@ -1,4 +1,5 @@
 ---
+import BlankTimeCard from "~/components/BlankTimeCard.astro";
 import Commands from "~/components/Commands.astro";
 import FlowBlock from "~/components/FlowBlock.astro";
 import NotLaunched from "~/components/NotLaunched.astro";
@@ -7,6 +8,7 @@ import Layout from "~/layouts/Layout.astro";
 import { pageData } from "~/lib/page";
 import type { HireTemplateModel } from "~/models/desk";
 import { receiptFlowMeaning } from "~/models/receipts";
+import { HOW_AN_ORDER_FLOWS } from "~/models/wire";
 
 const loaded = await pageData<HireTemplateModel>(Astro);
 if (loaded instanceof Response) return loaded;
@@ -69,6 +71,14 @@ const t = m.template;
       <p>two transactions: allow, then post</p>
     </div>
     <FlowBlock flow={m.flow} exampleNote="an example order" />
+    {/* The card the order gets: the same time card an order's own page prints, before the chain
+         has done anything. Its lines are the five steps of an order; their times stay empty. */}
+    <BlankTimeCard
+      cry="HELP WANTED:"
+      wanted={`${t.staff}.`}
+      steps={HOW_AN_ORDER_FLOWS.map((x) => x.step)}
+      note="The card this order gets. It stays blank until you post the order; each line is printed only when the chain does it."
+    />
     <h3 class="sub" id="claims">
       Before you choose how it pays
     </h3>

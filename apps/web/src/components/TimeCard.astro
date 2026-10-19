@@ -8,10 +8,16 @@
  * Lines after the settlement (the change withdrawn, the tip claimed) sit under the total in Carbon
  * and are not counted in it. With no order to print (a book that is not mainnet's), the card is the
  * classified page's blank slot.
+ *
+ * On an order's own page the same card carries a fourth column, what each transaction did with its
+ * hash (`notes`), and a card whose lines run over more than one day is ruled into days. There its
+ * lines ink in once, one after another, as the card comes into view (`print`, src/scripts/site.ts);
+ * without scripts, before the first scroll and under reduced motion they are simply printed.
  */
 import type { Stamp as StampData } from "~/models/cards";
 import { formatInt } from "~/lib/format";
 import Stamp from "./Stamp.astro";
+import "~/styles/timecard.css";
 
 export interface TimeCardLine {
   key: string;
@@ -19,12 +25,18 @@ export interface TimeCardLine {
   /** The block's time, ISO 8601 in UTC. */
   at: string;
   block: number;
+  /** What the transaction did, in the model's words: the notes column of an order's own page. */
+  what?: string;
+  /** The transaction's hash, and its page on Etherscan. */
+  tx?: string;
+  txUrl?: string;
 }
 
 export interface TimeCardOrder {
   id: number;
-  path: string;
-  /** "16 Oct 2026". */
+  /** Where the caption links. Null on the order's own page. */
+  path: string | null;
+  /** "16 Oct 2026", or "13 to 14 Oct 2026" for a card that runs over two days. */
   day: string;
   /** Who fired it and who ran it, in the model's own words. */
   note: string | null;
@@ -34,6 +46,8 @@ export interface TimeCardOrder {
   after: TimeCardLine[];
   /** True when the live read says Delivered and proven: the settlement line is printed in red. */
   proven: boolean;
+  /** Whose order it is: HOUSE (ours, the default) or OUTSIDE. */
+  origin?: "HOUSE" | "OUTSIDE";
 }
 
 interface Props {
@@ -41,26 +55,59 @@ interface Props {
   stamp: StampData | null;
   /** The view-transition name the stamp travels under to the order's proof page. */
   verdictName?: string;
+  /** A fourth column: what each transaction did, in the serif, with its hash. */
+  notes?: boolean;
+  /** The lines ink in once as the card comes into view. */
+  print?: boolean;
 }
 
-const { order, stamp, verdictName } = Astro.props;
+const { order, stamp, verdictName, notes = false, print = false } = Astro.props;
 const clock = (iso: string) => iso.slice(11, 19);
 const secondsOfDay = (iso: string) => {
   const d = new Date(iso);
   return d.getUTCHours() * 3600 + d.getUTCMinutes() * 60 + d.getUTCSeconds();
 };
+const origin = order?.origin ?? "HOUSE";
+// A line that inks in as the card is printed; nothing is marked on a card that is not.
+const part = print ? "" : undefined;
+const columns = notes ? 4 : 3;
+
+// The lines by UTC day, oldest first. A card that runs over more than one day gets a ruled head
+// for each day; a one-day card (the front page's) is printed as one block, as it always was.
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const dayOf = (iso: string) => iso.slice(0, 10);
+const dayLabel = (iso: string) => {
+  const d = new Date(iso);
+  return `${WEEKDAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+};
+const days: { label: string; lines: TimeCardLine[] }[] = [];
+for (const line of order?.lines ?? []) {
+  const last = days[days.length - 1];
+  if (last && dayOf(last.lines[0]!.at) === dayOf(line.at)) last.lines.push(line);
+  else days.push({ label: dayLabel(line.at), lines: [line] });
+}
+const ruled = days.length > 1;
+// Below, an expression that may print nothing (the notes, a day's head) sits against a tag, never
+// on a line of its own, so a one-day card without notes is the same bytes it always was.
 ---
 
 {
   order ? (
-    <div class="timecard" data-timecard>
+    <div class:list={["timecard", notes && "timecard--notes"]} data-timecard data-print={part}>
       <table class="timecard__table">
         <caption>
           <span class="timecard__title">
-            <a href={order.path}>
-              Order {order.id} · {order.day}
-            </a>{" "}
-            <span class="tag tag--solid">HOUSE</span>
+            {order.path ? (
+              <a href={order.path}>
+                Order {order.id} · {order.day}
+              </a>
+            ) : (
+              <span>
+                Order {order.id} · {order.day}
+              </span>
+            )}{" "}
+            <span class:list={["tag", origin === "HOUSE" && "tag--solid"]}>{origin}</span>
           </span>
           {order.note && <span class="timecard__note">{order.note}</span>}
         </caption>
@@ -68,31 +115,49 @@ const secondsOfDay = (iso: string) => {
           <tr>
             <th scope="col">When (UTC)</th>
             <th scope="col">Block</th>
-            <th scope="col">Step</th>
+            <th scope="col">Step</th>{notes && <th scope="col">What it did</th>}
           </tr>
         </thead>
-        <tbody>
-          {order.lines.map((line) => (
-            <tr
-              class:list={["timecard__line", order.proven && line.key === "settled" && "timecard__line--proof"]}
-              data-at={secondsOfDay(line.at)}
-              data-key={line.key}
-            >
-              <td class="timecard__when">
-                <span class="timecard__punch" aria-hidden="true" />
-                {clock(line.at)}
-              </td>
-              <td class="timecard__block">{formatInt(line.block)}</td>
-              <td class="timecard__step">{line.label}</td>
-            </tr>
-          ))}
-        </tbody>
+        {days.map((day) => (
+          <tbody>
+            {ruled && (
+              <tr class="timecard__day" data-part={part}>
+                <th scope="rowgroup" colspan={columns}>
+                  {day.label}
+                </th>
+              </tr>
+            )}{day.lines.map((line) => (
+              <tr
+                class:list={["timecard__line", order.proven && line.key === "settled" && "timecard__line--proof"]}
+                data-at={secondsOfDay(line.at)}
+                data-key={line.key}
+                data-part={part}
+              >
+                <td class="timecard__when">
+                  <span class="timecard__punch" aria-hidden="true" />
+                  {clock(line.at)}
+                </td>
+                <td class="timecard__block">{formatInt(line.block)}</td>
+                <td class="timecard__step">{line.label}</td>{notes && (
+                  <td class="timecard__what">
+                    {line.what}
+                    {line.tx && line.txUrl && (
+                      <a class="timecard__tx" href={line.txUrl} rel="noopener">
+                        {line.tx}
+                      </a>
+                    )}
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        ))}
         <tfoot>
           {order.total && (
-            <tr class="timecard__total">
+            <tr class="timecard__total" data-part={part}>
               <th scope="row">Total</th>
               <td class="timecard__sum">{order.total}</td>
-              <td class="timecard__stampcell">
+              <td class="timecard__stampcell" colspan={notes ? 2 : undefined}>
                 {stamp && (
                   <span class="timecard__stamp" style={verdictName ? `view-transition-name: ${verdictName}` : undefined}>
                     <Stamp stamp={stamp} />
@@ -102,10 +167,10 @@ const secondsOfDay = (iso: string) => {
             </tr>
           )}
           {order.after.map((line) => (
-            <tr class="timecard__after" data-at={secondsOfDay(line.at)}>
+            <tr class="timecard__after" data-at={secondsOfDay(line.at)} data-part={part}>
               <td class="timecard__when">{clock(line.at)}</td>
               <td class="timecard__block">{formatInt(line.block)}</td>
-              <td class="timecard__step">{line.label}</td>
+              <td class="timecard__step">{line.label}</td>{notes && <td class="timecard__what">{line.what}</td>}
             </tr>
           ))}
         </tfoot>

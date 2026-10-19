@@ -252,7 +252,8 @@ const maxShare = t?.topPayers[0]?.totalWei ?? 0n;
 
       {bars.length > 0 && peak > 0 && (
         <section class="section">
-          <figure class="chart">
+          {/* Its columns rise once from the baseline as the chart comes into view (site.ts). */}
+          <figure class="chart" data-rise>
             <figcaption>
               Chart 1. IMD paid to the swarm's fee address, by hour{" "}
               <span>· UTC; the newest {bars.length} hours of the range</span>
@@ -276,7 +277,7 @@ const maxShare = t?.topPayers[0]?.totalWei ?? 0n;
               {bars.map((bar) => (
                 <>
                   {bar.path && (
-                    <path class="bar" d={bar.path} tabindex="0">
+                    <path class="bar" d={bar.path} tabindex="0" data-part>
                       <title>{bar.label}</title>
                     </path>
                   )}

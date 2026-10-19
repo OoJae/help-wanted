@@ -2433,6 +2433,42 @@ details.plain--inline[open] > summary {
   font-variant-numeric: lining-nums;
 }
 
+/* The Doorbell's ring strip (/rules/new#doorbell): one square a ring, 25 to a hire, five by five,
+   the rings since its last 25th filled in Enamel. A picture only, hidden from readers that do not
+   see it; the facts beside it say the same in words. Static. */
+.doorbell-read {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.9rem 2rem;
+  align-items: start;
+}
+
+.ringstrip {
+  display: grid;
+  grid-template-columns: repeat(5, 1.15rem);
+  gap: 0.3rem;
+  width: max-content;
+  margin-top: 0.25rem;
+}
+
+.ringstrip__ring {
+  display: block;
+  aspect-ratio: 1;
+  border: 1px solid var(--carbon);
+  border-radius: 1px;
+}
+
+.ringstrip__ring.is-rung {
+  background: var(--enamel);
+  border-color: var(--enamel);
+}
+
+@media (min-width: 48rem) {
+  .doorbell-read {
+    grid-template-columns: max-content minmax(0, 1fr);
+  }
+}
+
 .meter {
   height: 0.7rem;
   border: 1px solid var(--ink);
@@ -2701,6 +2737,45 @@ html:not(.no-js) .nojs-only {
       opacity: 1;
       transform: none;
     }
+  }
+}
+
+/* Two moments on the same reveal, on screens only (a page printed on paper is printed whole). An
+   order's time card (data-print) is printed once as it comes into view: its lines ink in, 60ms
+   apart, opacity only. The Jobs Report's Chart 1 (data-rise) has its columns rise once from the
+   baseline, 8ms apart. site.ts sets each part's delay; the failsafe above covers both. */
+@media screen and (prefers-reduced-motion: no-preference) {
+  html.reveals-on [data-print]:not(.is-revealed) [data-part] {
+    opacity: 0;
+    animation: hw-reveal-failsafe 1ms linear 6s forwards;
+  }
+
+  html.reveals-on [data-print].is-revealed [data-part] {
+    transition: opacity var(--t-reveal) var(--ease-out) var(--part-delay, 0ms);
+  }
+
+  [data-rise] [data-part] {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+  }
+
+  html.reveals-on [data-rise]:not(.is-revealed) [data-part] {
+    transform: scaleY(0);
+    animation: hw-reveal-failsafe 1ms linear 6s forwards;
+  }
+
+  html.reveals-on [data-rise].is-revealed [data-part] {
+    transition: transform 600ms var(--ease-out) var(--part-delay, 0ms);
+  }
+
+  /* The peak's figure waits for its column, then is set over it. */
+  html.reveals-on [data-rise]:not(.is-revealed) .peak {
+    opacity: 0;
+    animation: hw-reveal-failsafe 1ms linear 6s forwards;
+  }
+
+  html.reveals-on [data-rise].is-revealed .peak {
+    transition: opacity var(--t-release) var(--ease-out) 480ms;
   }
 }
 

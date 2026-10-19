@@ -1,0 +1,407 @@
+/*
+ * The time card: an order's transactions as the clock prints them, one ruled line each, the total
+ * and the stamp at the foot (TimeCard.astro). The front page prints order 2's inside the clock
+ * (clockin.css places it and keeps room at its foot for the throat lip); an order's own page prints
+ * its card in the column, with a notes column; a /hire page prints the blank card an order gets
+ * (BlankTimeCard.astro).
+ *
+ * Mono only for what the clock prints and the chain says (times, blocks, the total, hashes); the
+ * steps and the notes are in the serif. Only tokens.css names; only --s1 and --s2.
+ */
+
+.timecard {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--enamel);
+  padding: 0.75rem 0.85rem 0.75rem 1.05rem;
+}
+
+.timecard__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--s1);
+  line-height: 1.35;
+}
+
+.timecard__table caption {
+  caption-side: top;
+  text-align: left;
+  padding: 0 0 0.55rem;
+  font-size: var(--s2);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--enamel);
+}
+
+.timecard__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.2rem 0.6rem;
+}
+
+.timecard__title a {
+  text-decoration-color: var(--meta);
+}
+
+.timecard__title a:hover {
+  color: var(--enamel);
+  text-decoration-color: var(--enamel);
+}
+
+.timecard__note {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: var(--s1);
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--carbon);
+}
+
+.timecard__table th,
+.timecard__table td {
+  padding: 0.2rem 0.6rem 0.2rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: baseline;
+  text-align: left;
+}
+
+.timecard__table th:last-child,
+.timecard__table td:last-child {
+  padding-right: 0;
+}
+
+.timecard__table thead th {
+  font-size: var(--s1);
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--carbon);
+  border-top: 2px solid var(--enamel);
+  border-bottom: 1px solid var(--enamel);
+  padding-top: 0.3rem;
+}
+
+.timecard__when,
+.timecard__block,
+.timecard__sum {
+  font-family: var(--mono);
+  font-variant-numeric: lining-nums tabular-nums;
+  font-variant-ligatures: none;
+  white-space: nowrap;
+}
+
+.timecard__when {
+  position: relative;
+}
+
+/* The punch: a short bar of ink in the card's margin, left by the lever's stroke. */
+.timecard__punch {
+  position: absolute;
+  left: -0.6rem;
+  top: 0.3rem;
+  width: 0.24rem;
+  height: 0.95em;
+  background: var(--enamel);
+}
+
+.timecard__line--proof .timecard__punch {
+  background: var(--ribbon);
+}
+
+.timecard__line--proof .timecard__step {
+  color: var(--ribbon-type);
+  font-weight: 600;
+}
+
+.timecard__table tbody tr:last-child > * {
+  border-bottom: 2px solid var(--enamel);
+}
+
+.timecard__total > * {
+  border-bottom: 0;
+  padding-top: 0.4rem;
+  padding-bottom: 0.35rem;
+  vertical-align: middle;
+}
+
+.timecard__total th {
+  font-weight: 600;
+}
+
+.timecard__sum {
+  font-weight: 600;
+  font-size: var(--s2);
+}
+
+.timecard__stampcell {
+  position: relative;
+  text-align: right;
+}
+
+/* Where the page names the stamp for a page change (the front page's: verdict-<job>), it travels in
+   the stamps' own class, on their timing (global.css), going to the proof page and coming back. */
+.timecard__stamp {
+  display: inline-block;
+  margin: -0.3rem -0.15rem -0.3rem 0;
+  view-transition-class: hw-stamp;
+}
+
+.timecard__stamp .stamp {
+  --h: 1.75rem;
+}
+
+.timecard__after > * {
+  color: var(--carbon);
+  border-bottom: 0;
+  padding-top: 0.05rem;
+  padding-bottom: 0.05rem;
+}
+
+.timecard__after:first-of-type > * {
+  border-top: 1px dashed var(--rule);
+  padding-top: 0.3rem;
+}
+
+.timecard__after .timecard__step {
+  font-style: italic;
+}
+
+/* With nothing to print, the card is the classified page's blank slot. */
+.timecard--blank {
+  min-height: 14rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 11px,
+    color-mix(in srgb, var(--rule) 45%, transparent) 11px 12px
+  );
+}
+
+.timecard__blank {
+  font-size: var(--s4);
+  font-style: italic;
+  font-weight: 900;
+  margin: 0;
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* An order's own card: in the column, with what each transaction did                         */
+/* ------------------------------------------------------------------------------------------ */
+
+.timecard--notes {
+  max-width: 56rem;
+  padding: 0.95rem 1.2rem 0.9rem 1.45rem;
+}
+
+.timecard--notes .timecard__table caption {
+  padding-bottom: 0.7rem;
+}
+
+.timecard--notes thead th:nth-child(3) {
+  width: 8.5rem;
+}
+
+.timecard--notes .timecard__line > * {
+  padding-top: 0.45rem;
+  padding-bottom: 0.5rem;
+}
+
+.timecard--notes .timecard__step {
+  font-weight: 600;
+}
+
+.timecard--notes .timecard__punch {
+  top: 0.55rem;
+}
+
+/* The stamp lands at the card's foot, at its right edge; nothing is ruled under the total. */
+.timecard--notes .timecard__stampcell {
+  text-align: right;
+}
+
+.timecard--notes .timecard__total > * {
+  border-bottom: 0;
+}
+
+/* The notes are read: the serif, in Carbon, never mono. The hash under them is what the chain says. */
+.timecard__what {
+  color: var(--carbon);
+  line-height: 1.5;
+  max-width: 62ch;
+}
+
+.timecard__tx {
+  display: block;
+  margin-top: 0.2rem;
+  font-family: var(--mono);
+  font-variant-ligatures: none;
+  overflow-wrap: anywhere;
+  color: var(--carbon);
+  text-decoration-color: var(--rule);
+}
+
+.timecard__tx:hover {
+  color: var(--enamel);
+  text-decoration-color: var(--enamel);
+}
+
+/* A card that runs over more than one day is ruled into days, each under its own head. */
+.timecard__day th {
+  padding-top: 0.75rem;
+  font-weight: 600;
+  color: var(--enamel);
+  border-bottom: 1px solid var(--enamel);
+}
+
+.timecard__table thead + tbody .timecard__day th {
+  padding-top: 0.45rem;
+}
+
+.timecard__table tbody:not(:last-of-type) tr:last-child > * {
+  border-bottom: 1px solid var(--rule);
+}
+
+/* On a phone each line is two: the time, block and step, then what it did across the card. The
+   columns keep their widths from line to line, so the times and blocks still stand in columns. */
+@media (max-width: 40rem) {
+  .timecard--notes {
+    padding: 0.8rem 0.85rem 0.75rem 1.1rem;
+  }
+
+  .timecard--notes .timecard__table,
+  .timecard--notes thead,
+  .timecard--notes tbody,
+  .timecard--notes tfoot {
+    display: block;
+  }
+
+  .timecard--notes caption {
+    display: block;
+  }
+
+  .timecard--notes tr {
+    display: grid;
+    grid-template-columns: 5.7rem 6rem minmax(0, 1fr);
+  }
+
+  .timecard--notes thead th:nth-child(3) {
+    width: auto;
+  }
+
+  /* "What it did" is said by the notes themselves; the head keeps it for readers that do not see. */
+  .timecard--notes thead th:nth-child(4) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .timecard--notes .timecard__day th,
+  .timecard--notes .timecard__what {
+    grid-column: 1 / -1;
+  }
+
+  .timecard--notes .timecard__line > * {
+    border-bottom: 0;
+    padding-bottom: 0.1rem;
+  }
+
+  .timecard--notes .timecard__line > .timecard__what {
+    padding: 0.15rem 0 0.6rem;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .timecard--notes tbody:last-of-type tr:last-child > .timecard__what {
+    border-bottom: 2px solid var(--enamel);
+  }
+
+  .timecard--notes tbody:last-of-type tr:last-child > :not(.timecard__what) {
+    border-bottom: 0;
+  }
+
+  .timecard--notes tbody:not(:last-of-type) tr:last-child > :not(.timecard__what) {
+    border-bottom: 0;
+  }
+
+  /* The total runs on past its column; the stamp comes down under it, at the card's right edge. */
+  .timecard--notes .timecard__total {
+    align-items: baseline;
+  }
+
+  .timecard--notes .timecard__sum {
+    grid-column: 2 / -1;
+  }
+
+  .timecard--notes .timecard__stampcell {
+    grid-column: 1 / -1;
+    padding-top: 0;
+  }
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* The blank card an order gets, before the chain has printed anything on it                  */
+/* ------------------------------------------------------------------------------------------ */
+
+.timecard--form {
+  max-width: 30rem;
+  margin: 1.6rem 0 0;
+}
+
+/* The cry and what follows it, set as the ads on /hire set them: one line of the headline's weight. */
+.timecard--form .timecard__title,
+.timecard--form .timecard__title span {
+  display: block;
+  font-size: var(--s3);
+  font-weight: 900;
+  line-height: 1.2;
+  color: var(--enamel);
+}
+
+.timecard--form .timecard__title span {
+  display: inline;
+}
+
+.timecard--form .timecard__table thead th:nth-child(1) {
+  width: 5.8rem;
+}
+
+.timecard--form .timecard__table thead th:nth-child(2) {
+  width: 5.9rem;
+}
+
+/* On a phone the empty columns give the steps room; nothing is printed in them yet. */
+@media (max-width: 40rem) {
+  .timecard--form {
+    padding-left: 0.85rem;
+  }
+
+  .timecard--form .timecard__table thead th:nth-child(1) {
+    width: 5.4rem;
+  }
+
+  .timecard--form .timecard__table thead th:nth-child(2) {
+    width: 4.6rem;
+  }
+}
+
+/* An empty line is a ruled space to be printed on: as tall as a printed one with room to spare. */
+.timecard__line--blank > * {
+  height: 2rem;
+  vertical-align: bottom;
+}
+
+.timecard__line--blank .timecard__when,
+.timecard__line--blank .timecard__block {
+  border-bottom-style: dotted;
+}
+
+.timecard__line--blank .timecard__step {
+  color: var(--carbon);
+}

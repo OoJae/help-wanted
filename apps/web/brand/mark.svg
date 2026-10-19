@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="title">
+<!-- The HW stamp mark, day edition: public/favicon.svg drawn at 512. Made by apps/web/scripts/brand-kit.mjs. -->
+<title id="title">HELP WANTED</title>
+<rect width="512" height="512" fill="#f3eee2"/>
+<rect x="32" y="32" width="448" height="448" rx="32" stroke-width="32" fill="none" stroke="#c1271a"/>
+<rect x="71.2" y="71.2" width="369.6" height="369.6" rx="12" stroke-width="10.4" fill="none" stroke="#c1271a"/>
+<path fill="#c1271a" d="M96 168h40v72h32v-72h40v176h-40v-64h-32v64h-40zM224 168h40l17.6 104 20.8-104h35.2l20.8 104 17.6-104h40l-36.8 176h-41.6l-17.6-88-17.6 88h-41.6z"/>
+</svg>

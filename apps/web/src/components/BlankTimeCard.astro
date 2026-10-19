@@ -1,0 +1,59 @@
+---
+/**
+ * The time card an order gets, before anything is printed on it: the order's cry and the five
+ * steps of an order, with the When and Block of each left empty. The chain fills them in; this
+ * site prints a line only once the chain has done it (see an order's own page). The same card as
+ * TimeCard.astro, with the same rules (timecard.css). Static: no script, nothing moves.
+ */
+import Cry from "./Cry.astro";
+import "~/styles/timecard.css";
+
+interface Props {
+  /** The cry, drawn as lettering: "HELP WANTED:". */
+  cry: string;
+  /** What follows the cry: "1 robot researcher." */
+  wanted: string;
+  /** The steps of an order, in order. */
+  steps: readonly string[];
+  /** What the card is, said in the caption so that a reader who does not see it knows it is blank. */
+  note: string;
+}
+
+const { cry, wanted, steps, note } = Astro.props;
+---
+
+<div class="timecard timecard--form">
+  <table class="timecard__table">
+    <caption>
+      <span class="timecard__title">
+        <Cry text={cry} /> <span>{wanted}</span>
+      </span>
+      <span class="timecard__note">{note}</span>
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">When (UTC)</th>
+        <th scope="col">Block</th>
+        <th scope="col">Step</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        steps.map((step) => (
+          <tr class="timecard__line timecard__line--blank">
+            <td class="timecard__when" />
+            <td class="timecard__block" />
+            <td class="timecard__step">{step}</td>
+          </tr>
+        ))
+      }
+    </tbody>
+    <tfoot>
+      <tr class="timecard__total">
+        <th scope="row">Total</th>
+        <td class="timecard__sum" />
+        <td />
+      </tr>
+    </tfoot>
+  </table>
+</div>

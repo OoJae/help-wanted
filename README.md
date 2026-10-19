@@ -670,6 +670,7 @@ Start with the README of the part you care about:
 [`launches/c-company`](launches/c-company/README.md),
 [`bots/keeper`](bots/keeper/README.md), [`bots/runner`](bots/runner/README.md),
 [`apps/indexer`](apps/indexer/README.md), [`packages/shared`](packages/shared/README.md).
+How the site looks, moves and speaks, with the files to draw it: [`apps/web/BRAND.md`](apps/web/BRAND.md).
 
 ## Run the tests
 
