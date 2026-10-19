@@ -1,5 +1,6 @@
 ---
 import Commands from "~/components/Commands.astro";
+import Cry from "~/components/Cry.astro";
 import FlowBlock from "~/components/FlowBlock.astro";
 import NotLaunched from "~/components/NotLaunched.astro";
 import Layout from "~/layouts/Layout.astro";
@@ -22,42 +23,9 @@ const { model: m, meta } = loaded;
   </header>
 
   <NotLaunched contract={m.desk} consequence="No order can be posted today." />
-  {m.desk.address && (
-    <p class="small">
-      The hire desk is live{m.deskLaunch ? ` (WorkOrders, ${m.deskLaunch})` : ""}. {m.ordersOpened}
-    </p>
-  )}
 
-  <div class="cols cols--ruled">
-    <aside class="notice" aria-label="Who takes orders today">
-      <span class="label">Who takes orders today</span>
-      <p>
-        {m.runnerStatement && <strong>What the chain shows: </strong>}
-        {m.whoTakes}
-      </p>
-      {m.runnerStatement && (
-        <>
-          <p class="small">
-            <strong>{m.runnerStatement.heading}.</strong> A statement, not a reading:
-          </p>
-          <ul class="small">
-            {m.runnerStatement.lines.map((line) => (
-              <li>{line}</li>
-            ))}
-          </ul>
-        </>
-      )}
-    </aside>
-    <aside class="notice notice--quiet" aria-label="Who this is for">
-      <span class="label">Who this is for</span>
-      <ul>
-        {m.whoFor.map((line) => (
-          <li>{line}</li>
-        ))}
-      </ul>
-    </aside>
-  </div>
-
+  {/* The jobs come first, so the first screen is the offer; who takes orders and who this is for
+       follow the ads. */}
   <section class="section section--first">
     <div class="section__head">
       <h2>Situations vacant: jobs you can order</h2>
@@ -65,10 +33,10 @@ const { model: m, meta } = loaded;
     </div>
     <div class="classifieds">
       {m.templates.map((t) => (
-        <article class="ad">
+        <article class="ad" data-reveal>
           <h3 class="ad__head">
             <a href={t.path}>
-              <span>HELP WANTED:</span> <span>{t.staff}.</span>
+              <Cry text="HELP WANTED:" /> <span>{t.staff}.</span>
             </a>
           </h3>
           <p class="ad__pay">{t.title}</p>
@@ -102,6 +70,43 @@ const { model: m, meta } = loaded;
       ))}
     </ul>
   </section>
+
+  <div class="section">
+    {m.desk.address && (
+      <p class="small">
+        The hire desk is live{m.deskLaunch ? ` (WorkOrders, ${m.deskLaunch})` : ""}. {m.ordersOpened}
+      </p>
+    )}
+    <div class="cols cols--ruled">
+      <aside class="notice" aria-label="Who takes orders today">
+        <span class="label">Who takes orders today</span>
+        <p>
+          {m.runnerStatement && <strong>What the chain shows: </strong>}
+          {m.whoTakes}
+        </p>
+        {m.runnerStatement && (
+          <>
+            <p class="small">
+              <strong>{m.runnerStatement.heading}.</strong> A statement, not a reading:
+            </p>
+            <ul class="small">
+              {m.runnerStatement.lines.map((line) => (
+                <li>{line}</li>
+              ))}
+            </ul>
+          </>
+        )}
+      </aside>
+      <aside class="notice notice--quiet" aria-label="Who this is for">
+        <span class="label">Who this is for</span>
+        <ul>
+          {m.whoFor.map((line) => (
+            <li>{line}</li>
+          ))}
+        </ul>
+      </aside>
+    </div>
+  </div>
 
   <section class="section">
     <div class="section__head">

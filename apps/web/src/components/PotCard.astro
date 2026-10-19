@@ -1,6 +1,7 @@
 ---
 import type { PotCard } from "~/models/cards";
 import { sentenceCase } from "~/lib/stamp";
+import Cry from "./Cry.astro";
 import Stamp from "./Stamp.astro";
 
 interface Props {
@@ -8,15 +9,16 @@ interface Props {
 }
 
 const { card } = Astro.props;
+// "CHIP IN: 4 robot auditors wanted." is set as a cry, drawn as lettering, and what follows it.
 const colon = card.headline.indexOf(": ");
-const cry = colon === -1 ? card.headline : card.headline.slice(0, colon + 1);
-const wanted = colon === -1 ? "" : card.headline.slice(colon + 2);
+const cry = colon === -1 ? null : card.headline.slice(0, colon + 1);
+const wanted = colon === -1 ? card.headline : card.headline.slice(colon + 2);
 ---
 
 <article class="ad">
   <h3 class="ad__head">
     <a href={card.path}>
-      <span>{cry}</span> <span>{wanted}</span>
+      {cry && <Cry text={cry} />} <span>{wanted}</span>
     </a>
   </h3>
   <p class="ad__pay">{card.progress}</p>

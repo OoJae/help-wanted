@@ -1,0 +1,119 @@
+---
+/**
+ * An order's time card: one ruled line per transaction, the total at the foot and the stamp the
+ * desk's live read earns. It is an HTML table, printed whole in the page as sent; the clock around
+ * it is only theatre. Each line carries `data-at`, its time in UTC seconds since midnight, which is
+ * all the front page's script knows of the order: it punches a line when the scroll reaches it.
+ *
+ * Lines after the settlement (the change withdrawn, the tip claimed) sit under the total in Carbon
+ * and are not counted in it. With no order to print (a book that is not mainnet's), the card is the
+ * classified page's blank slot.
+ */
+import type { Stamp as StampData } from "~/models/cards";
+import { formatInt } from "~/lib/format";
+import Stamp from "./Stamp.astro";
+
+export interface TimeCardLine {
+  key: string;
+  label: string;
+  /** The block's time, ISO 8601 in UTC. */
+  at: string;
+  block: number;
+}
+
+export interface TimeCardOrder {
+  id: number;
+  path: string;
+  /** "16 Oct 2026". */
+  day: string;
+  /** Who fired it and who ran it, in the model's own words. */
+  note: string | null;
+  lines: TimeCardLine[];
+  /** formatDuration(settled - opened). */
+  total: string | null;
+  after: TimeCardLine[];
+  /** True when the live read says Delivered and proven: the settlement line is printed in red. */
+  proven: boolean;
+}
+
+interface Props {
+  order: TimeCardOrder | null;
+  stamp: StampData | null;
+  /** The view-transition name the stamp travels under to the order's proof page. */
+  verdictName?: string;
+}
+
+const { order, stamp, verdictName } = Astro.props;
+const clock = (iso: string) => iso.slice(11, 19);
+const secondsOfDay = (iso: string) => {
+  const d = new Date(iso);
+  return d.getUTCHours() * 3600 + d.getUTCMinutes() * 60 + d.getUTCSeconds();
+};
+---
+
+{
+  order ? (
+    <div class="timecard" data-timecard>
+      <table class="timecard__table">
+        <caption>
+          <span class="timecard__title">
+            <a href={order.path}>
+              Order {order.id} · {order.day}
+            </a>{" "}
+            <span class="tag tag--solid">HOUSE</span>
+          </span>
+          {order.note && <span class="timecard__note">{order.note}</span>}
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">When (UTC)</th>
+            <th scope="col">Block</th>
+            <th scope="col">Step</th>
+          </tr>
+        </thead>
+        <tbody>
+          {order.lines.map((line) => (
+            <tr
+              class:list={["timecard__line", order.proven && line.key === "settled" && "timecard__line--proof"]}
+              data-at={secondsOfDay(line.at)}
+              data-key={line.key}
+            >
+              <td class="timecard__when">
+                <span class="timecard__punch" aria-hidden="true" />
+                {clock(line.at)}
+              </td>
+              <td class="timecard__block">{formatInt(line.block)}</td>
+              <td class="timecard__step">{line.label}</td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          {order.total && (
+            <tr class="timecard__total">
+              <th scope="row">Total</th>
+              <td class="timecard__sum">{order.total}</td>
+              <td class="timecard__stampcell">
+                {stamp && (
+                  <span class="timecard__stamp" style={verdictName ? `view-transition-name: ${verdictName}` : undefined}>
+                    <Stamp stamp={stamp} />
+                  </span>
+                )}
+              </td>
+            </tr>
+          )}
+          {order.after.map((line) => (
+            <tr class="timecard__after" data-at={secondsOfDay(line.at)}>
+              <td class="timecard__when">{clock(line.at)}</td>
+              <td class="timecard__block">{formatInt(line.block)}</td>
+              <td class="timecard__step">{line.label}</td>
+            </tr>
+          ))}
+        </tfoot>
+      </table>
+    </div>
+  ) : (
+    <div class="timecard timecard--blank">
+      <p class="timecard__blank">This space for hire.</p>
+    </div>
+  )
+}

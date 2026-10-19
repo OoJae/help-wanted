@@ -1,15 +1,20 @@
 ---
 import JobCard from "~/components/JobCard.astro";
 import OrderCard from "~/components/OrderCard.astro";
+import Recorder from "~/components/Recorder.astro";
 import Stamp from "~/components/Stamp.astro";
+import TimeCard, { type TimeCardLine, type TimeCardOrder } from "~/components/TimeCard.astro";
 import Layout from "~/layouts/Layout.astro";
 import { REFERENCE_JOB } from "~/config/chain";
+import { pinnedOrder, pinnedRule } from "~/config/history";
 import { TEMPLATES } from "~/config/templates";
-import { excerpt, formatImd, formatInt, formatUtc } from "~/lib/format";
+import { excerpt, formatDuration, formatImd, formatInt, formatUtc } from "~/lib/format";
 import { pageData } from "~/lib/page";
-import type { StampTone } from "~/models/cards";
+import { SITE_TAGLINE } from "~/lib/twins";
+import type { Stamp as StampData, StampTone } from "~/models/cards";
 import { receiptFlowMeaning } from "~/models/receipts";
 import type { WireModel } from "~/models/wire";
+import "~/styles/clockin.css";
 
 const loaded = await pageData<WireModel>(Astro);
 if (loaded instanceof Response) return loaded;
@@ -19,6 +24,77 @@ const lead = m.lead;
 const proofPath = m.proof?.path ?? lead?.verifyPath ?? `/verify/${REFERENCE_JOB.jobId}`;
 const proofTone: StampTone = m.proof?.verdict === "proven" ? "proof" : "void";
 const bell = m.actions.ring.doorbell;
+
+// The headline is the model's own: the first sentence of the second line of What is new.
+const whatIsNewTwo = m.whatIsNew[1] ?? "";
+const headline = whatIsNewTwo.slice(0, whatIsNewTwo.indexOf(". ") + 1) || whatIsNewTwo;
+
+// ---- Order 2's time card, from the pinned history /orders/2 prints, its stamp from the desk read. ----
+const deployments = loaded.ctx.sources.deployments;
+const second = pinnedOrder(m.desk.address, 2);
+const rule = second ? pinnedRule(deployments.contracts.rules.address, 1) : null;
+const step = (key: string) => second?.trail.find((x) => x.key === key) ?? null;
+const opened = step("opened");
+const settled = step("settled");
+const secondCard = second ? (m.ourOrders.cards.find((c) => c.id === second.id) ?? null) : null;
+// The same verdict order 2's card on the desk shows: red only when the live read is Delivered and proven.
+const provenNow = lead?.next ? / is Delivered and marked proven\.$/.test(lead.next.now) : false;
+const secondStamp: StampData | null =
+  secondCard?.stamp ?? (provenNow ? { text: "PROVEN ON CHAIN", tone: "proof" } : null);
+const proven = secondStamp?.tone === "proof";
+// The house note: the deck's own last sentence, who created the rule, fired it and ran the order.
+const deck = lead?.next?.deck ?? "";
+const noteAt = deck.indexOf("The rule's creator");
+const withdrawn = rule?.trail.find((x) => x.label === "Change withdrawn") ?? null;
+const tip = second?.tipClaims[0] ?? null;
+const line = (key: string, label: string, tx: { at: string; block: number }): TimeCardLine => ({
+  key,
+  label,
+  at: tx.at,
+  block: tx.block,
+});
+const card: TimeCardOrder | null =
+  second && lead?.next
+    ? {
+        id: second.id,
+        path: lead.next.orderPath,
+        day: opened ? (formatUtc(opened.tx.at).split(", ")[0] ?? "") : "",
+        note: noteAt >= 0 ? deck.slice(noteAt) : null,
+        lines: second.trail.map((x) => line(x.key, x.label, x.tx)),
+        total: opened && settled ? formatDuration(Date.parse(settled.tx.at) - Date.parse(opened.tx.at)) : null,
+        after: [
+          ...(withdrawn ? [line("withdrawn", withdrawn.label, withdrawn.tx)] : []),
+          ...(tip ? [line("tip", `Tip paid to seat #${tip.tokenId}'s owner`, tip.tx)] : []),
+        ].sort((a, b) => Date.parse(a.at) - Date.parse(b.at)),
+        proven,
+      }
+    : null;
+const verdictName = second ? `verdict-${second.jobId.slice(0, 8)}` : undefined;
+
+// ---- The five steps, each as long as order 2 spent on it. ----
+const secondsOfDay = (iso: string) => {
+  const d = new Date(iso);
+  return d.getUTCHours() * 3600 + d.getUTCMinutes() * 60 + d.getUTCSeconds();
+};
+// The hold after the last punch, while the card comes out of the clock: 0.6 of a screen at 180 s a screen.
+const HOLD = 108;
+const starts = (["opened", "claimed", "paid", "receipt", "settled"] as const).map((k) => step(k));
+const timed = card !== null && starts.every((x) => x !== null);
+const stepStarts = timed ? starts.map((x) => secondsOfDay(x!.tx.at)) : [];
+const flow = m.strip.map((x, i) => {
+  const from = stepStarts[i];
+  const next = stepStarts[i + 1];
+  const sec = from === undefined ? null : next === undefined ? HOLD : next - from;
+  // Minute ticks along the rule: every whole minute of the clock inside the step.
+  const ticks: number[] = [];
+  if (from !== undefined && sec !== null) {
+    for (let t = Math.ceil(from / 60) * 60; t < from + sec; t += 60) ticks.push(t - from);
+  }
+  return { ...x, from: from ?? null, sec, ticks };
+});
+// The hands rest where the order ended; with no order, at the time the page was made.
+const restAt = settled ? secondsOfDay(settled.tx.at) : secondsOfDay(m.generatedAt);
+const seeProof = lead?.next?.verifyPath ?? proofPath;
 
 // The specimen: what an order will look like, set from the audit order form's own defaults. It is
 // drawn only while the deployments book holds no address for the hire desk, and it is marked as a
@@ -35,10 +111,107 @@ const specimenText = specimen
 ---
 
 <Layout title={meta.title} description={meta.description} sources={m.sources} generatedAt={m.generatedAt}>
-  <header class="pagehead">
+  <section class="clockin" aria-labelledby="hero-title" data-clockin>
+    <script is:inline>
+      (function () {
+        var root = document.documentElement;
+        try {
+          if (!window.matchMedia("(prefers-reduced-motion: no-preference)").matches) return;
+          root.classList.add("clock-on");
+          // If the clock's script never arrives, the page goes back to its still layout.
+          setTimeout(function () {
+            if (!root.classList.contains("clock-ready")) root.classList.remove("clock-on");
+          }, 3000);
+        } catch (e) {}
+      })();
+    </script>
+    <div class="clockin__intro">
+      <h1 id="hero-title" class="clockin__title">{headline}</h1>
+      <p class="clockin__tagline">{SITE_TAGLINE}</p>
+      <p class="actions clockin__keys">
+        <a class="btn" href={seeProof}>See the proof</a>
+        <a class="btn btn--ghost" href={m.actions.hire.path}>{m.actions.hire.label}</a>
+      </p>
+    </div>
+
+    <div class="clockin__stage" data-stage>
+      <Recorder at={restAt}>
+        <TimeCard order={card} stamp={secondStamp} verdictName={verdictName} />
+      </Recorder>
+    </div>
+
+    <div class="section__head clockin__head">
+      <h2 id="flow">One order, in five steps</h2>
+      <p>
+        <a href="/hire">how an order works</a>
+      </p>
+    </div>
+    <ol class:list={["clockin__steps", timed && "clockin__steps--timed"]} data-steps>
+      {
+        flow.map((x) => (
+          <li
+            class="clockin__step"
+            style={x.sec !== null ? `--sec:${x.sec}` : undefined}
+            data-from={x.from ?? undefined}
+            data-sec={x.sec ?? undefined}
+          >
+            {x.sec !== null && (
+              <svg
+                class="clockin__ticks"
+                viewBox={`0 0 12 ${x.sec}`}
+                preserveAspectRatio="none"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <line class="clockin__punchtick" x1="0" x2="12" y1="0.5" y2="0.5" />
+                {x.ticks.map((t) => (
+                  <line x1="0" x2="7" y1={t} y2={t} />
+                ))}
+              </svg>
+            )}
+            <div class="clockin__stepbody">
+              <h3 class="clockin__steptitle">{x.step}</h3>
+              <p class="clockin__stepwords">{x.words}</p>
+            </div>
+          </li>
+        ))
+      }
+    </ol>
+    {
+      lead?.next && (
+        <aside class="clockin__deck" aria-label={`Order ${lead.next.orderPath.split("/").pop()}`}>
+          <p class="clockin__decktext">{lead.next.deck}</p>
+          <p class="actions">
+            <a class="btn btn--ghost" href={lead.next.orderPath}>
+              Order {lead.next.orderPath.split("/").pop()}, step by step
+            </a>
+            {lead.next.work && (
+              <a class="btn btn--ghost" href={lead.next.work.url} rel="noopener">
+                {lead.next.work.label}
+              </a>
+            )}
+          </p>
+          <p class="small">
+            On Etherscan:{" "}
+            {lead.next.links.map((l, index) => (
+              <>
+                {index > 0 && " · "}
+                <a href={l.url} rel="noopener">{l.label}</a>
+              </>
+            ))}. {lead.next.now}
+          </p>
+        </aside>
+      )
+    }
+  </section>
+  <script src="../scripts/clockin.ts"></script>
+
+  <section class="section wire-lead" aria-labelledby="lead" data-reveal>
+    <div class="section__head">
+      <h2 id="lead">{lead ? lead.headline : m.headline}</h2>
+    </div>
     <div class="lead">
       <div>
-        <h1 class="headline headline--wide">{lead ? lead.headline : m.headline}</h1>
         <p class="deck">
           {lead
             ? lead.deck
@@ -46,151 +219,101 @@ const specimenText = specimen
               ? `The other ${formatInt(s.idle)} machines in IdentityMD's swarm are waiting. HELP WANTED is where contracts hire them: a contract posts a job, a robot does it, and the money moves when the work is proven on chain. Nothing softer pays unless the employer chose it.`
               : "IdentityMD's public API did not answer just now. The rest of this page shows what could be read."}
         </p>
-        {lead ? (
-          <>
-            <p class="actions">
-              <a class="btn" href={lead.verifyPath}>
-                See the proof
-              </a>
-              <a class="btn btn--ghost" href={lead.orderPath}>
-                Order {lead.orderPath.split("/").pop()}, step by step
-              </a>
-              {lead.picture && (
-                <a class="btn btn--ghost" href={lead.picture.url} rel="noopener">
-                  {lead.picture.label}
+        {
+          lead ? (
+            <>
+              <p class="actions">
+                <a class="btn" href={lead.verifyPath}>
+                  See the proof
                 </a>
-              )}
+                <a class="btn btn--ghost" href={lead.orderPath}>
+                  Order {lead.orderPath.split("/").pop()}, step by step
+                </a>
+                {lead.picture && (
+                  <a class="btn btn--ghost" href={lead.picture.url} rel="noopener">
+                    {lead.picture.label}
+                  </a>
+                )}
+              </p>
+              <p class="small">
+                On Etherscan:{" "}
+                {lead.links.map((l, index) => (
+                  <>
+                    {index > 0 && " · "}
+                    <a href={l.url} rel="noopener">{l.label}</a>
+                  </>
+                ))}. {lead.now}
+              </p>
+            </>
+          ) : (
+            <p class="actions">
+              <a class="btn" href={proofPath}>
+                Watch a receipt check
+              </a>
+              <a class="btn btn--ghost" href="/judges">
+                For judges
+              </a>
             </p>
-            <p class="small">
-              On Etherscan:{" "}
-              {lead.links.map((l, index) => (
-                <>
-                  {index > 0 && " · "}
-                  <a href={l.url} rel="noopener">
-                    {l.label}
-                  </a>
-                </>
-              ))}
-              . {lead.now}
-            </p>
-            {lead.next && (
-              <>
-                <p class="deck">{lead.next.deck}</p>
-                <p class="actions">
-                  <a class="btn" href={lead.next.verifyPath}>
-                    See the proof
-                  </a>
-                  <a class="btn btn--ghost" href={lead.next.orderPath}>
-                    Order {lead.next.orderPath.split("/").pop()}, step by step
-                  </a>
-                  {lead.next.work && (
-                    <a class="btn btn--ghost" href={lead.next.work.url} rel="noopener">
-                      {lead.next.work.label}
-                    </a>
-                  )}
-                </p>
-                <p class="small">
-                  On Etherscan:{" "}
-                  {lead.next.links.map((l, index) => (
-                    <>
-                      {index > 0 && " · "}
-                      <a href={l.url} rel="noopener">
-                        {l.label}
-                      </a>
-                    </>
-                  ))}
-                  . {lead.next.now}
-                </p>
-              </>
-            )}
-          </>
-        ) : (
-          <p class="actions">
-            <a class="btn" href={proofPath}>
-              Watch a receipt check
-            </a>
-            <a class="btn btn--ghost" href="/judges">
-              For judges
-            </a>
-          </p>
-        )}
+          )
+        }
       </div>
       <aside class="proofcard" aria-label="One job, checked for this page">
-        {m.proof ? (
-          <>
-            <p class="proofcard__stamp">
-              <a href={m.proof.path} aria-label={`${m.proof.stamp}: see the whole check`}>
-                <Stamp stamp={{ text: m.proof.stamp, tone: proofTone }} big />
-              </a>
-            </p>
-            <p>
-              <strong>
-                {lead ? `Order ${lead.orderPath.split("/").pop()}'s job, ` : "Job "}
-                <span class="data">{m.proof.jobId.slice(0, 8)}</span>: checked for this page.
-              </strong>{" "}
-              {m.proof.summary}
-            </p>
-            <p class="small">
-              {m.proof.receiptReadAt && <>Registry read {formatUtc(m.proof.receiptReadAt)}. </>}
-              <a href={m.proof.path}>Every step, repeated in your browser</a>
-            </p>
-          </>
-        ) : (
-          <>
-            <p>
-              <strong>The check behind every payment.</strong> A job's work record is hashed and compared with
-              the receipt Ethereum holds for it.
-            </p>
-            <p class="small">
-              The job could not be checked in time for this page. <a href={proofPath}>Run the check now</a>
-            </p>
-          </>
-        )}
+        {
+          m.proof ? (
+            <>
+              <p class="proofcard__stamp">
+                <a href={m.proof.path} aria-label={`${m.proof.stamp}: see the whole check`}>
+                  <Stamp stamp={{ text: m.proof.stamp, tone: proofTone }} big />
+                </a>
+              </p>
+              <p>
+                <strong>
+                  {lead ? `Order ${lead.orderPath.split("/").pop()}'s job, ` : "Job "}
+                  <span class="data">{m.proof.jobId.slice(0, 8)}</span>: checked for this page.
+                </strong>{" "}
+                {m.proof.summary}
+              </p>
+              <p class="small">
+                {m.proof.receiptReadAt && <>Registry read {formatUtc(m.proof.receiptReadAt)}. </>}
+                <a href={m.proof.path}>Every step, repeated in your browser</a>
+              </p>
+            </>
+          ) : (
+            <>
+              <p>
+                <strong>The check behind every payment.</strong> A job's work record is hashed and compared with
+                the receipt Ethereum holds for it.
+              </p>
+              <p class="small">
+                The job could not be checked in time for this page. <a href={proofPath}>Run the check now</a>
+              </p>
+            </>
+          )
+        }
       </aside>
     </div>
-    {m.houseStatus && (
-      <p class="small" style="margin:1rem 0 0">
-        {m.houseStatus}
-      </p>
-    )}
-  </header>
+    {m.houseStatus && <p class="small wire-lead__house">{m.houseStatus}</p>}
+  </section>
 
-  <section class="section section--first" aria-labelledby="new">
+  <section class="section" aria-labelledby="new" data-reveal>
     <div class="section__head">
       <h2 id="new">What is new</h2>
       <p>
         <a href="/judges">every claim, with its check</a>
       </p>
     </div>
-    <ol class="steps steps--across">
-      {m.whatIsNew.map((line) => (
-        <li class="step step--open">
-          <p class="step__detail">{line}</p>
-        </li>
-      ))}
+    <ol class="steps steps--across wire-new">
+      {
+        m.whatIsNew.map((line) => (
+          <li class="step step--open">
+            <p class="step__detail">{line}</p>
+          </li>
+        ))
+      }
     </ol>
   </section>
 
-  <section class="section" aria-labelledby="flow">
-    <div class="section__head">
-      <h2 id="flow">One order, in five steps</h2>
-      <p>
-        <a href="/hire">how an order works</a>
-      </p>
-    </div>
-    <ol class="steps steps--across">
-      {m.strip.map((s) => (
-        <li class="step step--open">
-          <div>
-            <p class="step__title">{s.step}</p>
-            <p class="step__detail">{s.words}</p>
-          </div>
-        </li>
-      ))}
-    </ol>
-  </section>
-
-  <section class="section" aria-labelledby="do">
+  <section class="section" aria-labelledby="do" data-reveal>
     <div class="section__head">
       <h2 id="do">Three things to do</h2>
       <p>no account needed to look</p>
@@ -211,12 +334,14 @@ const specimenText = specimen
         <h3 class="ad__head">
           <a href={m.actions.ring.path}>{m.actions.ring.label}</a>
         </h3>
-        {bell && bell.rung !== null && (
-          <p class="ad__pay">
-            {bell.rung} of {bell.every} rings
-            <span>{bell.funded === null ? "" : bell.funded ? " · funded" : " · not funded"}</span>
-          </p>
-        )}
+        {
+          bell && bell.rung !== null && (
+            <p class="ad__pay">
+              {bell.rung} of {bell.every} rings
+              <span>{bell.funded === null ? "" : bell.funded ? " · funded" : " · not funded"}</span>
+            </p>
+          )
+        }
         <p class="ad__text">{m.actions.ring.words}</p>
         <div class="ad__foot">
           <p class="ad__links">
@@ -238,139 +363,149 @@ const specimenText = specimen
     </div>
   </section>
 
-  <section class="section" aria-labelledby="ours">
+  <section class="section" aria-labelledby="ours" data-reveal>
     <div class="section__head">
       <h2 id="ours">Orders on our desk</h2>
       <p>
-        {m.ourOrders.launched
-          ? `${m.ourOrders.count === null ? "the count could not be read just now" : `${m.ourOrders.count} opened so far`} · each labelled HOUSE (ours) or OUTSIDE`
-          : "the hire desk is not launched yet"}
+        {
+          m.ourOrders.launched
+            ? `${m.ourOrders.count === null ? "the count could not be read just now" : `${m.ourOrders.count} opened so far`} · each labelled HOUSE (ours) or OUTSIDE`
+            : "the hire desk is not launched yet"
+        }
       </p>
     </div>
-    {m.ourOrders.cards.length > 0 ? (
-      <div class="classifieds">
-        {m.ourOrders.cards.map((card) => (
-          <OrderCard card={card} />
-        ))}
-      </div>
-    ) : m.ourOrders.launched && m.ourOrders.count === null ? (
-      <p class="notice notice--quiet">
-        The hire desk is at <span class="break data">{m.desk.address}</span>, but its orders could not be read
-        just now. Nothing is said here about them until it answers.
-      </p>
-    ) : m.ourOrders.launched ? (
-      <div class="classifieds">
-        <div class="ad ad--blank">
-          <p class="ad__head">This space for hire.</p>
-          {m.ourOrders.count === 0 ? (
-            <p>
-              The hire desk is live at <span class="break data">{m.desk.address}</span> and nobody has posted
-              an order: its own counter read 0 for this page. <a href="/hire">Post the first one.</a>
-            </p>
-          ) : (
-            <p>
-              The hire desk is live at <span class="break data">{m.desk.address}</span>. None of its newest
-              orders could be read as an order just now. <a href="/orders">Every order.</a>
-            </p>
-          )}
+    {
+      m.ourOrders.cards.length > 0 ? (
+        <div class="classifieds">
+          {m.ourOrders.cards.map((card) => (
+            <OrderCard card={card} />
+          ))}
         </div>
-      </div>
-    ) : (
-      <figure class="specimen">
-        {specimen && (
-          <div class="ad" aria-label="A specimen order card">
-            <p class="ad__head">
-              <span>HELP WANTED:</span> <span>{specimen.staff}.</span>
-            </p>
-            <p class="ad__pay">
-              Pay up to {specimen.suggestedMaxPay} IMD. <span>Employer: a contract.</span>
-            </p>
-            <p class="ad__text">{specimenText}</p>
-            <div class="ad__foot">
-              <p class="ad__meta">Set from the audit order form</p>
-              <Stamp stamp={{ text: "SPECIMEN", tone: "void" }} />
-            </div>
+      ) : m.ourOrders.launched && m.ourOrders.count === null ? (
+        <p class="notice notice--quiet">
+          The hire desk is at <span class="break data">{m.desk.address}</span>, but its orders could not be read
+          just now. Nothing is said here about them until it answers.
+        </p>
+      ) : m.ourOrders.launched ? (
+        <div class="classifieds">
+          <div class="ad ad--blank">
+            <p class="ad__head">This space for hire.</p>
+            {m.ourOrders.count === 0 ? (
+              <p>
+                The hire desk is live at <span class="break data">{m.desk.address}</span> and nobody has posted an
+                order: its own counter read 0 for this page. <a href="/hire">Post the first one.</a>
+              </p>
+            ) : (
+              <p>
+                The hire desk is live at <span class="break data">{m.desk.address}</span>. None of its newest
+                orders could be read as an order just now. <a href="/orders">Every order.</a>
+              </p>
+            )}
           </div>
-        )}
-        <figcaption>
-          <p class="ad__head">No orders yet, and none made up.</p>
-          <p>
-            The hire desk (WorkOrders, launch B) is not launched. The card beside this is a specimen: how an
-            order will read, set from the site's own audit order form. A real one later carries its stamp:
-            FILLED, PROVEN ON CHAIN or REFUNDED.
-          </p>
-          <p class="ad__links">
-            <a href="/hire">What an order is</a>
-            <a href="/judges#not-live">What is live today</a>
-          </p>
-        </figcaption>
-      </figure>
-    )}
+        </div>
+      ) : (
+        <figure class="specimen">
+          {specimen && (
+            <div class="ad" aria-label="A specimen order card">
+              <p class="ad__head">
+                <span>HELP WANTED:</span> <span>{specimen.staff}.</span>
+              </p>
+              <p class="ad__pay">
+                Pay up to {specimen.suggestedMaxPay} IMD. <span>Employer: a contract.</span>
+              </p>
+              <p class="ad__text">{specimenText}</p>
+              <div class="ad__foot">
+                <p class="ad__meta">Set from the audit order form</p>
+                <Stamp stamp={{ text: "SPECIMEN", tone: "void" }} />
+              </div>
+            </div>
+          )}
+          <figcaption>
+            <p class="ad__head">No orders yet, and none made up.</p>
+            <p>
+              The hire desk (WorkOrders, launch B) is not launched. The card beside this is a specimen: how an order
+              will read, set from the site's own audit order form. A real one later carries its stamp: FILLED,
+              PROVEN ON CHAIN or REFUNDED.
+            </p>
+            <p class="ad__links">
+              <a href="/hire">What an order is</a>
+              <a href="/judges#not-live">What is live today</a>
+            </p>
+          </figcaption>
+        </figure>
+      )
+    }
     {m.ourOrders.error && <p class="small spot">The desk could not be read just now: {m.ourOrders.error}</p>}
   </section>
 
-  <section class="section" aria-labelledby="swarm">
+  <section class="section" aria-labelledby="swarm" data-reveal>
     <div class="section__head">
       <h2 id="swarm">Elsewhere in the swarm</h2>
       <p>
-        {m.jobs.cards.length === 0 && m.jobs.error
-          ? "the job list could not be read just now"
-          : `${lead ? `${m.headline} · ` : ""}newest ${m.jobs.cards.length} of ${m.jobs.read} jobs read, oracle panels left out`}
+        {
+          m.jobs.cards.length === 0 && m.jobs.error
+            ? "the job list could not be read just now"
+            : `${lead ? `${m.headline} · ` : ""}newest ${m.jobs.cards.length} of ${m.jobs.read} jobs read, oracle panels left out`
+        }
       </p>
     </div>
     <p class="small">
       These jobs did not come through HELP WANTED; each text is the customer's own, cut short. Of the newest{" "}
-      {m.jobs.read} read: {m.jobs.finished} finished, {m.jobs.atWork} at work, {m.jobs.withReceipt} with a
-      receipt on chain. Receipts, as read for this page: {m.receipts.observed}{" "}
+      {m.jobs.read} read: {m.jobs.finished} finished, {m.jobs.atWork} at work, {m.jobs.withReceipt} with a receipt
+      on chain. Receipts, as read for this page: {m.receipts.observed}{" "}
       {receiptFlowMeaning(m.receipts)} <a href="/verify">Check any of them yourself.</a>
     </p>
-    {m.jobs.cards.length > 0 ? (
-      <div class="classifieds">
-        {m.jobs.cards.map((card) => (
-          <JobCard card={card} />
-        ))}
-      </div>
-    ) : (
-      <p class="notice notice--quiet">
-        The job list could not be read just now{m.jobs.error ? `: ${m.jobs.error}` : "."}
-      </p>
-    )}
-    {s ? (
-      <dl class="figures">
-        {s.acceptedLastDay !== null && (
-          <div class="figure">
-            <dt>Pieces of work accepted in 24 hours</dt>
-            <dd>{formatInt(s.acceptedLastDay)}</dd>
-          </div>
-        )}
-        {s.paidOrders !== null && (
-          <div class="figure">
-            <dt>Paid orders, all time</dt>
-            <dd>{formatInt(s.paidOrders)}</dd>
-          </div>
-        )}
-        {s.receiptsQueued !== null && (
-          <div class="figure">
-            <dt>Receipts waiting to go on chain</dt>
-            <dd>{formatInt(s.receiptsQueued)}</dd>
-          </div>
-        )}
-        <div class="figure">
-          <dt>Price of one swarm job</dt>
-          <dd>
-            {formatImd(m.paidActionPriceWei)} <small>IMD</small>
-          </dd>
+    {
+      m.jobs.cards.length > 0 ? (
+        <div class="classifieds">
+          {m.jobs.cards.map((card) => (
+            <JobCard card={card} />
+          ))}
         </div>
-      </dl>
-    ) : (
-      <p class="notice notice--quiet small" style="margin-top:1.4rem">
-        The swarm's state could not be read: {m.swarmError}
-      </p>
-    )}
-    {s?.computedAt && (
-      <p class="small" style="margin:0.6rem 0 0">
-        The swarm's own figures, as IdentityMD's API computed them at {formatUtc(s.computedAt)}.
-      </p>
-    )}
+      ) : (
+        <p class="notice notice--quiet">
+          The job list could not be read just now{m.jobs.error ? `: ${m.jobs.error}` : "."}
+        </p>
+      )
+    }
+    {
+      s ? (
+        <dl class="figures">
+          {s.acceptedLastDay !== null && (
+            <div class="figure">
+              <dt>Pieces of work accepted in 24 hours</dt>
+              <dd>{formatInt(s.acceptedLastDay)}</dd>
+            </div>
+          )}
+          {s.paidOrders !== null && (
+            <div class="figure">
+              <dt>Paid orders, all time</dt>
+              <dd>{formatInt(s.paidOrders)}</dd>
+            </div>
+          )}
+          {s.receiptsQueued !== null && (
+            <div class="figure">
+              <dt>Receipts waiting to go on chain</dt>
+              <dd>{formatInt(s.receiptsQueued)}</dd>
+            </div>
+          )}
+          <div class="figure">
+            <dt>Price of one swarm job</dt>
+            <dd>
+              {formatImd(m.paidActionPriceWei)} <small>IMD</small>
+            </dd>
+          </div>
+        </dl>
+      ) : (
+        <p class="notice notice--quiet small wire-swarm__error">The swarm's state could not be read: {m.swarmError}</p>
+      )
+    }
+    {
+      s?.computedAt && (
+        <p class="small wire-swarm__at">
+          The swarm's own figures, as IdentityMD's API computed them at {formatUtc(s.computedAt)}.
+        </p>
+      )
+    }
   </section>
 </Layout>

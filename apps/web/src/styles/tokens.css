@@ -1,0 +1,102 @@
+/*
+ * HELP WANTED's tokens: every colour, face, size and timing the site is drawn with, defined once.
+ *
+ * Two papers (Newsprint and Card stock), two inks (Enamel and Carbon), one red (Ribbon) and Brass.
+ * Red is a verdict: it marks a check against the chain that passed, and warnings set in type, and
+ * nothing else. Brass is the time clock's metal only, never type, a control or a gradient. Meta and
+ * Rule are utilities: Meta for placeholders and waiting states, Rule for hairlines, never for text.
+ *
+ * The day edition is the default; the night edition is drawn, not inverted. It applies when the
+ * reader's system asks for dark and no edition was chosen, or when the night edition was chosen
+ * (the toggle writes data-theme on the root). Only the named colours change between editions; the
+ * old names below are aliases, so every rule that uses them follows the edition by itself.
+ */
+
+:root {
+  --newsprint: #f3eee2;
+  --card: #e8e1d0;
+  --enamel: #16130e;
+  --carbon: #4a4439;
+  --ribbon: #c1271a;
+  --ribbon-type: #a41e10;
+  --brass: #b8893a;
+  --meta: #675f51;
+  --rule: #bdb49f;
+  --on-ribbon: #fff;
+
+  /* The names global.css was written with, kept as aliases while its rules move to the names above. */
+  --paper: var(--newsprint);
+  --paper-2: var(--card);
+  --ink: var(--enamel);
+  --ink-2: var(--carbon);
+  --ink-3: var(--meta);
+  --hair: var(--rule);
+  --spot: var(--ribbon);
+  --spot-ink: var(--ribbon-type);
+  --on-spot: var(--on-ribbon);
+
+  --slab: "Alfa Slab One", "Rockwell Extra Bold", "Rockwell", "Roboto Slab", Georgia, serif;
+  --serif:
+    "Source Serif 4 Variable", "Source Serif 4", "Iowan Old Style", "Charter", Georgia, "Times New Roman",
+    serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
+  /* The whole type scale: six sizes, fluid between a 375px and a 1440px screen. */
+  --s1: clamp(0.84375rem, 0.8328rem + 0.047vw, 0.875rem); /* 13.5 to 14px: notes, data, card rows, folio */
+  --s2: clamp(0.9375rem, 0.9155rem + 0.094vw, 1rem); /* 15 to 16px: keys, tables, ads, nav */
+  --s3: clamp(1.0625rem, 1.0295rem + 0.141vw, 1.15625rem); /* 17 to 18.5px: reading, card caption */
+  --s4: clamp(1.25rem, 1.162rem + 0.376vw, 1.5rem); /* 20 to 24px: decks, section heads, step titles */
+  --s5: clamp(1.625rem, 1.317rem + 1.315vw, 2.5rem); /* 26 to 40px: the running-head name, figures */
+  --s6: clamp(2.25rem, 1.458rem + 3.38vw, 4.5rem); /* 36 to 72px: the page headline only */
+
+  --measure: 66ch;
+  --page: 76rem;
+  --gutter: clamp(1rem, 3.4vw, 2.5rem);
+
+  /* Motion. Two curves carry almost everything: expressive-out for arrivals and returns, in-out for
+     a stroke that starts and stops (a key going down, the lever striking). The stamp curve overshoots
+     once, as a rubber stamp does when it lands. Only transform and opacity are ever animated. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-io: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-stamp: cubic-bezier(0.2, 1.5, 0.4, 1);
+  --t-press: 70ms; /* a key going down */
+  --t-release: 320ms; /* a key coming back */
+  --t-strike: 90ms; /* the clock's lever going down */
+  --t-return: 380ms; /* the lever coming back */
+  --t-thump: 420ms; /* a stamp landing */
+  --t-eject: 640ms; /* the card coming out of the clock */
+  --t-reveal: 520ms; /* a section appearing once */
+  --t-stagger: 60ms; /* between the items of one reveal */
+  --t-page-out: 160ms; /* the old page leaving */
+  --t-page-in: 320ms; /* the new page arriving */
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --newsprint: #15130f;
+    --card: #211e18;
+    --enamel: #ece5d6;
+    --carbon: #c3baa8;
+    --ribbon: #ff6b57;
+    --ribbon-type: #ff8571;
+    --meta: #9a917f;
+    --rule: #453f34;
+    --on-ribbon: #15130f;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --newsprint: #15130f;
+  --card: #211e18;
+  --enamel: #ece5d6;
+  --carbon: #c3baa8;
+  --ribbon: #ff6b57;
+  --ribbon-type: #ff8571;
+  --meta: #9a917f;
+  --rule: #453f34;
+  --on-ribbon: #15130f;
+  color-scheme: dark;
+}

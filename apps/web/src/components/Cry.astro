@@ -1,0 +1,57 @@
+---
+/**
+ * The cry that opens a classified ad ("HELP WANTED:", "CHIP IN:"), drawn as lettering: an SVG in
+ * the headline's own face and weight, with the cry as its accessible name. A line of capitals at
+ * the head of an ad is the sign painter's lettering, not a sentence, so it is drawn rather than
+ * typed; the words after it ("4 robot auditors.") stay text in the headline.
+ *
+ * The SVG is one em of the headline wide per 100 units, its bottom edge two units under the
+ * baseline, so it sits on the headline's line at the headline's size, whatever that size is.
+ */
+interface Props {
+  text: string;
+}
+
+const { text } = Astro.props;
+
+// Advance widths in the serif at weight 900 and optical size 20, in hundredths of an em, measured
+// in the browser from the self-hosted font. The two cries the site prints are measured whole,
+// kerning included; anything else is summed from single letters.
+const MEASURED: Record<string, number> = { "HELP WANTED:": 725.3, "CHIP IN:": 399.7 };
+const GLYPH: Record<string, number> = {
+  A: 68,
+  B: 66,
+  C: 61.8,
+  D: 70.3,
+  E: 59.1,
+  F: 58,
+  G: 67.2,
+  H: 75.6,
+  I: 39.5,
+  J: 40.4,
+  K: 70.8,
+  L: 57.4,
+  M: 89.3,
+  N: 72.5,
+  O: 70,
+  P: 62.2,
+  Q: 70,
+  R: 69.6,
+  S: 55.3,
+  T: 64.6,
+  U: 73.2,
+  V: 65.6,
+  W: 98.9,
+  X: 65.7,
+  Y: 62.1,
+  Z: 56.8,
+  ":": 30,
+  " ": 20.6,
+};
+const advance = MEASURED[text] ?? [...text].reduce((sum, c) => sum + (GLYPH[c] ?? 62), 0);
+// A unit of room at each end, so the outermost strokes are never cut by the box.
+const width = Math.ceil(advance) + 2;
+---
+
+<!-- prettier-ignore -->
+<svg class="cry" viewBox={`0 0 ${width} 70`} style={`width:${(width / 100).toFixed(3)}em`} role="img" aria-label={text} focusable="false"><text x="1" y="68" textLength={advance.toFixed(1)} lengthAdjust="spacingAndGlyphs">{text}</text></svg>

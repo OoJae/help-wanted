@@ -52,13 +52,22 @@ const press = STATIC_PATHS.filter(
 );
 const coming = LAUNCH_C_LINKS.filter((l) => deployments.contracts[l.needs].address === null);
 const isCurrent = (p: string) => (p === "/" ? path === "/" : path === p || path.startsWith(`${p}/`));
-// The front page carries the full nameplate; every other page a running head.
+// A launch C link that points into a page (it has a fragment) never marks that page as current.
+const isCurrentComing = (p: string) => isCurrent(p.split("#")[0] ?? p) && !p.includes("#");
+// The current-page mark is drawn in one link only, the first that is current, so the page carries
+// one element of its name and the mark can travel from section to section between pages.
+const marked =
+  live.find((p) => isCurrent(p.path))?.path ??
+  press.find((p) => isCurrent(p.path))?.path ??
+  coming.find((l) => isCurrentComing(l.path))?.path ??
+  null;
+// Every page carries the same running head; the front page adds the desk's three facts to its folio.
 const front = path === "/";
 const fullTitle = front ? `${SITE_NAME}: ${SITE_TAGLINE}` : `${title} · ${SITE_NAME}`;
 // The share image is one file. Its address is absolute once the site knows its own origin; until
 // then it is relative, which a crawler resolves against the page it fetched.
 const shareImage = `${origin ?? ""}/og.png`;
-const shareAlt = `${SITE_NAME}. ${SITE_TAGLINE} A classified page with one red stamp: PROVEN ON CHAIN.`;
+const shareAlt = `${SITE_NAME}. ${SITE_TAGLINE} A black enamel and brass time clock hands back order 2's time card, punched from block 26,204,499 at 10:28:47 to block 26,204,543 at 10:37:35 UTC, total 8 min 48 s, stamped PROVEN ON CHAIN in red.`;
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "WebPage",
@@ -89,6 +98,7 @@ const jsonLd = {
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="preload" href={serifFont} as="font" type="font/woff2" crossorigin />
     <link rel="preload" href={slabFont} as="font" type="font/woff2" crossorigin />
     <link rel="preload" href={monoFont} as="font" type="font/woff2" crossorigin />
@@ -120,6 +130,19 @@ const jsonLd = {
         } catch (e) {}
       })();
     </script>
+    <script is:inline>
+      // Going back to an earlier page runs the page change the other way (see the view transitions
+      // in global.css). Registered here, before the first frame, because the event fires then.
+      window.addEventListener("pagereveal", function (event) {
+        var activation = window.navigation && window.navigation.activation;
+        if (!event.viewTransition || !activation || !activation.from || !activation.entry) return;
+        if (activation.navigationType === "traverse" && activation.entry.index < activation.from.index) {
+          try {
+            event.viewTransition.types.add("back");
+          } catch (e) {}
+        }
+      });
+    </script>
     <script type="application/ld+json" is:inline set:html={toJson(jsonLd, false).replace(/</g, "\\u003c")} />
   </head>
   <body>
@@ -134,46 +157,29 @@ const jsonLd = {
     )}
     <div class="page">
       <header class="masthead">
-        {front ? (
-          <>
-            <p class="nameplate">
-              <a href="/" aria-label="HELP WANTED, front page">
-                Help Wanted
-              </a>
-            </p>
-            <p class="motto">{SITE_TAGLINE}</p>
-            <div class="folio">
-              <span class="folio__more">
-                Ethereum mainnet · {head ? <>block {formatInt(head.value.block)}</> : <>block unread</>}
-              </span>
-              <span class="folio__date">{formatUtcLongDay(now)}</span>
+        <div class="runhead">
+          <a class="runhead__name" href="/" aria-label="HELP WANTED, front page">
+            Help Wanted
+          </a>
+          <p class="folio">
+            <span class="folio__date">{formatUtcLongDay(now)}</span>
+            <span class="folio__block">
+              · {head ? <>block {formatInt(head.value.block)}</> : <>block unread</>}
+            </span>
+            {front && (
               <span class="folio__facts">{formatImd(PAID_ACTION_PRICE)} IMD a job · no token · no owner</span>
-              <button class="theme-toggle needs-js" type="button" data-theme-toggle>
-                Night edition
-              </button>
-            </div>
-          </>
-        ) : (
-          <div class="runhead">
-            <a class="runhead__name" href="/" aria-label="HELP WANTED, front page">
-              Help Wanted
-            </a>
-            <div class="folio">
-              <span class="folio__more">
-                {formatUtcLongDay(now)} ·{" "}
-                {head ? <>block {formatInt(head.value.block)}</> : <>block unread</>}
-              </span>
-              <button class="theme-toggle needs-js" type="button" data-theme-toggle>
-                Night edition
-              </button>
-            </div>
-          </div>
-        )}
+            )}
+          </p>
+          <button class="theme-toggle needs-js" type="button" data-theme-toggle>
+            Night edition
+          </button>
+        </div>
         <nav class="nav" aria-label="Sections">
           <div class="nav__group">
             {live.map((p) => (
               <a href={p.path} aria-current={isCurrent(p.path) ? "page" : undefined}>
                 {p.label}
+                {marked === p.path && <span class="nav__mark" aria-hidden="true" />}
               </a>
             ))}
           </div>
@@ -188,6 +194,7 @@ const jsonLd = {
               {press.map((p) => (
                 <a href={p.path} aria-current={isCurrent(p.path) ? "page" : undefined}>
                   {p.label}
+                  {marked === p.path && <span class="nav__mark" aria-hidden="true" />}
                 </a>
               ))}
             </div>
@@ -201,13 +208,9 @@ const jsonLd = {
                 Coming: launch C
               </span>
               {coming.map((l) => (
-                <a
-                  href={l.path}
-                  aria-current={
-                    isCurrent(l.path.split("#")[0] ?? l.path) && !l.path.includes("#") ? "page" : undefined
-                  }
-                >
+                <a href={l.path} aria-current={isCurrentComing(l.path) ? "page" : undefined}>
                   {l.label}
+                  {marked === l.path && <span class="nav__mark" aria-hidden="true" />}
                 </a>
               ))}
             </div>
@@ -265,7 +268,7 @@ const jsonLd = {
           <h2>Colophon</h2>
           <ul>
             <li>
-              {SITE_NAME} is an entry in the IdentityMD hackathon.{" "}
+              {SITE_NAME} is an entry in IdentityMD's builder competition.{" "}
               <a href="/judges">What is live and what is not.</a>
             </li>
             <li>
@@ -332,11 +335,27 @@ const jsonLd = {
         toggles.forEach(function (toggle) {
           toggle.addEventListener("click", function () {
             var next = current() === "dark" ? "light" : "dark";
-            root.setAttribute("data-theme", next);
+            function turn() {
+              root.setAttribute("data-theme", next);
+              try {
+                localStorage.setItem("hw-theme", next);
+              } catch (e) {}
+              label();
+            }
+            // The other edition comes in as one cross-fade where the browser can draw it, and at once
+            // where it cannot or the reader asked for less motion.
+            var still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            if (!document.startViewTransition || still) return turn();
+            root.classList.add("edition-turn");
+            var done = function () {
+              root.classList.remove("edition-turn");
+            };
             try {
-              localStorage.setItem("hw-theme", next);
-            } catch (e) {}
-            label();
+              document.startViewTransition(turn).finished.then(done, done);
+            } catch (e) {
+              done();
+              turn();
+            }
           });
         });
         if (navigator.clipboard) {
@@ -374,6 +393,9 @@ const jsonLd = {
           opened = [];
         });
       })();
+    </script>
+    <script>
+      import "~/scripts/site";
     </script>
   </body>
 </html>

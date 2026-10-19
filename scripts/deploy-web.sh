@@ -33,9 +33,13 @@ if ! railway status >/dev/null 2>&1; then
   fi
 fi
 
-# Read the list first: with pipefail, a grep that stops at its first match can fail the pipe.
-SERVICES="$(railway service list 2>/dev/null || true)"
-if ! grep -qw "$SERVICE" <<<"$SERVICES"; then
+# Read the list first: with pipefail, a grep that stops at its first match can fail the pipe. A list
+# that cannot be read stops the script: guessing that the service is missing would try to create it.
+if ! SERVICES="$(railway service list --json 2>/dev/null)" || [ -z "$SERVICES" ]; then
+  echo "could not read this project's services from Railway; try again in a moment" >&2
+  exit 1
+fi
+if ! jq -e --arg s "$SERVICE" 'any(.[]; .name == $s)' >/dev/null <<<"$SERVICES"; then
   echo "== creating the service '$SERVICE'"
   railway add --service "$SERVICE" --variables "REPO_URL=$REPO_URL"
 fi

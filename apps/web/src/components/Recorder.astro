@@ -1,0 +1,334 @@
+---
+/**
+ * The Recorder: the front page's time clock, drawn on the server as an SVG twin of the WebGL scene.
+ *
+ * Every number comes from `scripts/recorder/geometry.ts`, at yaw 0, so this drawing and the scene
+ * agree to the pixel and the page can crossfade from one to the other. It is printed the way the
+ * scene prints it: flat Enamel, Brass and Newsprint; one 135 degree hatch, cut in the darker of
+ * Enamel and Newsprint where a part turns from the light and thickening into the shade; gleam
+ * lines in the lighter of the two on the rounded edges, the bezel and the knob; and a dark outline,
+ * 2.5 px centred on the edge, round the case, the bezel, the lever and the sign's frame. The dial,
+ * the ticks, the hands and the sign plate are flat. At night Enamel and Newsprint swap, and so do
+ * the two inks (`--rc-dark` and `--rc-light` in clockin.css).
+ *
+ * It is split in two. The rear SVG is everything behind the time card; the card itself is whatever
+ * this component's slot holds (HTML, the content); the front SVG is the brass throat lip, which
+ * covers the card's lower edge and so seats it in the clock. Both SVGs are aria-hidden: the card is
+ * what a reader reads. The lettering on the sign is part of the drawing.
+ *
+ * Coordinates are projected space (geometry.ts) times 1000, so the SVG's numbers stay whole.
+ */
+import {
+  BEZEL,
+  CASE,
+  DIAL,
+  FRAME,
+  HANDS,
+  LEVER,
+  SIGN,
+  TICKS,
+  cardSlotRect,
+  caseOutline,
+  handAngles,
+  planeMatrix,
+  project,
+  throatLipOutline,
+  type Point,
+  type Vec3,
+} from "~/scripts/recorder/geometry";
+
+interface Props {
+  /** The time the hands show at rest, in UTC seconds since midnight. */
+  at: number;
+  /** A prefix for the drawing's pattern ids, unique on the page. */
+  id?: string;
+}
+
+const { at, id = "rc" } = Astro.props;
+const K = 1000;
+const n = (v: number) => Math.round(v * K * 10) / 10;
+const pts = (ps: readonly Point[]) => ps.map(([x, y]) => `${n(x)},${n(y)}`).join(" ");
+const P = (p: Vec3) => project(p, 0);
+// A plane parallel to the front face at depth z, in the plane's own coordinates (x, minus y) times 1000.
+const plane = (z: number) => {
+  const [a, b, c, d, e, f] = planeMatrix(z, 0);
+  return `matrix(${a} ${b.toFixed(5)} ${c} ${d.toFixed(5)} ${n(e)} ${n(f)})`;
+};
+const view = `${n(FRAME.x)} ${n(FRAME.y)} ${n(FRAME.width)} ${n(FRAME.height)}`;
+const hands = handAngles(at);
+const url = (name: string) => `url(#${id}-${name})`;
+const round = (v: number) => Math.round(v * 10) / 10;
+
+// The case: its silhouette, and the bands of its rounded edges.
+const caseLine = pts(caseOutline(0));
+const r = CASE.radius;
+const halfW = CASE.size[0] / 2;
+const halfD = CASE.size[2] / 2;
+const topFront = P([0, CASE.top, halfD - r])[1];
+const faceTop = P([0, CASE.top - r, CASE.front])[1];
+const faceBottom = P([0, -(CASE.top - r), CASE.front])[1];
+const bottom = P([0, -CASE.top, halfD - r])[1];
+const innerX = halfW - r;
+const slot = cardSlotRect(0);
+// The gleam on the top edge thins from the left, where the light is, toward the right.
+const topGleam = [
+  { from: -innerX, to: -0.3, weight: "glint3" },
+  { from: -0.3, to: 0.05, weight: "glint2" },
+  { from: 0.05, to: 0.44, weight: "glint1" },
+];
+
+// The dial and everything on it, in the dial's plane, centred on the dial.
+const dialCx = DIAL.at[0] * K;
+const dialCy = -DIAL.at[1] * K;
+const ring = (radius: number) =>
+  `M${-radius} 0a${radius} ${radius} 0 1 0 ${2 * radius} 0a${radius} ${radius} 0 1 0 ${-2 * radius} 0Z`;
+const bezelOuter = (BEZEL.radius + BEZEL.tube) * K;
+const bezelInner = (BEZEL.radius - BEZEL.tube) * K;
+/** An arc of radius `radius` from `from` to `to` degrees, counterclockwise as seen (0 is three o'clock). */
+const arc = (radius: number, from: number, to: number) => {
+  const p = (deg: number) =>
+    `${round(Math.cos((deg * Math.PI) / 180) * radius)} ${round(-Math.sin((deg * Math.PI) / 180) * radius)}`;
+  return `M${p(from)}A${radius} ${radius} 0 0 0 ${p(to)}`;
+};
+const halfTurn = (radius: number) => round(Math.PI * radius);
+const dialR = DIAL.radius * K;
+const ticks = Array.from({ length: TICKS.count }, (_, i) => {
+  const heavy = i % TICKS.heavyEvery === 0;
+  const t = heavy ? TICKS.major : TICKS.minor;
+  return { angle: (360 * i) / TICKS.count, x: (-t.width / 2) * K, y: -TICKS.outer * K, w: t.width * K, h: t.length * K };
+});
+const hour = HANDS.hour;
+const minute = HANDS.minute;
+const second = HANDS.second;
+
+// The sign: the plate, its brass frame of four bars, and the lettering.
+const plate = SIGN.plate;
+const plateX = (plate.at[0] - plate.size[0] / 2) * K;
+const plateY = -(plate.at[1] + plate.size[1] / 2) * K;
+const plateW = plate.size[0] * K;
+const plateH = plate.size[1] * K;
+const bar = SIGN.frame.bar * K;
+const letters = SIGN.lettering;
+// Alfa Slab One's capitals stand about 0.7 of the body high; the baseline sits that far below the plate's centre line.
+const letterBase = -plate.at[1] * K + (letters.fontSize * K * 0.7) / 2;
+
+// The lever, in its own frame: the pivot at the origin, the arm along x before its turn.
+const pivotX = LEVER.pivot[0] * K;
+const pivotY = -LEVER.pivot[1] * K;
+const armR = LEVER.arm.radius * K;
+const armL = LEVER.arm.length * K;
+const knobR = LEVER.knob.radius * K;
+const hubR = LEVER.hub.radius * K;
+
+const lipBox = throatLipOutline(0);
+const lip = pts(lipBox);
+const lipLeft = Math.min(...lipBox.map((p) => p[0]));
+const lipRight = Math.max(...lipBox.map((p) => p[0]));
+
+// One 135 degree hatch at one pitch, in three weights. Lines of every weight fall on the same
+// places, so a heavier weight laid over a lighter one reads as the same line thickening.
+const PITCH = 11;
+const WEIGHTS = [1.4, 2.8, 4.6] as const;
+---
+
+<div class="recorder" data-recorder>
+  <svg
+    class="recorder__rear"
+    viewBox={view}
+    preserveAspectRatio="xMidYMid meet"
+    aria-hidden="true"
+    focusable="false"
+    data-recorder-rear
+  >
+    <defs>
+      {
+        WEIGHTS.map((w, i) => (
+          <>
+            <pattern
+              id={`${id}-ink${i + 1}`}
+              patternUnits="userSpaceOnUse"
+              width={PITCH}
+              height={PITCH}
+              patternTransform="rotate(45)"
+            >
+              <rect class="rc-dark" x="0" y="0" width={w} height={PITCH} />
+            </pattern>
+            <pattern
+              id={`${id}-glint${i + 1}`}
+              patternUnits="userSpaceOnUse"
+              width={PITCH}
+              height={PITCH}
+              patternTransform="rotate(45)"
+            >
+              <rect class="rc-light" x="0" y="0" width={w} height={PITCH} />
+            </pattern>
+          </>
+        ))
+      }
+      <clipPath id={`${id}-case`}>
+        <polygon points={caseLine} />
+      </clipPath>
+    </defs>
+
+    <!-- The lever first: its hub sits on the flank, and the case hides the part of it inside. -->
+    <g transform={plane(LEVER.pivot[2])}>
+      <g transform={`translate(${pivotX} ${pivotY})`}>
+        <g data-lever transform={`rotate(${LEVER.rest})`}>
+          <rect class="rc-brass" x="0" y={-armR} width={armL} height={2 * armR} />
+          <rect x="0" y={armR * 0.2} width={armL} height={armR * 0.8} fill={url("ink2")} />
+          <rect class="rc-edge" x="0" y={-armR} width={armL} height={2 * armR} />
+          <circle class="rc-enamel" cx={armL} cy="0" r={knobR} />
+          <path
+            d={`M${armL - knobR * 0.86} ${-knobR * 0.1}a${knobR * 0.9} ${knobR * 0.9} 0 0 1 ${knobR * 0.76} ${-knobR * 0.76}a${knobR * 1.2} ${knobR * 1.2} 0 0 0 ${-knobR * 0.76} ${knobR * 0.76}Z`}
+            fill={url("glint3")}
+          />
+          <path
+            d={`M${armL - knobR} 0a${knobR} ${knobR} 0 0 0 ${2 * knobR} 0a${knobR * 1.5} ${knobR * 1.5} 0 0 1 ${-2 * knobR} 0Z`}
+            fill={url("ink2")}
+            transform={`rotate(-45 ${armL} 0)`}
+          />
+          <circle class="rc-edge" cx={armL} cy="0" r={knobR} />
+        </g>
+      </g>
+    </g>
+    <g transform={plane(LEVER.pivot[2] + LEVER.hub.length / 2)}>
+      <circle class="rc-brass" cx={pivotX} cy={pivotY} r={hubR} />
+      <circle class="rc-edge" cx={pivotX} cy={pivotY} r={hubR} />
+    </g>
+
+    <g>
+      <polygon class="rc-enamel" points={caseLine} />
+      <g clip-path={url("case")}>
+        <!-- Gleam on the rounded edge that faces the light: the top edge, as it turns toward the front. -->
+        {
+          topGleam.map((g) => (
+            <rect
+              x={n(g.from)}
+              y={n(topFront + (faceTop - topFront) * 0.3)}
+              width={n(g.to - g.from)}
+              height={n((faceTop - topFront) * 0.36)}
+              fill={url(g.weight)}
+            />
+          ))
+        }
+        <!-- Shade on the edges that turn away, cut in the darker ink (it shows at night). -->
+        <rect x={n(innerX)} y={n(faceTop)} width={n(r + 0.01)} height={n(bottom - faceTop + 0.05)} fill={url("ink2")} />
+        <rect x={n(-halfW)} y={n(faceBottom)} width={n(2 * halfW)} height={n(bottom - faceBottom + 0.05)} fill={url("ink2")} />
+        <rect x={n(innerX + r * 0.45)} y={n(faceTop)} width={n(r)} height={n(bottom - faceTop + 0.05)} fill={url("ink3")} />
+        <!-- The slot the card stands in. -->
+        <rect class="rc-enamel" x={n(slot.x)} y={n(slot.y)} width={n(slot.width)} height={n(slot.height)} />
+      </g>
+      <polygon class="rc-edge" points={caseLine} />
+    </g>
+
+    <g transform={plane(DIAL.at[2])}>
+      <circle class="rc-paper" cx={dialCx} cy={dialCy} r={dialR} />
+    </g>
+
+    <g transform={plane(BEZEL.at[2])}>
+      <g transform={`translate(${BEZEL.at[0] * K} ${-BEZEL.at[1] * K})`}>
+        <path class="rc-brass" d={`${ring(bezelOuter)}${ring(bezelInner)}`} fill-rule="evenodd" />
+        <!-- The tube's outer side turns from the light on the lower right, its inner side on the upper left. -->
+        <circle
+          r={bezelOuter - 8}
+          fill="none"
+          stroke={url("ink2")}
+          stroke-width="16"
+          stroke-dasharray={`${halfTurn(bezelOuter - 8)} ${4 * halfTurn(bezelOuter - 8)}`}
+          transform="rotate(-50)"
+        />
+        <circle
+          r={bezelOuter - 4}
+          fill="none"
+          stroke={url("ink3")}
+          stroke-width="8"
+          stroke-dasharray={`${halfTurn(bezelOuter - 4) * 0.7} ${4 * halfTurn(bezelOuter - 4)}`}
+          transform="rotate(-25)"
+        />
+        <circle
+          r={bezelInner + 6}
+          fill="none"
+          stroke={url("ink2")}
+          stroke-width="12"
+          stroke-dasharray={`${halfTurn(bezelInner + 6)} ${4 * halfTurn(bezelInner + 6)}`}
+          transform="rotate(130)"
+        />
+        <path class="rc-gleam" d={arc(bezelOuter - 9, 103, 162)} />
+        <path class="rc-gleam rc-gleam--thin" d={arc(bezelInner + 8, 280, 335)} />
+        <circle class="rc-edge" r={bezelOuter} />
+      </g>
+    </g>
+
+    <g transform={plane(TICKS.z)}>
+      <g transform={`translate(${dialCx} ${dialCy})`}>
+        {ticks.map((t) => <rect class="rc-enamel" x={t.x} y={t.y} width={t.w} height={t.h} transform={`rotate(${t.angle})`} />)}
+      </g>
+    </g>
+
+    <g transform={plane(hour.z)}>
+      <g transform={`translate(${dialCx} ${dialCy})`}>
+        <g data-hand="hour" transform={`rotate(${hands.hour})`}>
+          <rect class="rc-enamel" x={(-hour.width / 2) * K} y={-hour.length * K} width={hour.width * K} height={(hour.length + hour.tail) * K} />
+        </g>
+      </g>
+    </g>
+    <g transform={plane(minute.z)}>
+      <g transform={`translate(${dialCx} ${dialCy})`}>
+        <g data-hand="minute" transform={`rotate(${hands.minute})`}>
+          <rect class="rc-enamel" x={(-minute.width / 2) * K} y={-minute.length * K} width={minute.width * K} height={(minute.length + minute.tail) * K} />
+        </g>
+      </g>
+    </g>
+    <g transform={plane(second.z)}>
+      <g transform={`translate(${dialCx} ${dialCy})`}>
+        <g data-hand="second" transform={`rotate(${hands.second})`}>
+          <rect class="rc-brass" x={(-second.width / 2) * K} y={-second.length * K} width={second.width * K} height={(second.length + second.tail) * K} />
+          <circle class="rc-brass" cx="0" cy={HANDS.counterweight.offset * K} r={HANDS.counterweight.radius * K} />
+        </g>
+      </g>
+    </g>
+    <g transform={plane(HANDS.cap.z)}>
+      <circle class="rc-brass" cx={dialCx} cy={dialCy} r={HANDS.cap.radius * K} />
+    </g>
+
+    <g transform={plane(plate.at[2])}>
+      <rect class="rc-enamel" x={plateX} y={plateY} width={plateW} height={plateH} />
+    </g>
+    <g transform={plane(SIGN.frame.z)}>
+      <path
+        class="rc-brass"
+        d={`M${plateX - bar} ${plateY - bar}h${plateW + 2 * bar}v${plateH + 2 * bar}h${-(plateW + 2 * bar)}ZM${plateX} ${plateY}v${plateH}h${plateW}v${-plateH}Z`}
+      />
+      <rect class="rc-edge" x={plateX - bar} y={plateY - bar} width={plateW + 2 * bar} height={plateH + 2 * bar} />
+    </g>
+    <g transform={plane(letters.z)}>
+      <text
+        class="recorder__sign"
+        x={plate.at[0] * K}
+        y={letterBase}
+        text-anchor="middle"
+        font-size={letters.fontSize * K}
+        textLength={letters.width * K}
+        lengthAdjust="spacingAndGlyphs">{letters.text}</text
+      >
+    </g>
+  </svg>
+  <div class="recorder__card"><slot /></div>
+  <svg
+    class="recorder__front"
+    viewBox={view}
+    preserveAspectRatio="xMidYMid meet"
+    aria-hidden="true"
+    focusable="false"
+    data-recorder-front
+  >
+    <defs>
+      <clipPath id={`${id}-lipshade`}>
+        <rect x={n(lipLeft + (lipRight - lipLeft) * 0.62)} y={n(FRAME.y)} width={n(FRAME.width)} height={n(FRAME.height)} />
+      </clipPath>
+    </defs>
+    <polygon class="rc-brass" points={lip} data-lip />
+    <polygon points={lip} fill={url("ink2")} clip-path={url("lipshade")} data-lip />
+    <polygon class="rc-edge" points={lip} data-lip />
+  </svg>
+</div>

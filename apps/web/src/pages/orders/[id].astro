@@ -7,6 +7,7 @@ import Theirs from "~/components/Theirs.astro";
 import Layout from "~/layouts/Layout.astro";
 import { formatDuration, formatInt, formatUtc } from "~/lib/format";
 import { pageData } from "~/lib/page";
+import { sentenceCase } from "~/lib/stamp";
 import type { OrderModel } from "~/models/desk";
 
 const loaded = await pageData<OrderModel>(Astro);
@@ -14,6 +15,9 @@ if (loaded instanceof Response) return loaded;
 const { model: m, meta } = loaded;
 const o = m.order;
 const c = m.card;
+// The timeline's step names arrive in capitals ("JOB OPENED"), as the twins print them. On the page
+// they are labels, set in sentence case like every other label.
+const stepName = (label: string) => sentenceCase(label);
 ---
 
 <Layout title={meta.title} description={meta.description} sources={m.sources} generatedAt={m.generatedAt}>
@@ -60,7 +64,8 @@ const c = m.card;
       </div>
       {c?.stamp && (
         <p class="release__stamp">
-          <Stamp stamp={c.stamp} big />
+          {/* Named for the page change: the stamp on this order's card travels into this one. */}
+          <Stamp stamp={c.stamp} big name={`order-${m.id}-stamp`} />
         </p>
       )}
     </div>
@@ -70,22 +75,64 @@ const c = m.card;
   {m.error && <p class="small spot">The desk could not be read just now: {m.error}</p>}
 
   {o && (
-    <>
-      <section class="section section--first">
-        <div class="section__head">
-          <h2>Timeline</h2>
-          <p>posted, taken, job opened, delivered, proven</p>
-        </div>
-        <ol class="timeline">
-          {m.timeline.map((step) => (
-            <li data-at={step.at}>
-              <span class="label">{step.label}</span>
-              <p>{step.detail}</p>
-            </li>
-          ))}
-        </ol>
-      </section>
+    <section class="section section--first">
+      <div class="section__head">
+        <h2>Timeline</h2>
+        <p>posted, taken, job opened, delivered, proven</p>
+      </div>
+      <ol class="timeline">
+        {m.timeline.map((step) => (
+          <li data-at={step.at}>
+            <span class="label">{stepName(step.label)}</span>
+            <p>{step.detail}</p>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )}
 
+  {/* The chain's own record of the order comes next, before its terms: what happened, then what
+       was agreed. */}
+  {m.trail.length > 0 && (
+    <section class="section" id="trail">
+      <div class="section__head">
+        <h2>The transaction trail</h2>
+        <p>{m.trail.length} transactions, oldest first</p>
+      </div>
+      {m.trailNote && <p class="small">{m.trailNote}</p>}
+      <div class="tablewrap">
+        <table class="wide stack">
+          <thead>
+            <tr>
+              <th style="width:14%">Step</th>
+              <th style="width:16%">When (UTC)</th>
+              <th style="width:22%">Transaction</th>
+              <th>What it did</th>
+            </tr>
+          </thead>
+          <tbody>
+            {m.trail.map((step) => (
+              <tr data-step={step.key}>
+                <th scope="row">{step.label}</th>
+                <td data-label="When (UTC)">{formatUtc(step.at)}</td>
+                <td class="code" data-label="Transaction">
+                  <a class="break" href={step.txUrl} rel="noopener">
+                    {step.tx}
+                  </a>
+                  <br />
+                  <span class="small">block {formatInt(step.block)}</span>
+                </td>
+                <td data-label="What it did">{step.what}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )}
+
+  {o && (
+    <>
       <section class="section">
         <div class="section__head">
           <h2>The order</h2>
@@ -208,44 +255,6 @@ const c = m.card;
     </>
   )}
 
-  {m.trail.length > 0 && (
-    <section class="section" id="trail">
-      <div class="section__head">
-        <h2>The transaction trail</h2>
-        <p>{m.trail.length} transactions, oldest first</p>
-      </div>
-      {m.trailNote && <p class="small">{m.trailNote}</p>}
-      <div class="tablewrap">
-        <table class="wide stack">
-          <thead>
-            <tr>
-              <th style="width:14%">Step</th>
-              <th style="width:16%">When (UTC)</th>
-              <th style="width:22%">Transaction</th>
-              <th>What it did</th>
-            </tr>
-          </thead>
-          <tbody>
-            {m.trail.map((step) => (
-              <tr data-step={step.key}>
-                <th scope="row">{step.label}</th>
-                <td data-label="When (UTC)">{formatUtc(step.at)}</td>
-                <td class="code" data-label="Transaction">
-                  <a class="break" href={step.txUrl} rel="noopener">
-                    {step.tx}
-                  </a>
-                  <br />
-                  <span class="small">block {formatInt(step.block)}</span>
-                </td>
-                <td data-label="What it did">{step.what}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  )}
-
   {m.proof && (
     <section class="section" id="proof">
       <div class="section__head">
@@ -302,28 +311,14 @@ const c = m.card;
         <h2>The work</h2>
         <p>as IdentityMD lists it</p>
       </div>
-      {m.picture && (
-        <p class="actions">
-          <a class="btn" href={m.picture.url} rel="noopener">
-            {m.picture.label}
-          </a>
-        </p>
-      )}
+      {/* The key that opens the work is printed once, in the page head; this section says what it
+           opens. */}
       {m.picture && (
         <p class="small">
           The link opens IdentityMD's page of the job, which shows it. This site serves no copy.
         </p>
       )}
-      {m.work && (
-        <>
-          <p class="actions">
-            <a class="btn" href={m.work.url} rel="noopener">
-              {m.work.label}
-            </a>
-          </p>
-          <p class="small">{m.work.what} This site serves no copy.</p>
-        </>
-      )}
+      {m.work && <p class="small">{m.work.what} This site serves no copy.</p>}
       {m.mediaCid && (
         <>
           <p>

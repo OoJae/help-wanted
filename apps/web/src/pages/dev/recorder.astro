@@ -1,0 +1,252 @@
+---
+/**
+ * The Recorder's bench, in development only: the WebGL scene on its own, at the FRAME's shape, with
+ * geometry.ts's outlines over it to check that the two renderers register, and a still mode for
+ * capturing the clock as a PNG. The production server answers 404 here, and the bench's script is
+ * inline, so nothing of it is built into the site.
+ *
+ * The query string sets the start: ?t=37727&yaw=0&lever=0&edition=day (UTC seconds of the day; yaw
+ * in degrees; lever 0..1 through one strike; day or night), plus &w=560 (CSS width), &dpr=2, &flat=1
+ * (two-tone print), &overlay=1 (outlines), &card=1 (a card and the throat lip over the canvas, as the
+ * page lays them) and &still=1 (draw once, keep the buffer, and put the PNG in `window.__still`).
+ */
+import "@fontsource/alfa-slab-one/latin-400.css";
+import "~/styles/tokens.css";
+
+if (import.meta.env.PROD) return new Response(null, { status: 404 });
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>Recorder bench</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 16px;
+        background: var(--newsprint);
+        color: var(--enamel);
+        font:
+          14px/1.4 ui-monospace,
+          monospace;
+      }
+      .stage {
+        position: relative;
+        width: var(--w, 560px);
+        aspect-ratio: 1.49 / 1.46;
+      }
+      .stage > * {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .stage canvas {
+        z-index: 1;
+      }
+      .stage .card {
+        z-index: 2;
+        pointer-events: none;
+      }
+      .stage .overlay {
+        z-index: 3;
+        pointer-events: none;
+      }
+      form {
+        display: grid;
+        grid-template-columns: max-content 1fr max-content;
+        gap: 4px 12px;
+        align-items: center;
+        max-width: 560px;
+        margin-top: 16px;
+      }
+      output {
+        min-width: 7ch;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="stage" id="stage">
+      <canvas id="clock"></canvas>
+      <svg class="card" id="card"></svg>
+      <svg class="overlay" id="overlay"></svg>
+    </div>
+    <form id="controls">
+      <label for="t">time (UTC s)</label>
+      <input id="t" type="range" min="0" max="86400" step="1" />
+      <output id="t-out"></output>
+      <label for="yaw">yaw</label>
+      <input id="yaw" type="range" min="-6" max="6" step="0.1" />
+      <output id="yaw-out"></output>
+      <label for="lever">lever</label>
+      <input id="lever" type="range" min="0" max="1" step="0.01" />
+      <output id="lever-out"></output>
+      <label for="edition">edition</label>
+      <select id="edition">
+        <option value="day">day</option>
+        <option value="night">night</option>
+      </select>
+      <span></span>
+      <label for="flat">flat print</label>
+      <input id="flat" type="checkbox" />
+      <span></span>
+      <label for="overlay-on">outlines</label>
+      <input id="overlay-on" type="checkbox" />
+      <span></span>
+      <label for="card-on">card and lip</label>
+      <input id="card-on" type="checkbox" />
+      <span></span>
+    </form>
+
+    <script is:inline type="module">
+      import createScene from "/src/scripts/recorder/scene.ts";
+      import * as G from "/src/scripts/recorder/geometry.ts";
+
+      const q = new URLSearchParams(location.search);
+      const num = (name, fallback) =>
+        q.has(name) && Number.isFinite(Number(q.get(name))) ? Number(q.get(name)) : fallback;
+      const root = document.documentElement;
+      const stage = document.getElementById("stage");
+      const canvas = document.getElementById("clock");
+      const overlay = document.getElementById("overlay");
+      const card = document.getElementById("card");
+      const $ = (id) => document.getElementById(id);
+      const still = q.get("still") === "1";
+      const dpr = num("dpr", Math.min(devicePixelRatio || 1, 2));
+
+      stage.style.setProperty("--w", `${num("w", 560)}px`);
+      $("t").value = String(num("t", 10 * 3600 + 28 * 60 + 47));
+      $("yaw").value = String(num("yaw", 0));
+      $("lever").value = String(num("lever", 0));
+      $("edition").value = q.get("edition") === "night" ? "night" : "day";
+      $("flat").checked = q.get("flat") === "1";
+      $("overlay-on").checked = q.get("overlay") === "1";
+      $("card-on").checked = q.get("card") === "1";
+
+      const box = `${G.FRAME.x} ${G.FRAME.y} ${G.FRAME.width} ${G.FRAME.height}`;
+      overlay.setAttribute("viewBox", box);
+      card.setAttribute("viewBox", box);
+      const pts = (list) => list.map(([x, y]) => `${x},${y}`).join(" ");
+      const matrix = (z, yaw) => `matrix(${G.planeMatrix(z, yaw).join(" ")})`;
+
+      // geometry.ts's own silhouettes, in hairlines over the canvas.
+      function drawOverlay(state) {
+        const { yaw } = state;
+        const a = G.handAngles(state.utcSecondsOfDay);
+        const lever = G.LEVER.rest + G.leverAngle(state.lever);
+        const dy = -G.DIAL.at[1];
+        const hand = (k, angle) => {
+          const h = G.HANDS[k];
+          return `<g transform="${matrix(h.z, yaw)}"><rect transform="rotate(${angle} 0 ${dy})" x="${-h.width / 2}" y="${dy - h.length}" width="${h.width}" height="${h.length + h.tail}"/></g>`;
+        };
+        const sp = G.SIGN.plate;
+        const fx = sp.size[0] / 2 + G.SIGN.frame.bar;
+        const fy = sp.size[1] / 2 + G.SIGN.frame.bar;
+        const [px, py] = [G.LEVER.pivot[0], -G.LEVER.pivot[1]];
+        const knob = G.project(
+          [
+            G.LEVER.pivot[0] + G.LEVER.arm.length * Math.cos((-lever * Math.PI) / 180),
+            G.LEVER.pivot[1] + G.LEVER.arm.length * Math.sin((-lever * Math.PI) / 180),
+            0,
+          ],
+          yaw,
+        );
+        overlay.innerHTML = `<g fill="none" stroke="#e0f" stroke-width="0.0015" vector-effect="non-scaling-stroke">
+          <polygon points="${pts(G.caseOutline(yaw))}"/>
+          <g transform="${matrix(G.DIAL.at[2] + G.DIAL.thickness / 2, yaw)}"><circle cx="0" cy="${dy}" r="${G.DIAL.radius}"/></g>
+          <g transform="${matrix(G.BEZEL.at[2], yaw)}"><circle cx="0" cy="${dy}" r="${G.BEZEL.radius + G.BEZEL.tube}"/></g>
+          ${hand("hour", a.hour)}${hand("minute", a.minute)}${hand("second", a.second)}
+          <g transform="${matrix(G.SIGN.frame.z + G.SIGN.frame.depth / 2, yaw)}"><rect x="${-fx}" y="${-sp.at[1] - fy}" width="${2 * fx}" height="${2 * fy}"/></g>
+          <g transform="${matrix(sp.at[2] + sp.size[2] / 2, yaw)}"><rect x="${-sp.size[0] / 2}" y="${-sp.at[1] - sp.size[1] / 2}" width="${sp.size[0]}" height="${sp.size[1]}"/></g>
+          <g transform="${matrix(0, yaw)}"><g transform="rotate(${lever} ${px} ${py})"><rect x="${px}" y="${py - G.LEVER.arm.radius}" width="${G.LEVER.arm.length}" height="${2 * G.LEVER.arm.radius}"/></g></g>
+          <circle cx="${knob[0]}" cy="${knob[1]}" r="${G.LEVER.knob.radius}"/>
+          <polygon points="${pts(G.throatLipOutline(yaw))}"/>
+        </g>`;
+      }
+
+      // The card and the lip as the page lays them over the canvas (a stand-in card, not the page's).
+      function drawCard(state) {
+        const { yaw } = state;
+        card.innerHTML = `<g transform="${matrix(G.CARD.z, yaw)}"><rect x="${-G.CARD.width / 2}" y="${-G.CASE.top - 0.6}" width="${G.CARD.width}" height="0.6" fill="var(--card)" stroke="var(--rule)" stroke-width="0.003"/></g>
+          <polygon points="${pts(G.throatLipOutline(yaw))}" fill="var(--brass)"/>`;
+      }
+
+      function read() {
+        return {
+          utcSecondsOfDay: Number($("t").value),
+          yaw: Number($("yaw").value),
+          lever: Number($("lever").value),
+          eject: 0,
+          edition: $("edition").value,
+        };
+      }
+
+      const fmt = (s) => new Date(s * 1000).toISOString().slice(11, 19);
+      let scene = null;
+      function draw() {
+        const state = read();
+        root.setAttribute("data-theme", state.edition === "night" ? "dark" : "light");
+        canvas.dataset.print = $("flat").checked ? "flat" : "engraving";
+        $("t-out").textContent = fmt(state.utcSecondsOfDay);
+        $("yaw-out").textContent = `${state.yaw.toFixed(1)} deg`;
+        $("lever-out").textContent = `${G.leverAngle(state.lever).toFixed(1)} deg`;
+        // SVG elements have no hidden property, so they are shown and hidden by style.
+        const outlines = $("overlay-on").checked;
+        const cardOn = $("card-on").checked;
+        overlay.style.display = outlines ? "" : "none";
+        card.style.display = cardOn ? "" : "none";
+        if (outlines) drawOverlay(state);
+        if (cardOn) drawCard(state);
+        scene?.render(state);
+        return state;
+      }
+
+      function size() {
+        const rect = canvas.getBoundingClientRect();
+        scene?.resize(rect.width, rect.height, dpr);
+      }
+
+      $("controls").addEventListener("input", () => draw());
+      addEventListener("resize", () => {
+        size();
+        draw();
+      });
+
+      const style = getComputedStyle(canvas);
+      const colors = Object.fromEntries(
+        ["newsprint", "card", "enamel", "carbon", "brass", "ribbon"].map((n) => [
+          n,
+          style.getPropertyValue(`--${n}`).trim(),
+        ]),
+      );
+      draw();
+      try {
+        scene = await createScene(canvas, { colors, signFontFamily: "Alfa Slab One", still });
+        size();
+        draw();
+        if (still) window.__still = canvas.toDataURL("image/png");
+        root.dataset.bench = "ready";
+      } catch (error) {
+        root.dataset.bench = "failed";
+        document.body.insertAdjacentHTML(
+          "beforeend",
+          `<p>The scene did not start: ${String((error && error.message) || error)}</p>`,
+        );
+      }
+      window.__bench = {
+        get scene() {
+          return scene;
+        },
+        canvas,
+        draw,
+        size,
+        read,
+        G,
+      };
+    </script>
+  </body>
+</html>

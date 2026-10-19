@@ -1,9 +1,10 @@
 ---
 /**
  * The share image's source. `public/og.png` is a picture of this page at 1200 by 630 pixels; when
- * the look of the site changes, open this page at that size and save the picture again. It carries
- * no figure and no claim about any job: the name, what the site is, and the three stamps an order
- * can end with.
+ * the look of the site changes, open this page at that size, save the picture again and reduce it
+ * to a palette (it stays under 200 kB). It shows the name, what the site is, and the front page's
+ * Recorder handing back order 2's time card: the lines and the total from the pinned history that
+ * /orders/2 prints, and the stamp its settlement earned (Delivered, proven, in that record).
  */
 import "@fontsource-variable/source-serif-4/opsz.css";
 import "@fontsource-variable/source-serif-4/wght-italic.css";
@@ -11,8 +12,41 @@ import "@fontsource/alfa-slab-one/latin-400.css";
 import "@fontsource/ibm-plex-mono/latin-400.css";
 import "@fontsource/ibm-plex-mono/latin-600.css";
 import "~/styles/global.css";
-import Stamp from "~/components/Stamp.astro";
+import "~/styles/clockin.css";
+import Recorder from "~/components/Recorder.astro";
+import TimeCard, { type TimeCardLine, type TimeCardOrder } from "~/components/TimeCard.astro";
+import { pinnedOrder } from "~/config/history";
+import { getSources } from "~/data";
+import { formatDuration, formatUtc } from "~/lib/format";
 import { SITE_NAME, SITE_TAGLINE } from "~/lib/twins";
+
+const { deployments } = getSources();
+const order = pinnedOrder(deployments.contracts.workOrders.address, 2);
+const step = (key: string) => order?.trail.find((x) => x.key === key) ?? null;
+const opened = step("opened");
+const settled = step("settled");
+const line = (key: string, label: string, tx: { at: string; block: number }): TimeCardLine => ({
+  key,
+  label,
+  at: tx.at,
+  block: tx.block,
+});
+const card: TimeCardOrder | null =
+  order && opened && settled
+    ? {
+        id: order.id,
+        path: `/orders/${order.id}`,
+        day: formatUtc(opened.tx.at).split(", ")[0] ?? "",
+        note: null,
+        lines: order.trail.map((x) => line(x.key, x.label, x.tx)),
+        total: formatDuration(Date.parse(settled.tx.at) - Date.parse(opened.tx.at)),
+        // The share card prints the six lines and the total; what came after stays on the page.
+        after: [],
+        proven: true,
+      }
+    : null;
+const at = settled ? Date.parse(settled.tx.at) / 1000 : Date.now() / 1000;
+const restAt = at % 86400;
 ---
 
 <!doctype html>
@@ -29,77 +63,106 @@ import { SITE_NAME, SITE_TAGLINE } from "~/lib/twins";
         overflow: hidden;
       }
 
-      .card {
+      .og {
+        position: relative;
         box-sizing: border-box;
         width: 1200px;
         height: 630px;
-        padding: 30px 56px 0;
-        display: flex;
-        flex-direction: column;
+        padding: 34px 0 0 64px;
+        overflow: hidden;
       }
 
-      .card__folio {
-        display: flex;
-        justify-content: space-between;
+      .og__folio {
         font-family: var(--mono);
         font-size: 19px;
-        color: var(--ink-2);
-        border-bottom: 2px solid var(--ink);
+        color: var(--carbon);
+        margin: 0;
+        max-width: none;
+        border-bottom: 2px solid var(--enamel);
         padding-bottom: 12px;
+        width: 520px;
       }
 
-      .card__name {
+      .og__name {
         font-family: var(--slab);
-        font-size: 128px;
+        font-size: 108px;
         line-height: 0.92;
         letter-spacing: 0.01em;
         text-transform: uppercase;
-        text-align: center;
-        white-space: nowrap;
-        margin: 40px 0 0;
+        margin: 52px 0 0;
         max-width: none;
       }
 
-      .card__motto {
+      .og__motto {
         font-style: italic;
-        font-size: 38px;
-        line-height: 1.2;
-        text-align: center;
-        margin: 22px 0 0;
-        max-width: none;
+        font-size: 34px;
+        line-height: 1.22;
+        color: var(--carbon);
+        margin: 30px 0 0;
+        max-width: 15em;
       }
 
-      .card__stamps {
-        margin: auto 0 0;
-        border-top: 6px solid var(--ink);
-        padding: 46px 10px 56px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
+      .og__rule {
+        position: absolute;
+        left: 64px;
+        bottom: 0;
+        width: 520px;
+        border-top: 6px solid var(--enamel);
+        height: 46px;
       }
 
-      .card__stamps .stamp {
-        --h: 62px;
+      /* The Recorder at the right, the card coming out of it, the clock running off the foot. */
+      .og__stage {
+        position: absolute;
+        left: 650px;
+        top: 74px;
+        width: 550px;
+        container-type: inline-size;
       }
 
-      .card__stamps .stamp--proof {
-        --h: 92px;
+      .og__stage .recorder {
+        --card-w: 22rem;
+        margin: 0;
+        transform-origin: 0 0;
+        transform: translate(20px, 0) scale(0.74);
+      }
+
+      .og__stage .recorder__card {
+        transform: translateY(calc(var(--u) * -0.07)) scale(1.06);
+      }
+
+      /* On the share card the stamp is struck larger, in the space under the total. */
+      .og__stage .timecard {
+        position: relative;
+        padding-bottom: calc(var(--u) * 0.05 + 3.6rem);
+      }
+
+      .og__stage .timecard__stampcell {
+        position: static;
+      }
+
+      .og__stage .timecard__stamp {
+        position: absolute;
+        right: 1.4rem;
+        bottom: calc(var(--u) * 0.05 + 0.5rem);
+        margin: 0;
+      }
+
+      .og__stage .timecard__stamp .stamp {
+        --h: 2.6rem;
       }
     </style>
   </head>
   <body>
-    <div class="card">
-      <div class="card__folio">
-        <span>Ethereum mainnet</span>
-        <span>Employers: smart contracts · Staff: robots</span>
-        <span>no token · no owner</span>
-      </div>
-      <p class="card__name">Help Wanted</p>
-      <p class="card__motto">{SITE_TAGLINE}</p>
-      <div class="card__stamps">
-        <Stamp stamp={{ text: "FILLED", tone: "filled" }} tilt />
-        <Stamp stamp={{ text: "PROVEN ON CHAIN", tone: "proof" }} />
-        <Stamp stamp={{ text: "REFUNDED", tone: "void" }} tilt />
+    <div class="og">
+      <p class="og__folio">Ethereum mainnet · no token · no owner</p>
+      <p class="og__name">Help<br />Wanted</p>
+      <p class="og__motto">{SITE_TAGLINE}</p>
+      <div class="og__rule"></div>
+      <div class="og__stage">
+        <Recorder at={restAt} id="og">
+          <TimeCard order={card} stamp={card ? { text: "PROVEN ON CHAIN", tone: "proof" } : null} />
+        </Recorder>
       </div>
     </div>
     <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">

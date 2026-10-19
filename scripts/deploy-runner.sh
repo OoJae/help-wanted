@@ -26,8 +26,11 @@ railway whoami >/dev/null 2>&1 || { echo "not signed in: run 'railway login' fir
 railway status >/dev/null 2>&1 || { echo "this folder is not linked to a Railway project: run scripts/deploy-web.sh first" >&2; exit 1; }
 
 # Read the list first: with pipefail, a grep that stops at its first match can fail the pipe.
-SERVICES="$(railway service list 2>/dev/null || true)"
-if ! grep -qw "$SERVICE" <<<"$SERVICES"; then
+if ! SERVICES="$(railway service list --json 2>/dev/null)" || [ -z "$SERVICES" ]; then
+  echo "could not read this project's services from Railway; try again in a moment" >&2
+  exit 1
+fi
+if ! jq -e --arg s "$SERVICE" 'any(.[]; .name == $s)' >/dev/null <<<"$SERVICES"; then
   echo "== creating the service '$SERVICE'"
   railway add --service "$SERVICE"
   echo "== set its Dockerfile path to bots/runner/Dockerfile and attach a volume at /data before it can run live"

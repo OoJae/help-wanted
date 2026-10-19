@@ -1,0 +1,715 @@
+/*
+ * The front page: a time card read against a clock.
+ *
+ * The hero (`section.clockin`) holds the intro, the stage with the Recorder and order 2's card, and
+ * the five steps. Without JavaScript, and under reduced motion, it is a still page: the stage sits
+ * in the flow, the clock at rest, every line punched. Where motion is allowed the page's inline
+ * script sets `clock-on` on the root before the first paint; the stage then sticks (100svh beside the
+ * steps on a wide screen, a band across the top of a phone), each step is as tall as order 2 spent
+ * on it (one variable, --order-seconds-per-screen), and `clockin.ts` moves the clock by the scroll.
+ *
+ * Only tokens.css names; only --s1 to --s6; only transform and opacity move, on the token curves.
+ */
+
+/* On this page the hero bleeds to the screen's edges, so main lets it out and each section clips its own
+   overflow (a landing stamp must still never set a phone scrolling sideways). */
+main:has(> .clockin) {
+  overflow-x: visible;
+}
+
+main:has(> .clockin) > .section {
+  overflow-x: clip;
+}
+
+/* The tagline now opens the hero; the masthead does not show it a second time on this page. */
+.masthead > .motto {
+  visibility: hidden;
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* The hero                                                                                    */
+/* ------------------------------------------------------------------------------------------ */
+
+.clockin {
+  --order-seconds-per-screen: 180;
+  /* How far the stage runs past the page's column to the screen's right edge. clockin.ts measures it;
+     without the script it is worked out from 100vw, kept 10px short in case 100vw counts a scrollbar. */
+  --bleed: calc(max(0px, (100vw - var(--page)) / 2 - 10px) + var(--gutter));
+  --pad: var(--gutter);
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0 calc(var(--gutter) * -1);
+  overflow-x: clip;
+  border-bottom: 1px solid var(--enamel);
+}
+
+/* One column on a phone; every part is placed in it, so the stage may span the rows of the steps. */
+.clockin > * {
+  grid-column: 1;
+}
+
+.clockin__intro,
+.clockin__head,
+.clockin__steps,
+.clockin__deck {
+  margin-inline: var(--pad);
+}
+
+.clockin__intro {
+  padding: clamp(1.4rem, 4vw, 3rem) 0 clamp(1.2rem, 3vw, 2rem);
+}
+
+.clockin__title {
+  font-family: var(--serif);
+  font-size: var(--s6);
+  font-weight: 900;
+  line-height: 0.98;
+  letter-spacing: -0.022em;
+  max-width: 21ch;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.clockin__tagline {
+  font-style: italic;
+  font-size: var(--s4);
+  line-height: 1.3;
+  color: var(--carbon);
+  margin: 0.9rem 0 0;
+  max-width: 26ch;
+}
+
+.clockin__keys {
+  margin-top: 1.4rem;
+}
+
+/* The stage: the clock and its card. Its own width is the container the card is sized from. */
+.clockin__stage {
+  container-type: inline-size;
+  position: relative;
+  z-index: 2;
+  padding: 0.5rem 0 2.2rem;
+  background: var(--newsprint);
+}
+
+.clockin__head {
+  margin-top: 2.2rem;
+}
+
+.clockin__head h2 {
+  font-size: var(--s4);
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* The five steps, numbered by counters in the slab, on a rule that carries a tick a minute    */
+/* ------------------------------------------------------------------------------------------ */
+
+.clockin__steps {
+  list-style: none;
+  padding: 0;
+  max-width: none;
+  counter-reset: flow;
+  border-top: 1px solid var(--enamel);
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.clockin__step {
+  counter-increment: flow;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0.9rem 0 1.4rem 1.15rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.clockin__step:last-child {
+  border-bottom: 0;
+}
+
+.clockin__ticks {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0.75rem;
+  height: 100%;
+  overflow: visible;
+  border-left: 1px solid var(--enamel);
+}
+
+.clockin__ticks line {
+  stroke: var(--enamel);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+}
+
+.clockin__ticks .clockin__punchtick {
+  stroke-width: 4px;
+}
+
+.clockin__stepbody {
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr);
+  column-gap: 0.8rem;
+  min-width: 0;
+}
+
+.clockin__stepbody::before {
+  content: counter(flow);
+  grid-row: 1 / span 2;
+  font-family: var(--slab);
+  font-size: var(--s5);
+  line-height: 1;
+  color: var(--enamel);
+}
+
+.clockin__stepbody > * {
+  grid-column: 2;
+}
+
+.clockin__steptitle {
+  font-size: var(--s4);
+  font-weight: 900;
+  line-height: 1.15;
+  margin: 0.15rem 0 0.35rem;
+}
+
+.clockin__stepwords {
+  font-size: var(--s3);
+  color: var(--carbon);
+  margin: 0;
+  max-width: 34ch;
+}
+
+/* Order 2, told beside its steps. */
+.clockin__deck {
+  padding: 1.4rem 0 2.4rem;
+}
+
+.clockin__decktext {
+  font-style: italic;
+  font-size: var(--s3);
+  line-height: 1.45;
+  color: var(--carbon);
+  margin: 0;
+  max-width: 44ch;
+}
+
+.clockin__deck .actions {
+  margin-top: 1rem;
+}
+
+.clockin__deck .small {
+  margin: 1rem 0 0;
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* The Recorder: the drawing's rear, the card, the throat lip in front                         */
+/* ------------------------------------------------------------------------------------------ */
+
+.recorder {
+  /* One unit is the case's width; the card is 0.8 of it. The proportions come from geometry.ts. */
+  --card-w: min(22rem, 100cqw - 2 * var(--gutter));
+  --u: calc(var(--card-w) / 0.8);
+  display: grid;
+  grid-template-columns: calc(var(--u) * 0.14) var(--card-w) calc(var(--u) * 0.55);
+  grid-template-rows: auto calc(var(--u) * 0.0566) calc(var(--u) * 1.4034);
+  width: calc(var(--u) * 1.49);
+  /* The card's centre, which is the clock's, on the stage's centre line. */
+  margin-left: calc(50cqw - var(--u) * 0.54);
+  isolation: isolate;
+}
+
+.recorder__rear,
+.recorder__front,
+.recorder__canvas {
+  grid-column: 1 / -1;
+  grid-row: 2 / 4;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.recorder__rear {
+  z-index: 0;
+}
+
+.recorder__canvas {
+  z-index: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.recorder__card {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: end;
+  z-index: 1;
+  min-width: 0;
+  transform-origin: 50% 100%;
+}
+
+.recorder__front {
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* The print's inks, as the WebGL scene prints them: shade is cut in the darker of Enamel and
+   Newsprint, gleam in the lighter. The two swap at night, so the inks swap with them. */
+.recorder {
+  --rc-dark: var(--enamel);
+  --rc-light: var(--newsprint);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .recorder {
+    --rc-dark: var(--newsprint);
+    --rc-light: var(--enamel);
+  }
+}
+
+:root[data-theme="dark"] .recorder {
+  --rc-dark: var(--newsprint);
+  --rc-light: var(--enamel);
+}
+
+.rc-enamel {
+  fill: var(--enamel);
+}
+
+.rc-brass {
+  fill: var(--brass);
+}
+
+.rc-paper {
+  fill: var(--newsprint);
+}
+
+.rc-dark {
+  fill: var(--rc-dark);
+}
+
+.rc-light {
+  fill: var(--rc-light);
+}
+
+/* The outline: 2.5 px centred on the edge, whatever the drawing's scale, in the darker ink. */
+.rc-edge {
+  fill: none;
+  stroke: var(--rc-dark);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.rc-gleam {
+  fill: none;
+  stroke: var(--rc-light);
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+
+.rc-gleam--thin {
+  stroke-width: 4;
+}
+
+.recorder__sign {
+  font-family: var(--slab);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  fill: var(--newsprint);
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* The time card                                                                               */
+/* ------------------------------------------------------------------------------------------ */
+
+.timecard {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--enamel);
+  /* Room at the foot for the throat lip, which covers the card's lower edge. */
+  padding: 0.75rem 0.85rem calc(var(--u) * 0.05 + 0.35rem) 1.05rem;
+}
+
+.timecard__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--s1);
+  line-height: 1.35;
+}
+
+.timecard__table caption {
+  caption-side: top;
+  text-align: left;
+  padding: 0 0 0.55rem;
+  font-size: var(--s2);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--enamel);
+}
+
+.timecard__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.2rem 0.6rem;
+}
+
+.timecard__title a {
+  text-decoration-color: var(--meta);
+}
+
+.timecard__title a:hover {
+  color: var(--enamel);
+  text-decoration-color: var(--enamel);
+}
+
+.timecard__note {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: var(--s1);
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--carbon);
+}
+
+.timecard__table th,
+.timecard__table td {
+  padding: 0.2rem 0.6rem 0.2rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: baseline;
+  text-align: left;
+}
+
+.timecard__table th:last-child,
+.timecard__table td:last-child {
+  padding-right: 0;
+}
+
+.timecard__table thead th {
+  font-size: var(--s1);
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--carbon);
+  border-top: 2px solid var(--enamel);
+  border-bottom: 1px solid var(--enamel);
+  padding-top: 0.3rem;
+}
+
+.timecard__when,
+.timecard__block,
+.timecard__sum {
+  font-family: var(--mono);
+  font-variant-numeric: lining-nums tabular-nums;
+  font-variant-ligatures: none;
+  white-space: nowrap;
+}
+
+.timecard__when {
+  position: relative;
+}
+
+/* The punch: a short bar of ink in the card's margin, left by the lever's stroke. */
+.timecard__punch {
+  position: absolute;
+  left: -0.6rem;
+  top: 0.3rem;
+  width: 0.24rem;
+  height: 0.95em;
+  background: var(--enamel);
+}
+
+.timecard__line--proof .timecard__punch {
+  background: var(--ribbon);
+}
+
+.timecard__line--proof .timecard__step {
+  color: var(--ribbon-type);
+  font-weight: 600;
+}
+
+.timecard__table tbody tr:last-child > * {
+  border-bottom: 2px solid var(--enamel);
+}
+
+.timecard__total > * {
+  border-bottom: 0;
+  padding-top: 0.4rem;
+  padding-bottom: 0.35rem;
+  vertical-align: middle;
+}
+
+.timecard__total th {
+  font-weight: 600;
+}
+
+.timecard__sum {
+  font-weight: 600;
+  font-size: var(--s2);
+}
+
+.timecard__stampcell {
+  position: relative;
+  text-align: right;
+}
+
+.timecard__stamp {
+  display: inline-block;
+  margin: -0.3rem -0.15rem -0.3rem 0;
+}
+
+.timecard__stamp .stamp {
+  --h: 1.75rem;
+}
+
+.timecard__after > * {
+  color: var(--carbon);
+  border-bottom: 0;
+  padding-top: 0.05rem;
+  padding-bottom: 0.05rem;
+}
+
+.timecard__after:first-of-type > * {
+  border-top: 1px dashed var(--rule);
+  padding-top: 0.3rem;
+}
+
+.timecard__after .timecard__step {
+  font-style: italic;
+}
+
+/* With nothing to print, the card is the classified page's blank slot. */
+.timecard--blank {
+  min-height: 14rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 11px,
+    color-mix(in srgb, var(--rule) 45%, transparent) 11px 12px
+  );
+}
+
+.timecard__blank {
+  font-size: var(--s4);
+  font-style: italic;
+  font-weight: 900;
+  margin: 0;
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* Wide screens: the intro and the steps at the left, the stage at the right, bleeding off     */
+/* ------------------------------------------------------------------------------------------ */
+
+@media (min-width: 64rem) {
+  .clockin {
+    --pad: 0px;
+    margin: 0 calc(var(--bleed) * -1) 0 0;
+    grid-template-columns: minmax(0, 1fr) 13rem calc(29rem + var(--bleed));
+    column-gap: clamp(1.6rem, 3vw, 3rem);
+    border-bottom: 0;
+  }
+
+  .clockin__intro {
+    grid-column: 1 / 3;
+    grid-row: 1;
+  }
+
+  .clockin__head {
+    grid-column: 1 / 3;
+    grid-row: 2;
+    margin-top: 0.6rem;
+  }
+
+  .clockin__steps {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .clockin__deck {
+    grid-column: 2;
+    grid-row: 3;
+    align-self: start;
+    border-top: 1px solid var(--enamel);
+    padding-top: 0.9rem;
+  }
+
+  .clockin__decktext {
+    font-size: var(--s2);
+  }
+
+  .clockin__deck .actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .clockin__stage {
+    grid-column: 3;
+    grid-row: 1 / 4;
+    align-self: start;
+    padding: 1.5rem 0 2rem;
+    background: transparent;
+  }
+
+  /* The card keeps its phone width; the lever may run off the screen's edge. */
+  .recorder {
+    --card-w: min(22rem, 100cqw * 0.62);
+    margin-left: -1.25rem;
+  }
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* Motion: the stage sticks, the steps take their real lengths, the clock moves by the scroll  */
+/* ------------------------------------------------------------------------------------------ */
+
+/* The stage's row is as tall as the clock opens (clockin.ts measures it), so the steps start under
+   its foot; the clock then shrinks into its band as they rise to meet it. */
+.clock-on .clockin {
+  grid-template-rows: auto var(--stage-row, 64svh) auto auto auto;
+}
+
+.clock-on .clockin__stage {
+  position: sticky;
+  top: 0;
+  grid-row: 2 / 5;
+  align-self: start;
+  height: 64svh;
+  padding: 0;
+  border-bottom: 1px solid transparent;
+}
+
+.clock-on .clockin[data-settled] .clockin__stage {
+  border-bottom-color: var(--rule);
+}
+
+.clock-on .clockin__head {
+  grid-row: 3;
+  margin-top: 1.5rem;
+}
+
+.clock-on .clockin__steps {
+  grid-row: 4;
+}
+
+.clock-on .clockin__deck {
+  grid-row: 5;
+}
+
+.clock-on .clockin__steps--timed .clockin__step {
+  min-height: calc(var(--sec) * 100svh / var(--order-seconds-per-screen));
+}
+
+/* Through a long step the reader keeps its words in view, just under the clock's band. */
+.clock-on .clockin__steps--timed .clockin__stepbody {
+  position: sticky;
+  top: calc(64svh + 1rem);
+}
+
+/* clockin.ts sets the clock's pose from the scroll; this is where it stands until the script runs. */
+.clock-on .recorder {
+  position: absolute;
+  left: 0;
+  top: 0;
+  margin: 0;
+  transform-origin: 0 0;
+  transform: translate(calc(50cqw - var(--u) * 0.54), 0.5rem);
+}
+
+.clock-on .recorder__rear,
+.clock-on .recorder__canvas {
+  transition: opacity 240ms var(--ease-io);
+}
+
+.clock-on .recorder.is-gl .recorder__rear {
+  opacity: 0;
+}
+
+.clock-on .recorder.is-gl .recorder__canvas {
+  opacity: 1;
+}
+
+/* A line not yet reached is printed in Carbon; its punch has not landed. */
+.clock-ready .timecard__line:not([data-punched]) {
+  color: var(--carbon);
+}
+
+.clock-ready .timecard__punch {
+  transition:
+    opacity 180ms var(--ease-out),
+    transform 280ms var(--ease-stamp);
+}
+
+.clock-ready .timecard__line:not([data-punched]) .timecard__punch {
+  opacity: 0;
+  transform: scale(1.9, 1.5);
+  transition-duration: 150ms;
+}
+
+@media (min-width: 64rem) {
+  .clock-on .clockin {
+    grid-template-rows: auto auto auto;
+  }
+
+  .clock-on .clockin__stage {
+    grid-row: 1 / 4;
+    height: 100svh;
+    border-bottom: 0;
+  }
+
+  .clock-on .clockin__head {
+    grid-row: 2;
+    margin-top: 0.6rem;
+  }
+
+  .clock-on .clockin__steps,
+  .clock-on .clockin__deck {
+    grid-row: 3;
+  }
+
+  .clock-on .clockin__steps--timed .clockin__stepbody {
+    top: 2rem;
+  }
+
+  /* Beside the swarm's long stretch, where nothing prints: order 2's deck starts with step 3. */
+  .clock-on .clockin__steps--timed + .clockin__deck {
+    margin-top: calc(180 * 100svh / var(--order-seconds-per-screen));
+  }
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* The classified page below the hero                                                          */
+/* ------------------------------------------------------------------------------------------ */
+
+.wire-lead {
+  margin-top: clamp(2.4rem, 5vw, 3.6rem);
+}
+
+.wire-lead__house {
+  margin: 1.2rem 0 0;
+}
+
+/* Four lines, two by two on a wide page. */
+.steps.wire-new {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+}
+
+.wire-swarm__error {
+  margin-top: 1.4rem;
+}
+
+.wire-swarm__at {
+  margin: 0.6rem 0 0;
+}
+
+@media print {
+  .clockin__stage {
+    display: none;
+  }
+}

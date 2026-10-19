@@ -16,9 +16,13 @@ const { model: m, meta } = loaded;
     <h1 class="headline headline--wide">When a line is crossed, then hire.</h1>
     <p class="deck">
       Write one sentence: WHEN a contract's view call or a Standing Question crosses a line, THEN hire the
-      swarm or pay. There are two ways to say it: once, as an order nobody can take until its condition has
-      been seen true, or as a standing rule that holds its own escrow and fires as often as you allow.
+      swarm or pay. There are two ways to say it:
     </p>
+    {/* The two ways are a choice between two things, so they are set as one, a short list. */}
+    <ul class="deck deck--list">
+      <li>once, as an order nobody can take until its condition has been seen true, or</li>
+      <li>as a standing rule that holds its own escrow and fires as often as you allow.</li>
+    </ul>
   </header>
 
   <NotLaunched contract={m.desk} consequence="No rule can be written today." />

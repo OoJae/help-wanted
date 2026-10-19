@@ -1,76 +1,27 @@
+@import "./tokens.css";
+
 /*
- * HELP WANTED: a newspaper's classified pages crossed with a statistical agency's release.
+ * HELP WANTED: a newspaper's classified pages crossed with a statistical agency's release, and the
+ * works' time clock the classified ad leads to.
  *
- * Paper, ink and one spot colour: the red of a rubber stamp, kept for the stamp that says a check
- * against the chain passed, and for warnings. Type does the rest. A slab for the nameplate, a serif
- * for headlines and reading, a monospace for data (hashes, addresses, amounts, commands) and never
- * for sentences. Rules and columns, no floating cards, no gradients, no shadows.
+ * Two papers (Newsprint, Card stock), two inks (Enamel, Carbon) and one red. Red is a verdict: it
+ * is the ink of a stamp that says a check against the chain passed, of a warning set in type, and
+ * of a hash group that differs, and nothing else. Hover, focus, the current-page mark and the keys
+ * are Enamel. Type does the rest: a slab for the name, a serif for headlines and reading, a
+ * monospace for what the chain says (hashes, addresses, amounts, commands) and never for sentences.
+ * Rules and columns, corners of at most 4px, no floating cards, no gradients, no shadows.
  *
  * The scale is six sizes and three weights, on purpose. Every size below is one of --s1 to --s6
- * (the nameplate is the single exception) and every weight is 400, 600 or 900. Labels are set in
- * sentence case at natural letter-spacing; capitals are kept for the nameplate and the stamps.
- * Light is the day edition, dark the night edition; both are drawn, not inverted.
+ * and every weight is 400, 600 or 900. Labels are set in sentence case at natural letter-spacing;
+ * capitals are kept for the name in the running head and for the stamps. Headlines of 28px and up
+ * are set 0.022em tight. Light is the day edition, dark the night edition; both are drawn, not
+ * inverted.
+ *
+ * Motion is in the keys (a punch), the page change and a few reveals; only transform and opacity
+ * move, and with reduced motion nothing moves at all.
+ *
+ * The colours, faces, sizes and timings themselves are defined once, in tokens.css, imported above.
  */
-
-:root {
-  --paper: #f3eee2;
-  --paper-2: #e8e1d0;
-  --ink: #16130e;
-  --ink-2: #4a4439;
-  --ink-3: #675f51;
-  --hair: #bdb49f;
-  --spot: #c1271a;
-  --spot-ink: #a41e10;
-  --on-spot: #fff;
-
-  --slab: "Alfa Slab One", "Rockwell Extra Bold", "Rockwell", "Roboto Slab", Georgia, serif;
-  --serif:
-    "Source Serif 4 Variable", "Source Serif 4", "Iowan Old Style", "Charter", Georgia, "Times New Roman",
-    serif;
-  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
-
-  /* The whole type scale. */
-  --s1: 0.84375rem; /* 13.5px: labels, captions, notes, commands */
-  --s2: 0.9375rem; /* 15px: tables, cards, controls */
-  --s3: 1.0625rem; /* 17px: reading text */
-  --s4: 1.3125rem; /* 21px: decks, section heads, card headlines */
-  --s5: clamp(1.625rem, 1.2rem + 1.6vw, 2.5rem); /* 26 to 40px: figures, small headlines */
-  --s6: clamp(2.25rem, 1.2rem + 4.4vw, 4.5rem); /* 36 to 72px: the page's headline */
-  --nameplate: min(10.5vw, 8.9rem);
-
-  --measure: 66ch;
-  --page: 76rem;
-  --gutter: clamp(1rem, 3.4vw, 2.5rem);
-  color-scheme: light;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --paper: #15130f;
-    --paper-2: #211e18;
-    --ink: #ece5d6;
-    --ink-2: #c3baa8;
-    --ink-3: #9a917f;
-    --hair: #453f34;
-    --spot: #ff6b57;
-    --spot-ink: #ff8571;
-    --on-spot: #15130f;
-    color-scheme: dark;
-  }
-}
-
-:root[data-theme="dark"] {
-  --paper: #15130f;
-  --paper-2: #211e18;
-  --ink: #ece5d6;
-  --ink-2: #c3baa8;
-  --ink-3: #9a917f;
-  --hair: #453f34;
-  --spot: #ff6b57;
-  --spot-ink: #ff8571;
-  --on-spot: #15130f;
-  color-scheme: dark;
-}
 
 *,
 *::before,
@@ -109,9 +60,10 @@ a {
   text-decoration-color: var(--ink-3);
 }
 
+/* A hover is instant and in Enamel: the rule under the link darkens and doubles. */
 a:hover {
-  text-decoration-color: var(--spot);
-  color: var(--spot-ink);
+  text-decoration-color: var(--ink);
+  text-decoration-thickness: 2px;
 }
 
 a:focus-visible,
@@ -121,8 +73,16 @@ select:focus-visible,
 textarea:focus-visible,
 summary:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2px solid var(--spot);
-  outline-offset: 2px;
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+/* Controls are set in the page's own faces, never the system's. */
+button,
+input,
+select,
+textarea {
+  font: inherit;
 }
 
 ::selection {
@@ -274,6 +234,11 @@ p.small {
   font-variant-ligatures: none;
 }
 
+/* An address set inside a sentence of the serif, with even figures. */
+.addr {
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
 /* ------------------------------------------------------------------------------------------ */
 /* Masthead                                                                                    */
 /* ------------------------------------------------------------------------------------------ */
@@ -289,71 +254,15 @@ p.small {
   max-width: none;
 }
 
-/* The front page carries the full nameplate, set across the measure. */
-.nameplate {
-  font-family: var(--slab);
-  font-weight: 400;
-  font-size: var(--nameplate);
-  line-height: 0.92;
-  letter-spacing: 0.01em;
-  text-transform: uppercase;
-  text-align: center;
-  white-space: nowrap;
-  margin: 0;
-  max-width: none;
-  padding: clamp(1rem, 3vw, 2.2rem) 0 clamp(0.3rem, 0.9vw, 0.6rem);
-}
-
-.nameplate a,
-.runhead__name {
-  text-decoration: none;
-  color: var(--ink);
-}
-
-.nameplate a:hover,
-.runhead__name:hover {
-  color: var(--ink);
-}
-
-.motto {
-  text-align: center;
-  font-style: italic;
-  font-size: var(--s4);
-  line-height: 1.25;
-  margin: 0 auto;
-  padding-bottom: 0.8rem;
-  max-width: none;
-  text-wrap: balance;
-}
-
-/* The folio: the line of facts a newspaper prints under its name. */
-.folio {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.1rem 1.5rem;
-  border-top: 1px solid var(--ink);
-  padding: 0.4rem 0;
-  font-family: var(--mono);
-  font-size: var(--s1);
-  font-variant-numeric: lining-nums tabular-nums;
-  color: var(--ink-2);
-}
-
-.folio > * {
-  margin: 0;
-  max-width: none;
-}
-
-/* Inside pages carry a running head instead: the name at the left, the folio at the right. */
+/* Every page, the front page included, carries one running head: the name at the left in the
+   slab, the folio (the line of facts a newspaper prints by its name) and the edition switch at the
+   right. The name is the one place type is set in capitals by CSS: it is the masthead, not copy. */
 .runhead {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 0.1rem 1.5rem;
-  padding: 0.75rem 0 0.55rem;
+  gap: 0.2rem 1.5rem;
+  padding: 0.85rem 0 0.6rem;
 }
 
 .runhead__name {
@@ -364,12 +273,32 @@ p.small {
   letter-spacing: 0.01em;
   text-transform: uppercase;
   white-space: nowrap;
+  text-decoration: none;
+  color: var(--ink);
 }
 
-.runhead .folio {
-  border-top: 0;
-  padding: 0;
+.runhead__name:hover {
+  color: var(--ink);
+}
+
+.folio {
+  display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
+  gap: 0 0.5em;
+  margin: 0;
+  max-width: none;
+  text-align: right;
+  font-family: var(--mono);
+  font-size: var(--s1);
+  line-height: 1.45;
+  font-variant-numeric: lining-nums tabular-nums;
+  color: var(--ink-2);
+}
+
+/* The front page's three facts take a line of their own under the date. */
+.folio__facts {
+  flex-basis: 100%;
 }
 
 .nav {
@@ -402,6 +331,7 @@ p.small {
 }
 
 .nav a {
+  position: relative;
   display: flex;
   align-items: center;
   min-height: 2.75rem;
@@ -415,8 +345,16 @@ p.small {
   box-shadow: inset 0 -3px 0 var(--hair);
 }
 
-.nav a[aria-current="page"] {
-  box-shadow: inset 0 -3px 0 var(--spot);
+/* The current page's mark: a 3px Enamel bar under its link. It is one element, in one link, so
+   between pages it can slide from the old section to the new one (see View transitions below). */
+.nav__mark {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--ink);
+  pointer-events: none;
 }
 
 .nav__group--press a {
@@ -425,15 +363,16 @@ p.small {
 }
 
 .theme-toggle {
-  font: inherit;
   font-family: var(--serif);
   font-size: var(--s1);
   font-weight: 600;
+  line-height: 1.45;
   color: var(--ink-2);
   background: none;
   border: 0;
   padding: 0.35rem 0;
   cursor: pointer;
+  white-space: nowrap;
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 0.2em;
@@ -441,7 +380,9 @@ p.small {
 }
 
 .theme-toggle:hover {
-  color: var(--spot-ink);
+  color: var(--ink);
+  text-decoration-color: var(--ink);
+  text-decoration-thickness: 2px;
 }
 
 /* On a phone the sections are one line that slides sideways, as on a newspaper's own phone
@@ -470,36 +411,34 @@ p.small {
     border-left: 1px solid var(--hair);
   }
 
-  .folio {
-    justify-content: flex-start;
-  }
-
-  .runhead .folio {
-    justify-content: flex-start;
-  }
-
-  .folio__more {
-    display: none;
-  }
-
-  /* The date and the edition switch share a line; the facts follow on the next. */
-  .folio .theme-toggle {
-    order: 2;
-    margin-left: auto;
-  }
-
-  .folio__date {
-    order: 1;
-  }
-
-  .folio__facts {
-    order: 3;
-    flex-basis: 100%;
-  }
-
+  /* The name and the edition switch share the first line; the folio runs under them, without the
+     block number. */
   .runhead {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "name toggle"
+      "folio folio";
     align-items: center;
-    flex-wrap: nowrap;
+    padding: 0.7rem 0 0.5rem;
+  }
+
+  .runhead__name {
+    grid-area: name;
+  }
+
+  .runhead .theme-toggle {
+    grid-area: toggle;
+    min-height: 2.75rem;
+  }
+
+  .folio {
+    grid-area: folio;
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .folio__block {
+    display: none;
   }
 }
 
@@ -526,6 +465,13 @@ p.small {
   font-weight: 600;
 }
 
+/* An id in the crumbs is set in the serif with even figures: a way back, not a label over the
+   headline. The id is printed in full, in the monospace, further down the page. */
+.crumbs__id {
+  font-variant-numeric: lining-nums tabular-nums;
+  overflow-wrap: anywhere;
+}
+
 .headline {
   font-size: var(--s6);
   font-weight: 900;
@@ -540,7 +486,7 @@ p.small {
 
 .headline--small {
   font-size: var(--s5);
-  letter-spacing: -0.015em;
+  letter-spacing: 0;
   line-height: 1.06;
   max-width: 28ch;
 }
@@ -552,6 +498,28 @@ p.small {
   color: var(--ink-2);
   margin: 0.9rem 0 0;
   max-width: 58ch;
+}
+
+/* A deck that ends in a choice: the choices under it, each on a line with a rule before it. */
+ul.deck--list {
+  list-style: none;
+  padding: 0;
+  margin-top: 0.35rem;
+}
+
+.deck--list li {
+  margin: 0;
+  padding-left: 1.1em;
+  text-indent: -1.1em;
+}
+
+.deck--list li::before {
+  content: "";
+  display: inline-block;
+  width: 0.6em;
+  margin-right: 0.5em;
+  border-top: 1px solid currentColor;
+  vertical-align: 0.3em;
 }
 
 @media (max-width: 34rem) {
@@ -645,9 +613,12 @@ p.small {
 .section__head p {
   margin: 0;
   max-width: none;
+  min-width: 0;
   font-size: var(--s1);
   color: var(--ink-2);
   font-variant-numeric: lining-nums;
+  /* An address in the note breaks anywhere rather than push a phone's page sideways. */
+  overflow-wrap: anywhere;
 }
 
 h2.sub {
@@ -733,7 +704,7 @@ h3.sub {
   font-weight: 900;
   font-size: var(--s5);
   line-height: 1.05;
-  letter-spacing: -0.015em;
+  letter-spacing: 0;
   font-variant-numeric: lining-nums tabular-nums;
 }
 
@@ -851,7 +822,6 @@ h3.sub {
   line-height: 1.12;
   margin: 0;
   font-variant-numeric: lining-nums;
-  letter-spacing: -0.01em;
 }
 
 .ad__head a {
@@ -921,6 +891,13 @@ h3.sub {
   white-space: nowrap;
 }
 
+/* On the narrowest phones three links do not fit on one line; they wrap, each one whole. */
+@media (max-width: 23.4rem) {
+  .ad__foot .ad__links {
+    flex-wrap: wrap;
+  }
+}
+
 /* The stamp sits at the right; where the links leave it no room it takes a line of its own. */
 .ad__foot > .stamp,
 .ad__foot > .status {
@@ -930,6 +907,23 @@ h3.sub {
 /* The words after the colon keep together: "HELP WANTED:" then "4 robot auditors." */
 .ad__head span {
   display: inline-block;
+}
+
+/* The cry is lettering (an SVG; see Cry.astro): one em of the headline per 100 of its units, its
+   foot two units under the baseline, in the headline's face, weight and ink. */
+.cry {
+  display: inline-block;
+  height: 0.7em;
+  vertical-align: -0.02em;
+  overflow: visible;
+}
+
+.cry text {
+  font-family: var(--serif);
+  font-size: 100px;
+  font-weight: 900;
+  font-variation-settings: "opsz" 20;
+  fill: currentColor;
 }
 
 .ad__pay span {
@@ -969,7 +963,7 @@ h3.sub {
   font-size: var(--s5);
   font-style: italic;
   font-weight: 900;
-  letter-spacing: -0.015em;
+  letter-spacing: 0;
 }
 
 .ad--blank p {
@@ -1110,20 +1104,22 @@ h3.sub {
   }
 }
 
+/* A fresh stamp lands once: down from above its size, a small overshoot, then at rest at its own
+   angle. Ink never lifts again. */
 @media (prefers-reduced-motion: no-preference) {
   .stamp[data-fresh] {
-    animation: thump 380ms cubic-bezier(0.2, 1.5, 0.4, 1) both;
+    animation: thump var(--t-thump) var(--ease-out) both;
   }
 
   @keyframes thump {
     0% {
       opacity: 0;
-      transform: rotate(-11deg) scale(1.7);
+      transform: rotate(-11deg) scale(1.6);
     }
 
-    55% {
+    60% {
       opacity: 1;
-      transform: rotate(-2deg) scale(0.96);
+      transform: rotate(-2deg) scale(0.97);
     }
 
     100% {
@@ -1320,12 +1316,15 @@ table.wide {
     padding: 0.6rem 0 0.75rem;
   }
 
+  /* A cell on a card may hold a job id or a hash in its sentence; it breaks anywhere rather than
+     widen the card past the screen. */
   table.stack tbody tr > * {
     display: block;
     border-bottom: 0;
     padding: 0.2rem 0;
     text-align: left;
     white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   table.stack tbody tr > th {
@@ -1368,15 +1367,25 @@ table.wide {
 /* Commands                                                                                    */
 /* ------------------------------------------------------------------------------------------ */
 
+/* A command: Card stock, a 3px Enamel rule at the left, the monospace. */
 .cmd {
   margin: 0 0 1.2rem;
-  background: var(--paper-2);
+  background: var(--card);
   border-left: 3px solid var(--ink);
 }
 
+/* The note and the command share a column; the Copy key, when the script adds one, opens a column of
+   its own at the right, so it never sits on the command's text. */
 .cmd__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-columns: auto;
+  column-gap: 0.8rem;
   padding: 0.65rem 0.9rem 0.7rem;
-  position: relative;
+}
+
+.cmd__row > * {
+  grid-column: 1;
 }
 
 .cmd__row + .cmd__row {
@@ -1386,7 +1395,7 @@ table.wide {
 .cmd__note {
   font-size: var(--s1);
   color: var(--ink-2);
-  margin: 0 4.4rem 0.3rem 0;
+  margin: 0 0 0.3rem;
   max-width: none;
   font-variant-numeric: lining-nums;
 }
@@ -1400,10 +1409,6 @@ table.wide {
   word-break: break-word;
 }
 
-.cmd__row > pre:first-child {
-  padding-right: 4.4rem;
-}
-
 .cmd pre::before {
   content: "$ ";
   color: var(--ink-3);
@@ -1414,13 +1419,18 @@ table.wide {
   content: none;
 }
 
+/* The Copy key: a small punch key (see Keys below for the press). */
+.cmd__row > .copy {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: start;
+}
+
 .copy {
-  position: absolute;
-  top: 0.45rem;
-  right: 0.5rem;
   font-family: var(--serif);
   font-size: var(--s1);
   font-weight: 600;
+  line-height: 1.3;
   background: var(--paper);
   color: var(--ink);
   border: 1px solid var(--ink);
@@ -1497,6 +1507,8 @@ figure.theirs {
   opacity: 1;
 }
 
+/* A key. Primary keys are Enamel with Newsprint letters; ghost keys are an Enamel outline. A hover
+   is instant: the primary key's label is underlined, the ghost key fills with Card stock. */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -1506,6 +1518,7 @@ figure.theirs {
   font-weight: 600;
   line-height: 1.2;
   text-decoration: none;
+  text-underline-offset: 0.2em;
   background: var(--ink);
   color: var(--paper);
   border: 2px solid var(--ink);
@@ -1513,21 +1526,24 @@ figure.theirs {
   padding: 0.6rem 1.15rem;
   min-height: 2.75rem;
   cursor: pointer;
-  transition:
-    background-color 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease;
 }
 
 .btn:hover {
-  background: var(--spot);
-  border-color: var(--spot);
-  color: var(--on-spot);
+  color: var(--paper);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-decoration-color: currentColor;
 }
 
 .btn--ghost {
   background: transparent;
   color: var(--ink);
+}
+
+.btn--ghost:hover {
+  background: var(--card);
+  color: var(--ink);
+  text-decoration: none;
 }
 
 .btn[disabled],
@@ -1537,6 +1553,37 @@ figure.theirs {
   border-color: var(--ink-3);
   border-style: dashed;
   cursor: not-allowed;
+  text-decoration: none;
+}
+
+/* Every key is a punch key: pressed, it goes down 2px and in a little, quickly; let go, it springs
+   back slower, like the time clock's lever. Only the transform moves. With reduced motion there is
+   no movement at all, only the key darkening to Carbon while it is held. */
+.btn,
+.copy {
+  transition: transform var(--t-release) var(--ease-out);
+}
+
+.btn:not([disabled], [aria-disabled="true"]):active,
+.copy:active {
+  transform: translateY(2px) scale(0.985);
+  transition: transform var(--t-press) var(--ease-io);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .copy {
+    transition: none;
+  }
+
+  .btn:not([disabled], [aria-disabled="true"]):active,
+  .copy:active {
+    transform: none;
+    transition: none;
+    background: var(--ink-2);
+    border-color: var(--ink-2);
+    color: var(--paper);
+  }
 }
 
 /* ------------------------------------------------------------------------------------------ */
@@ -1586,9 +1633,20 @@ figure.theirs {
   gap: 0.15rem 0.7em;
   font-family: var(--mono);
   font-size: var(--s2);
+  font-weight: 400;
   font-variant-numeric: lining-nums tabular-nums;
   font-variant-ligatures: none;
+  letter-spacing: 0;
   line-height: 1.35;
+}
+
+/* In a row of figures a hash has half the page at most: it is set in two lines of four groups. */
+.figure .hash {
+  grid-template-columns: max-content repeat(4, max-content);
+}
+
+.figure .hash__0x {
+  grid-row: span 2;
 }
 
 .hash__0x {
@@ -1627,6 +1685,20 @@ figure.theirs {
   .hash {
     font-size: var(--s1);
     gap: 0.15rem 0.55em;
+  }
+}
+
+/* Below a 375px screen four groups do not fit: the groups wrap instead, every one whole. Each
+   group is eight figures of the same width, so two hashes stacked still wrap at the same group and
+   line up digit for digit. */
+@media (max-width: 23.4rem) {
+  .hash {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .hash__0x {
+    grid-row: auto;
   }
 }
 
@@ -1899,10 +1971,27 @@ figure.theirs {
 
 .release__title {
   font-size: var(--s5);
-  letter-spacing: -0.015em;
+  letter-spacing: 0;
   line-height: 1.08;
   margin: 0 0 0.7rem;
   max-width: 30ch;
+}
+
+/* The fifth size passes 28px at a 33rem screen; from there it is set tight like every headline.
+   (Below it, and for every smaller size, tracking is 0.) This rule comes after every one it
+   tightens, so that it wins over them. */
+@media (min-width: 33rem) {
+  .headline--small,
+  .release__title,
+  .figure dd,
+  .ad--blank .ad__head {
+    letter-spacing: -0.022em;
+  }
+
+  .figure dd.figure__words,
+  .figure dd.figure__data {
+    letter-spacing: 0;
+  }
 }
 
 .release__lede {
@@ -1940,9 +2029,16 @@ figure.theirs {
   fill: var(--ink);
 }
 
+/* A bar under the pointer or the keyboard is drawn heavier, in its own Enamel. */
 .chart .bar:hover,
 .chart .bar:focus {
-  fill: var(--spot);
+  stroke: var(--ink);
+  stroke-width: 3;
+}
+
+.chart .bar:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
 
 .chart .grid {
@@ -2309,9 +2405,9 @@ details.plain--inline[open] > summary {
   background: var(--ink);
 }
 
+/* The step under way: half printed, in Enamel. (Red is kept for a verdict.) */
 .timeline [data-at="current"] .label::before {
-  background: var(--spot);
-  border-color: var(--spot);
+  background: linear-gradient(135deg, var(--ink) 50%, transparent 50%);
 }
 
 .timeline [data-at="waiting"],
@@ -2474,6 +2570,141 @@ html:not(.no-js) .nojs-only {
 }
 
 /* ------------------------------------------------------------------------------------------ */
+/* View transitions: the page change                                                           */
+/* ------------------------------------------------------------------------------------------ */
+
+/* Following a link is still a full page load (every script, the theme and the no-JS rules run as
+   always); where the browser can, it runs as one change instead of a blink. The running head and
+   the sections line hold still. The current-page mark slides to the new section. The page itself
+   leaves upward and fades, and the new one rises into place. A stamp that is the same stamp on both
+   pages (an order's card and that order's page; a check's stamp and the slip on /verify) travels
+   into its place. Going back runs the page change the other way. With reduced motion, or in a
+   browser without view transitions, a link simply loads the page. */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+  }
+
+  .runhead {
+    view-transition-name: hw-runhead;
+  }
+
+  .nav {
+    view-transition-name: hw-nav;
+  }
+
+  .nav__mark {
+    view-transition-name: hw-nav-mark;
+  }
+
+  /* Held still: the new head is shown at once, in place. */
+  html:not(.edition-turn)::view-transition-group(hw-runhead),
+  html:not(.edition-turn)::view-transition-group(hw-nav),
+  html:not(.edition-turn)::view-transition-new(hw-runhead),
+  html:not(.edition-turn)::view-transition-new(hw-nav) {
+    animation: none;
+  }
+
+  html:not(.edition-turn)::view-transition-old(hw-runhead),
+  html:not(.edition-turn)::view-transition-old(hw-nav) {
+    display: none;
+  }
+
+  html:not(.edition-turn)::view-transition-group(hw-nav-mark) {
+    animation-duration: 360ms;
+    animation-timing-function: var(--ease-out);
+  }
+
+  html:not(.edition-turn)::view-transition-group(*.hw-stamp) {
+    animation-duration: var(--t-thump);
+    animation-timing-function: var(--ease-out);
+  }
+
+  html:not(.edition-turn)::view-transition-old(root) {
+    animation: hw-page-out var(--t-page-out) var(--ease-io) both;
+  }
+
+  html:not(.edition-turn)::view-transition-new(root) {
+    animation: hw-page-in var(--t-page-in) var(--ease-out) 60ms both;
+  }
+
+  html:active-view-transition-type(back)::view-transition-old(root) {
+    animation-name: hw-page-out-back;
+  }
+
+  html:active-view-transition-type(back)::view-transition-new(root) {
+    animation-name: hw-page-in-back;
+  }
+
+  /* The other edition: one cross-fade of the whole page, head and all. */
+  html.edition-turn::view-transition-group(*),
+  html.edition-turn::view-transition-old(*),
+  html.edition-turn::view-transition-new(*) {
+    animation-duration: 240ms;
+    animation-timing-function: var(--ease-io);
+  }
+
+  @keyframes hw-page-out {
+    to {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+  }
+
+  @keyframes hw-page-in {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+  }
+
+  @keyframes hw-page-out-back {
+    to {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+
+  @keyframes hw-page-in-back {
+    from {
+      opacity: 0;
+      transform: translateY(-14px);
+    }
+  }
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* Reveals                                                                                     */
+/* ------------------------------------------------------------------------------------------ */
+
+/* An element marked data-reveal (the ads on /hire and /orders) comes up once as the reader scrolls
+   to it: src/scripts/site.ts arms this only after its observer is attached and the reader has
+   scrolled, so an unscrolled page, a page without scripts and a page with reduced motion show
+   everything at once. No mask, only opacity and a 16px rise. If the script stalls after arming,
+   the failsafe below shows everything that is still waiting, once, a few seconds later. */
+@media (prefers-reduced-motion: no-preference) {
+  /* Only the coming up is animated; going into hiding (below the screen, unseen) is instant. */
+  html.reveals-on [data-reveal].is-revealed {
+    transition:
+      opacity var(--t-reveal) var(--ease-out) var(--reveal-delay, 0ms),
+      transform var(--t-reveal) var(--ease-out) var(--reveal-delay, 0ms);
+  }
+
+  html.reveals-on [data-reveal]:not(.is-revealed) {
+    opacity: 0;
+    transform: translateY(16px);
+    animation: hw-reveal-failsafe 1ms linear 6s forwards;
+  }
+
+  @keyframes hw-reveal-failsafe {
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+/* ------------------------------------------------------------------------------------------ */
 /* Print: the Jobs Report is a release, and a release is printed.                              */
 /* ------------------------------------------------------------------------------------------ */
 
@@ -2485,15 +2716,16 @@ html:not(.no-js) .nojs-only {
   :root,
   :root[data-theme="dark"],
   :root:not([data-theme="light"]) {
-    --paper: #fff;
-    --paper-2: #f1f1f1;
-    --ink: #000;
-    --ink-2: #222;
-    --ink-3: #444;
-    --hair: #999;
-    --spot: #000;
-    --spot-ink: #000;
-    --on-spot: #fff;
+    /* The named colours, so that both they and their old aliases print black on white. */
+    --newsprint: #fff;
+    --card: #f1f1f1;
+    --enamel: #000;
+    --carbon: #222;
+    --meta: #444;
+    --rule: #999;
+    --ribbon: #000;
+    --ribbon-type: #000;
+    --on-ribbon: #fff;
     color-scheme: light;
   }
 
@@ -2522,16 +2754,6 @@ html:not(.no-js) .nojs-only {
   .needs-js,
   .noprint {
     display: none !important;
-  }
-
-  .nameplate {
-    font-size: 30pt;
-    text-align: left;
-    padding: 0 0 2pt;
-  }
-
-  .motto {
-    display: none;
   }
 
   .runhead {

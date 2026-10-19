@@ -13,18 +13,24 @@ interface Props {
   mid?: boolean;
   tilt?: boolean;
   fresh?: boolean;
+  /**
+   * A view-transition name, for a stamp that is the same stamp on two pages (an order's card and
+   * that order's own page). It must be unique in the page; it only matters during a page change.
+   */
+  name?: string;
 }
 
-const { stamp, big = false, mid = false, tilt = false, fresh = false } = Astro.props;
+const { stamp, big = false, mid = false, tilt = false, fresh = false, name } = Astro.props;
 const ink: StampInk | null = stamp.tone === "live" ? null : stamp.tone;
 const box = ink ? stampBox(stamp.text, ink) : null;
+const travel = name ? `;view-transition-name:${name};view-transition-class:hw-stamp` : "";
 ---
 
 {ink && box ? (
   <svg
     class={stampClass({ ink, size: big ? "big" : mid ? "mid" : "card", tilt })}
     viewBox={`0 0 ${box.width} ${box.height}`}
-    style={stampStyle(stamp.text, ink)}
+    style={`${stampStyle(stamp.text, ink)}${travel}`}
     role="img"
     aria-label={`Stamped: ${stamp.text}`}
     data-fresh={fresh ? "" : undefined}

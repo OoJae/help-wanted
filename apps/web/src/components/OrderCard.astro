@@ -4,23 +4,27 @@
  * words, and, when the order has ended, its stamp.
  */
 import type { OrderCard } from "~/models/cards";
+import Cry from "./Cry.astro";
 import Stamp from "./Stamp.astro";
 
 interface Props {
   card: OrderCard;
+  /** Comes up once as the reader scrolls to it (src/scripts/site.ts). */
+  reveal?: boolean;
 }
 
-const { card } = Astro.props;
+const { card, reveal = false } = Astro.props;
 // "HELP WANTED: 4 robot auditors." is set as a cry and what follows it, so the two break between them.
+// The cry is lettering (see Cry.astro); what follows it is text.
 const colon = card.headline.indexOf(": ");
-const cry = colon === -1 ? card.headline : card.headline.slice(0, colon + 1);
-const wanted = colon === -1 ? "" : card.headline.slice(colon + 2);
+const cry = colon === -1 ? null : card.headline.slice(0, colon + 1);
+const wanted = colon === -1 ? card.headline : card.headline.slice(colon + 2);
 ---
 
-<article class:list={["ad", card.origin === "HOUSE" && "ad--house"]}>
+<article class:list={["ad", card.origin === "HOUSE" && "ad--house"]} data-reveal={reveal ? "" : undefined}>
   <h3 class="ad__head">
     <a href={card.path}>
-      <span>{cry}</span> <span>{wanted}</span>
+      {cry && <Cry text={cry} />} <span>{wanted}</span>
     </a>
   </h3>
   <p class="ad__pay">
@@ -45,6 +49,11 @@ const wanted = colon === -1 ? "" : card.headline.slice(colon + 2);
       <a href={card.path}>The order</a>
       {card.jobId && <a href={`/verify/${card.jobId}`}>Verify</a>}
     </p>
-    {card.stamp ? <Stamp stamp={card.stamp} /> : <span class="status">Open</span>}
+    {/* Named for the page change: the stamp travels into the same order's page-head stamp. */}
+    {card.stamp ? (
+      <Stamp stamp={card.stamp} name={`order-${card.id}-stamp`} />
+    ) : (
+      <span class="status">Open</span>
+    )}
   </div>
 </article>

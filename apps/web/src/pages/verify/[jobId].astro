@@ -16,6 +16,12 @@ const r = m.result;
 const facts = r.facts;
 const equal = r.verdict === "proven";
 const reads = readsSentence(m.reads);
+// The server's stamp in the slip is named for the page change by the job's first eight digits, the
+// name a stamp on another page that links here carries, so that stamp travels into this box.
+const verdictName = `verdict-${m.jobId
+  .replace(/[^0-9a-f]/gi, "")
+  .slice(0, 8)
+  .toLowerCase()}`;
 ---
 
 <Layout
@@ -48,7 +54,7 @@ const reads = readsSentence(m.reads);
 >
   <header class="pagehead">
     <p class="crumbs">
-      <a href="/verify">Verify</a> · job <span class="data break">{m.jobId}</span>
+      <a href="/verify">Verify</a> · job <span class="crumbs__id">{m.jobId}</span>
     </p>
     <h1 class="headline headline--small">{m.headline}</h1>
     <p class="deck">{r.summary}</p>
@@ -90,7 +96,7 @@ const reads = readsSentence(m.reads);
       <div class="inspect">
         <p class="inspect__by">Checked by this server</p>
         <p class="inspect__stamp">
-          <Stamp stamp={{ text: r.stamp, tone: VERDICT_INK[r.verdict] }} big />
+          <Stamp stamp={{ text: r.stamp, tone: VERDICT_INK[r.verdict] }} big name={verdictName} />
         </p>
         <p class="small">
           {reads ? `${reads} ` : ""}Page made {formatUtc(m.checkedAt)}.

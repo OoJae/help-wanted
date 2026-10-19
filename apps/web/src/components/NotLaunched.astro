@@ -2,6 +2,9 @@
 /**
  * The slip a page carries while its contract is not launched: a grey stamp and one plain
  * paragraph. The same on every such page, so a reader learns it once.
+ *
+ * Once launched, one line gives the address. It is set in the serif with even figures: the line
+ * sits right above the page's first heading, and monospace there would read as a label over it.
  */
 import type { ContractStatus } from "~/models/common";
 import Stamp from "./Stamp.astro";
@@ -16,13 +19,10 @@ const { contract, consequence } = Astro.props;
 ---
 
 {contract.address ? (
-  <p class="small">
-    {contract.name} is at{" "}
-    <a class="break data" href={contract.url}>
-      {contract.address}
-    </a>
-    .
-  </p>
+  <>
+    {/* prettier-ignore */}
+    <p class="small">{contract.name} is at <a class="break addr" href={contract.url}>{contract.address}</a>.</p>
+  </>
 ) : (
   <aside class="hold" aria-label="Not launched yet">
     <Stamp stamp={{ text: "NOT LAUNCHED YET", tone: "void" }} mid />

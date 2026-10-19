@@ -43,7 +43,7 @@ const { model: m, meta } = loaded;
   {m.cards.length > 0 ? (
     <div class="classifieds">
       {m.cards.map((card) => (
-        <OrderCard card={card} />
+        <OrderCard card={card} reveal />
       ))}
     </div>
   ) : (
