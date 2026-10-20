@@ -424,9 +424,9 @@ export const ORDER_HISTORY: { workOrders: Address; orders: readonly PinnedOrder[
         },
       ],
       work: {
-        label: "See the report the rule paid for",
+        label: "Download the report the rule paid for (Markdown)",
         url: "https://api.imd.fun/artifacts/4dcebdb382dd91a82e53a629dc7620f811feb6146e011d3a6e799fdf7c6482f0",
-        what: "report.md, 10,523 bytes, as IdentityMD's API serves it. It counts 220 payments of 0.5 IMD to IdentityMD's fee address, 110 IMD in all, from 52 senders, in blocks 26,197,518 to 26,204,517; the team counted the same logs on chain on 16 October 2026 and got the same figures. Among them are the team's own payment for this job and one by house wallet W1.",
+        what: "report.md, a Markdown file of 10,523 bytes. IdentityMD's API serves it as a download, so the link saves the file rather than opening a page. It counts 220 payments of 0.5 IMD to IdentityMD's fee address, 110 IMD in all, from 52 senders, in blocks 26,197,518 to 26,204,517; the team counted the same logs on chain on 16 October 2026 and got the same figures. Among them are the team's own payment for this job and one by house wallet W1.",
       },
     },
   ],

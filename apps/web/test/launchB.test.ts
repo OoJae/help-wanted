@@ -336,7 +336,7 @@ describe("launch B on the day of its launch: live, and nothing has been called o
       "The hire desk is launched and no order has been opened on it: its own counter, orderCount(), read 0 for this page. So no order has been taken by a runner, none has been delivered, and none has been settled by a real job.",
       "No crowd pot has been opened: CrowdPots' own counter, potCount(), read 0 for this page.",
       "The Doorbell has opened no order: nobody has rung it, 25 rings stand before its next hire, and it is not funded (it holds 0 IMD), so a 25th ring would hire nothing until somebody sends it IMD.",
-      "IdentityMD's receipts are stalled: its WorkRegistry recorded none in the last six hours of blocks",
+      "IdentityMD's receipts are stalled: its WorkRegistry has written no receipt in the last 24 hours of blocks",
       "only an order whose employer allowed the bonded-claim path can be paid",
       "The header job's receipt is not on chain.",
       "Launch B was audited by that pipeline before it was deployed, and by nobody outside IdentityMD's network: we bought no audit of it",
@@ -446,8 +446,12 @@ describe("launch B on the day of its launch: live, and nothing has been called o
 
   it("receipts: stalled by the six-hour test, and still said to be late when the registry's log cannot be read", async () => {
     const stalled = ((await page(launchDay(), "/judges")).loaded.model as JudgesModel).notLive.join("\n");
+    // Stalled by the six-hour test, and given its length: nothing in all the blocks searched.
     expect(stalled).toContain(
-      "IdentityMD's receipts are stalled: its WorkRegistry recorded none in the last six hours of blocks. 0 of the newest",
+      "IdentityMD's receipts are stalled: its WorkRegistry has written no receipt in the last 24 hours of blocks (blocks ",
+    );
+    expect(stalled).toContain(
+      "as far back as this server's RPC serves its log; nothing is said here of older blocks). 0 of the newest",
     );
     // The same day on a node that refuses the registry's log, as the public RPC sometimes does.
     const world = launchDay();

@@ -216,6 +216,9 @@ export const wirePage: PageDef<WireModel> = {
     // means the check further down finds them ready instead of waiting for them in turn.
     void api.jobRecords(checked.jobId).catch(() => undefined);
     void api.workRecord(checked.receipt as Hex).catch(() => undefined);
+    // The registry's own log, for how long it has written no receipt. Never waited on for long: a
+    // first search that runs slow leaves the front page with the other figures.
+    const writerPending = chain.receiptWriter();
     const [healthRead, jobsRead, headRead, ordersRead, bellRead] = await Promise.all([
       api.health().then(
         (value) => ({ value, error: null as string | null }),
@@ -281,11 +284,16 @@ export const wirePage: PageDef<WireModel> = {
     }
 
     const endedJobs = jobs.filter((j) => jobEnded(j.state));
+    const writerRead = await within(writerPending, 1500).then(
+      (read) => (read.done ? read.value : null),
+      () => null,
+    );
     const flow = receiptFlow({
       queued: health?.receiptsQueued ?? null,
       ...countReceipts(endedJobs.map((j) => receipts.get(jobIdToBytes16(j.id)))),
       readAt: healthRead.value ? new Date(healthRead.value.fetchedAt).toISOString() : null,
       error: healthRead.error ?? jobsRead.error,
+      writer: writerRead,
     });
 
     const proof: WireProof | null =
@@ -570,7 +578,7 @@ export const wirePage: PageDef<WireModel> = {
               ],
               ["Paid orders, all time", s.paidOrders === null ? "" : formatInt(s.paidOrders)],
               [
-                "Receipts waiting to be written on chain",
+                "Receipts waiting to go on chain",
                 s.receiptsQueued === null ? "" : formatInt(s.receiptsQueued),
               ],
               ["Price of one job", `${formatImd(m.paidActionPriceWei)} IMD`],

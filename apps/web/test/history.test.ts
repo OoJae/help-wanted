@@ -686,10 +686,17 @@ describe("order 2 on its page", () => {
     });
     // A report, not a picture: the link is to the file IdentityMD serves, and no copy is kept here.
     expect(model.picture).toBeNull();
-    expect(model.work).toMatchObject({ label: "See the report the rule paid for", url: SECOND.work!.url });
+    expect(model.work).toMatchObject({
+      label: "Download the report the rule paid for (Markdown)",
+      url: SECOND.work!.url,
+    });
+    // It says plainly that the link downloads a Markdown file.
+    expect(model.work?.what).toContain(
+      "report.md, a Markdown file of 10,523 bytes. IdentityMD's API serves it as a download",
+    );
     expect(markdown).toContain("## The work");
     expect(markdown).toContain(
-      `See the report the rule paid for: [${SECOND.work!.url}](${SECOND.work!.url})`,
+      `Download the report the rule paid for (Markdown): [${SECOND.work!.url}](${SECOND.work!.url})`,
     );
     expect(markdown).toContain("This site serves no copy.");
     expect(model.flows).toEqual([]);
@@ -755,7 +762,7 @@ describe("the front page on mainnet's book", () => {
     ]);
     expect(model.lead?.next?.work?.url).toBe(SECOND.work!.url);
     expect(markdown).toContain(
-      `See the report the rule paid for: [${SECOND.work!.url}](${SECOND.work!.url})`,
+      `Download the report the rule paid for (Markdown): [${SECOND.work!.url}](${SECOND.work!.url})`,
     );
     expect(model.whatIsNew).toHaveLength(4);
     // WorkProof checks the hash and returns the record's hashes; the desk compares them with the order.
@@ -1073,16 +1080,33 @@ describe("who takes orders today", () => {
     // /hire carries the runner's lines; the keeper is said where runners are.
     const hire = await page<HireIndexModel>(mainnet(), "/hire");
     expect(hire.model.runnerStatement?.lines).toEqual([...RUNNER_STATEMENT.lines]);
-    // Each job page says whether the team's runner takes its kind.
+    // Each job page says whether a runner serves its kind today.
     const research = await page<HireTemplateModel>(mainnet(), "/hire/research");
-    expect(research.model.runnerTakes).toContain("The team says its runner takes this kind of order");
-    // With the limits the team gives: the order's bond, one at a time, one swarm fee a day.
+    expect(research.model.runnerTakes).toContain("The team's hosted runner serves this kind");
+    // With the limits the team gives: one at a time, one swarm fee per UTC day, the bond.
     expect(research.model.runnerTakes).toContain(
-      "when the order's bond is at most 0.25 IMD, one order at a time, and that it pays at most one 0.5 IMD swarm fee a day (16 October 2026)",
+      "one order at a time, one 0.5 IMD swarm fee per UTC day, and bonds of at most 0.25 IMD (the team's statement, 16 October 2026)",
     );
+    expect(research.model.template.runnerToday).toBe("the team's");
     const audit = await page<HireTemplateModel>(mainnet(), "/hire/audit");
-    expect(audit.model.runnerTakes).toContain("The team says its runner does not take this kind of order");
-    expect(audit.markdown).toContain("An order of this kind waits for another runner.");
+    expect(audit.model.runnerTakes).toContain(
+      "No runner serves this kind yet: an order would wait until it expires and then refund.",
+    );
+    expect(audit.model.template.runnerToday).toBe("none yet");
+    expect(audit.markdown).toContain("Runner today: none yet");
+    const video = await page<HireTemplateModel>(mainnet(), "/hire/video");
+    expect(video.model.runnerTakes).toContain("No runner serves this kind yet");
+    // /hire says which kinds are served, in its table and in a sentence.
+    expect(hire.model.served).toContain(
+      "the team's hosted runner serves skill:research-report and skill:create-image only, one order at a time and one 0.5 IMD swarm fee per UTC day",
+    );
+    expect(hire.model.templates.map((t) => [t.slug, t.runnerToday])).toEqual([
+      ["audit", "none yet"],
+      ["research", "the team's"],
+      ["image", "the team's"],
+      ["video", "none yet"],
+    ]);
+    expect(hire.markdown).toContain("| Runner today |");
     // The judges page names it once, as the team's.
     const judges = await page<JudgesModel>(mainnet(), "/judges");
     expect(judges.model.notLive.join(" ")).toContain(RUNNER_STATEMENT.short);

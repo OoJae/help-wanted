@@ -7,7 +7,7 @@ import Theirs from "~/components/Theirs.astro";
 import Layout from "~/layouts/Layout.astro";
 import { pageData } from "~/lib/page";
 import type { HireTemplateModel } from "~/models/desk";
-import { receiptFlowMeaning } from "~/models/receipts";
+import { CLAIM_BOX_STARTS } from "~/models/receipts";
 import { HOW_AN_ORDER_FLOWS } from "~/models/wire";
 
 const loaded = await pageData<HireTemplateModel>(Astro);
@@ -44,6 +44,12 @@ const t = m.template;
         <dt>Record kind pinned</dt>
         <dd class="figure__data">{t.kind}</dd>
       </div>
+      {t.runnerToday && (
+        <div class="figure">
+          <dt>Runner today</dt>
+          <dd class="figure__words">{t.runnerToday}</dd>
+        </div>
+      )}
     </dl>
   </header>
 
@@ -83,33 +89,21 @@ const t = m.template;
     <h3 class="sub" id="claims">
       Before you choose how it pays
     </h3>
-    <p>
-      An order pays on an on-chain receipt. It may also accept a bonded delivery claim, and the form decides
-      how that box starts by one rule: it is ticked only while IdentityMD's receipts are stalled, which means
-      its WorkRegistry has recorded no receipt for six hours.
-    </p>
-    <aside
-      class:list={["notice", m.claim.preselected && "notice--spot"]}
-      aria-label="How the form starts today"
-    >
-      <span class="label">
-        {m.claim.preselected ? "The claim box starts ticked today" : "The claim box starts unticked today"}
-      </span>
+    <p>An order pays on an on-chain receipt. {CLAIM_BOX_STARTS}</p>
+    <aside class:list={["notice", m.claim.stalled === true && "notice--spot"]} aria-label="Receipts today">
+      <span class="label">Receipts today</span>
       <p>{m.claim.why}</p>
     </aside>
     <Commands
       commands={[
         {
-          comment:
-            "The test the form applies: receipts recorded by the WorkRegistry in the last six hours of blocks",
+          comment: "The six-hour test: receipts recorded by the WorkRegistry in the last six hours of blocks",
           command: m.claim.command,
         },
       ]}
     />
-    <p>
-      Read for this page as well: {m.receipts.observed} {receiptFlowMeaning(m.receipts)} If the order accepts
-      a bonded delivery claim, these are its limits:
-    </p>
+    {m.receipts.figures && <p class="small">Read for this page as well: {m.receipts.figures}</p>}
+    <p>If the order accepts a bonded delivery claim, these are its limits:</p>
     <ol>
       {m.claimLimits.map((line) => (
         <li>{line}</li>

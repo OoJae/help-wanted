@@ -18,6 +18,7 @@ import type { QuestionsModel } from "~/models/questions";
 import type { LoadContext } from "~/models/types";
 import { releaseTally } from "~/models/jobsReport";
 import { ringsByOrigin } from "~/models/money";
+import { loadReceiptFlow, receiptFlow, receiptsForApi } from "~/models/receipts";
 import { runVerify, type VerifyJobModel } from "~/models/verify";
 import { UpstreamBusyError, UpstreamDownError, messageOf } from "./cache";
 import { errorResponse, jsonResponse, OPEN_CORS } from "./http";
@@ -113,12 +114,30 @@ export async function handleApi(path: string, _request: Request, ctx: LoadContex
     }
 
     if (head === "swarm" && parts.length === 1) {
+      // The swarm's state first: when IdentityMD's API fails, that is the answer. The receipt
+      // figures beside it are the same cached reads, and the same sentences, as the front page and
+      // /hire, and never fail the answer.
       const health = await sources.api.health();
+      const [flow, writer] = await Promise.all([loadReceiptFlow(sources), sources.chain.receiptWriter()]);
       return jsonResponse({
         ...health.value,
         fetchedAt: new Date(health.fetchedAt).toISOString(),
         stale: health.stale,
         source: `${sources.api.baseUrl}/health`,
+        receipts: {
+          // The queue is the count printed above it, from the same read, with that read's time.
+          ...receiptsForApi(
+            receiptFlow({
+              queued: health.value.receiptsQueued,
+              asked: flow.asked,
+              withReceipt: flow.withReceipt,
+              readAt: new Date(health.fetchedAt).toISOString(),
+              error: flow.error,
+              writer,
+            }),
+          ),
+          note: "receiptsQueued is IdentityMD's own count at fetchedAt and moves from minute to minute. lastReceipt is the newest WorkRecorded event in the WorkRegistry's own log, found by searching back from the head as far as this server's RPC serves the log (searched).",
+        },
       });
     }
 

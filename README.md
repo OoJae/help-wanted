@@ -48,6 +48,30 @@ contract has an owner, an admin or a setter, and there is no token of ours.
 
 HELP WANTED is an entry in IdentityMD's builder competition.
 
+## Why pay on proof
+
+Where money waits for work, somebody decides when it moves. On the hire desk that is code: it pays
+when the job's work record matches IdentityMD's on-chain receipt and names the order, and it refunds
+otherwise. The other rows are what each one's published terms said when read on 20 October 2026
+(two figures, marked, are reported by others).
+
+| Where                                  | Who decides payment                                                                           | Until money moves                                                           | Refund                                                    | Source                                                                                                                                                                                         |
+| -------------------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HELP WANTED, receipt path              | Code: `WorkProof` holds the work record against the WorkRegistry receipt and the order header | In the settling transaction; order 2 was paid 8 min 48 s after its rule fired | Yes: after the deadline, anyone may send it back          | Check 7 below                                                                                                                                                                                  |
+| Upwork, fixed price                    | The client; silence approves after 14 days; disputes go to Upwork, then paid arbitration      | Up to 14 days of review, then a 5-day hold                                  | Through a dispute                                         | [getting paid](https://support.upwork.com/hc/en-us/articles/211063718-Get-Paid-for-Fixed-Price-Contracts), [disputes](https://support.upwork.com/hc/en-us/articles/14044146250259)                |
+| Fiverr                                 | The buyer; the order completes by itself 3 days after delivery                               | 3 days (up to 5 more if extended), then 14 days of clearance                | By cancellation                                           | [order statuses](https://help.fiverr.com/hc/en-us/articles/37552517993105-The-complete-guide-to-your-Fiverr-order-Statuses-and-process), [clearance, reported](https://wise.com/us/blog/how-to-get-paid-on-fiverr) |
+| Bountycaster, a bounty board           | Only the poster                                                                               | Whenever the poster pays                                                    | Nothing is held                                           | [FAQ](https://www.bountycaster.xyz/faq)                                                                                                                                                        |
+| ERC-8183, and Virtuals ACP v2 on it    | One evaluator named at the start; no dispute step                                             | When the evaluator completes the job                                        | Yes, on rejection or after expiry                         | [EIP-8183](https://eips.ethereum.org/EIPS/eip-8183), [ACP changelog](https://whitepaper.virtuals.io/acp/acp-changelogs)                                                                          |
+| x402r, escrow for x402 payments (beta) | An arbiter                                                                                    | After a 14-day timelock, unless released sooner                             | Yes, released by the arbiter                              | [x402r](https://www.x402r.org/), [timelock, reported](https://ethglobal.com/showcase/x402r-and-d-1k9yg)                                                                                          |
+| IdentityMD's Intake                    | Nobody after the fact: the fee is taken in the call that opens the job                       | Before the work starts                                                      | "Refunds: None", in its docs                              | [IdentityMD docs](https://imd.fun/docs/llms.txt)                                                                                                                                               |
+
+An order on the desk is in the shape of ERC-8183: the employer is the client, the runner the
+provider, the receipt check the evaluator. The difference is that the evaluator is a fixed check of a
+receipt IdentityMD wrote, not a party someone names. What the desk proves is delivery, not quality:
+it pays a completed job of the order's kind whose work record names the order, and IdentityMD's own
+verification of a research report is structural (for order 2's job: "paths and tree verified; no
+suite was run for this kind of work"). It is not for work only a person can judge.
+
 ## Read this first: what is true on 16 October 2026
 
 - **Launch A is live on Ethereum mainnet** since 13 October 2026. Three contracts, created by

@@ -33,8 +33,10 @@ import {
   RECORD,
   SEAT_OWNER,
   testSources,
+  TRANSFERS,
   UNRECEIPTED_HASH,
   UNRECEIPTED_JOB,
+  workRecordedLog,
 } from "./helpers";
 
 const JOB = REFERENCE_JOB.jobId;
@@ -726,19 +728,36 @@ describe("/verify", () => {
     expect(markdown).toContain(REFERENCE_JOB.receipt);
     expect(markdown).toContain("0xebe9712c");
     // What the page says about receipts is read, with the reads the front page already makes: the
-    // swarm's state, the newest jobs, and one multicall to the registry. A second view reads nothing.
+    // swarm's state, the newest jobs, the registry's own log (the six hours, then back through the
+    // day the RPC serves, one look at whether it keeps older logs, and three more days in which only
+    // a receipt it returned would count) and one multicall to the registry. A second view reads
+    // nothing.
     expect(world.api.calls).toEqual(["GET /health", "GET /jobs"]);
-    expect(world.chain.calls).toEqual([`eth_call ${MULTICALL3.toLowerCase()}`]);
+    const head = TRANSFERS.toBlock;
+    const registry = MAINNET.WORK_REGISTRY.toLowerCase();
+    expect(world.chain.calls).toEqual([
+      "eth_blockNumber",
+      `eth_getLogs ${registry} ${head - 1799}-${head}`,
+      `eth_getLogs ${registry} ${head - 7199}-${head - 1800}`,
+      `eth_getLogs ${registry} ${REFERENCE_JOB.receiptBlock}-${REFERENCE_JOB.receiptBlock}`,
+      `eth_getLogs ${registry} ${head - 14399}-${head - 7200}`,
+      `eth_getLogs ${registry} ${head - 21599}-${head - 14400}`,
+      `eth_getLogs ${registry} ${head - 28799}-${head - 21600}`,
+      `eth_call ${MULTICALL3.toLowerCase()}`,
+    ]);
     await verifyIndexPage.load(ctx, {});
     expect(world.api.calls).toHaveLength(2);
-    expect(world.chain.calls).toHaveLength(1);
+    expect(world.chain.calls).toHaveLength(8);
   });
 
   it("says receipts are late only while the figures say so", async () => {
     const stalled = await verifyIndexPage.load(ctxFor(testSources()), {});
     expect(stalled?.receipts.state).toBe("late");
-    expect(verifyIndexPage.markdown(stalled!)).toContain("1,774 receipts waiting to be written");
-    expect(verifyIndexPage.markdown(stalled!)).toContain("arriving late or not at all at the moment");
+    expect(verifyIndexPage.markdown(stalled!)).toContain("1,774 receipts waiting to go on chain");
+    expect(verifyIndexPage.markdown(stalled!)).toContain(
+      "IdentityMD's WorkRegistry has written no receipt in the last 24 hours of blocks",
+    );
+    expect(verifyIndexPage.markdown(stalled!)).toContain("is refunded at its deadline if none comes");
 
     // Every recent job has a receipt and nothing is queued: the page must not go on saying "stalled".
     const jobs = fixtureJson<{ jobs: { id: string }[] }>("jobs-limit3.json").jobs;
@@ -750,14 +769,16 @@ describe("/verify", () => {
       ctxFor(
         testSources({
           api: fakeApi({ "/health": () => new Response(JSON.stringify(health)) }),
-          chain: { receipts },
+          // And the registry's own log shows a receipt half an hour before the head.
+          chain: { receipts, registryLogs: [workRecordedLog(TRANSFERS.toBlock - 150)] },
         }),
       ),
       {},
     );
     expect(flowing?.receipts.state).toBe("flowing");
     const text = verifyIndexPage.markdown(flowing!);
-    expect(text).toContain("0 receipts waiting to be written");
-    expect(text).not.toMatch(/stalled|arriving late/);
+    expect(text).toContain("0 receipts waiting to go on chain");
+    expect(text).toContain("IdentityMD's WorkRegistry is writing receipts");
+    expect(text).not.toMatch(/stalled|has written no receipt|refunded at its deadline/);
   });
 });

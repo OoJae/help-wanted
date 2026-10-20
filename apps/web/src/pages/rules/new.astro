@@ -34,25 +34,60 @@ const sinceHire = rings === null ? null : rings % 25;
 
   <section class="section section--first" id="once">
     <div class="section__head">
-      <h2>Once: start from a sentence</h2>
-      <p>a preset fills the form below</p>
+      <h2>Start from a sentence</h2>
+      <p>a preset fills a form below</p>
     </div>
     <div class="classifieds">
       {m.presets.map((p) => (
         <article class="ad">
           <h3 class="ad__head">
-            <a href={`/rules/new?preset=${p.slug}`}>{p.title}</a>
+            <a href={p.href}>{p.title}</a>
           </h3>
           <p class="ad__text">{p.sentence}</p>
+          {p.caveat && <p class="small">{p.caveat}</p>}
+          <ul class="ad__meta">
+            <li>{p.form === "once" ? "Once, as an order" : "A standing rule"}</li>
+            {p.tested && <li>Tried on a mainnet fork</li>}
+          </ul>
           <div class="ad__foot">
             <p class="ad__links">
-              <a href={`/rules/new?preset=${p.slug}`}>Use this sentence</a>
+              <a href={p.href}>Use this sentence</a>
             </p>
             {m.activePreset === p.slug && <span class="status">Chosen</span>}
           </div>
         </article>
       ))}
     </div>
+    {m.presets.some((p) => p.tested) && <p class="small">{m.presets.find((p) => p.tested)?.tested}</p>}
+    {m.presetPlan && (
+      <aside class="notice" id="chosen" aria-label="The chosen preset">
+        <span class="label">Chosen: {m.presetPlan.title}</span>
+        {m.presetPlan.problems.length > 0 ? (
+          <ul class="problems">
+            {m.presetPlan.problems.map((p) => (
+              <li>{p}</li>
+            ))}
+          </ul>
+        ) : (
+          <>
+            <ol class="plan">
+              {m.presetPlan.lines.map((line) => (
+                <li>{line}</li>
+              ))}
+            </ol>
+            <Commands
+              commands={m.presetPlan.steps.map((s) => ({ comment: s.label, command: s.command }))}
+              label="The chosen preset's transactions, in order"
+              as="steps"
+            />
+          </>
+        )}
+        <p class="small">
+          <a href="#standing">The standing rule's form</a> starts with these values; the rest of what the rule
+          does is said there.
+        </p>
+      </aside>
+    )}
   </section>
 
   <section class="section">

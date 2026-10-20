@@ -875,7 +875,7 @@ const planOrder: ToolDef = {
       expiresNote:
         "The order's expiry is fixed in these bytes from the time of planning. Sign soon, or plan again.",
       allowClaimed: values.allowClaimed === "true",
-      claimPath: { formWouldTickItToday: claim.preselected, why: claim.why },
+      claimPath: { formStartsUnticked: true, receiptsStalled: claim.stalled, why: claim.why, box: claim.box },
       hostedRunner: (() => {
         const runner = hostedRunner(desk);
         if (!runner || params.minPay === undefined) return null;
@@ -1091,7 +1091,7 @@ const receiptsStatus: ToolDef = {
         newestBlock: writer.newestBlock,
         error: writer.error,
       },
-      claimPath: { formWouldTickItToday: claim.preselected, why: claim.why },
+      claimPath: { formStartsUnticked: true, receiptsStalled: claim.stalled, why: claim.why, box: claim.box },
       command: claim.command,
       error: flow.error,
     };

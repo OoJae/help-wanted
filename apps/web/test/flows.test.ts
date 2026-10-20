@@ -17,6 +17,7 @@ import { ethFor, plainDown, zapPreset, zapQuoteRequest } from "~/lib/zapQuote";
 import { resolveDeployments } from "~/config/deployments";
 import {
   crowdPotsAbi,
+  DEPLOYMENT_BOOK,
   DESK,
   endowmentsAbi,
   HOUSE_FEEDS,
@@ -43,9 +44,12 @@ import {
 import { ENDOWMENT, GAS_LIMIT, RULE, signatureOf } from "~/lib/contracts";
 import { handleApi } from "~/lib/api";
 import { addressesOf, previewFlow } from "~/models/flowPreview";
+import { CHAINLINK_ETH_USD, rulePresets, rulesNewPage } from "~/models/money";
 import { BOOKS, ctxFor, NOW, testSources } from "./helpers";
 
 const IMD = 10n ** 18n;
+/** The hire desk on mainnet, as the deployments book holds it. */
+const MAINNET_DESK = resolveDeployments({}, DEPLOYMENT_BOOK).contracts.workOrders.address as string;
 const NOW_SECONDS = Math.floor(NOW.getTime() / 1000);
 const DESK_ADDRESS = "0x00000000000000000000000000000000000000D1";
 // The two ends a flow is planned at: a book with no launch in it, and one with all three.
@@ -1202,5 +1206,137 @@ describe("the runner's steps", () => {
     expect(challenge.calls[0]?.args).toEqual([ALL_LAUNCHED.workOrders, IMD / 4n]);
     const timeout = ok(flowById("order-timeout")!.plan({ id: "7" }, ctx()));
     expect(timeout.calls[0]?.signature).toBe(signatureOf(workOrdersAbi, "timeout"));
+  });
+});
+
+describe("the standing presets of /rules/new: what already works, as createRule calldata", () => {
+  // The book's own desk and Rules, so each preset is planned exactly as the page plans it.
+  const book = resolveDeployments({}, DEPLOYMENT_BOOK);
+  const addresses = addressesOf(book);
+  const presets = rulePresets(book.contracts.workOrders.address);
+  const standing = presets.filter((p) => p.form === "standing");
+
+  /** The createRule call a preset plans, decoded back from the calldata a wallet would send. */
+  function decoded(slug: string) {
+    const preset = standing.find((p) => p.slug === slug)!;
+    const plan = ok(flowById("create-rule")!.plan(preset.values, { addresses, now: NOW_SECONDS }));
+    expect(plan.calls.map((c) => c.functionName)).toEqual(["approve", "createRule"]);
+    const call = plan.calls[1]!;
+    expect(call.to).toBe(addresses.rules);
+    const data = encodeFunctionData({
+      abi: call.abi,
+      functionName: call.functionName,
+      args: call.args as unknown[],
+    });
+    const { functionName, args } = decodeFunctionData({ abi: rulesAbi, data });
+    expect(functionName).toBe("createRule");
+    const [p, spec, deposit] = args as unknown as [
+      {
+        when: {
+          kind: number;
+          cmp: number;
+          maxAge: number;
+          target: string;
+          threshold: bigint;
+          feedId: Hex;
+          data: Hex;
+        };
+        action: number;
+        hire: { kindHash: Hex; minPay: bigint; maxPay: bigint; flags: number; orderTtl: number };
+        tip: bigint;
+        cooldown: number;
+        maxFires: number;
+      },
+      Hex,
+      bigint,
+    ];
+    // What Rules.createRule checks before it accepts a VIEW condition and a HIRE action.
+    expect(p.when.kind).toBe(RULE.COND_VIEW);
+    expect(p.when.maxAge).toBe(0);
+    expect(p.when.feedId).toBe(`0x${"0".repeat(64)}`);
+    expect((p.when.data.length - 2) / 2).toBeLessThanOrEqual(132);
+    expect(p.action).toBe(RULE.ACT_HIRE);
+    expect(p.hire.maxPay).toBeGreaterThan(0n);
+    expect(p.hire.minPay).toBeLessThanOrEqual(p.hire.maxPay);
+    expect(p.hire.orderTtl).toBeGreaterThan(0);
+    // Each order returns its change to the rule, and pays only on a receipt.
+    expect(p.hire.flags).toBe(ORDER_FLAG.CALLBACK);
+    // The approval is exactly the deposit.
+    expect(plan.calls[0]!.args).toEqual([addresses.rules, deposit]);
+    return { plan, p, spec: hexToString(spec), deposit };
+  }
+
+  it("offers three standing presets beside the two conditional orders, each tried on a fork", () => {
+    expect(standing.map((p) => p.slug)).toEqual(["weekly", "next-step", "eth-price"]);
+    expect(presets.filter((p) => p.form === "once").map((p) => p.slug)).toEqual(["milestone", "tvl"]);
+    for (const p of standing) {
+      expect(p.tested).toContain("Tried on a fork of mainnet on 20 October 2026");
+      expect(p.tested).toContain("Not yet run on mainnet itself.");
+      expect(p.href).toBe(`/rules/new?preset=${p.slug}#chosen`);
+    }
+  });
+
+  it("weekly: an always-true view, a week between fires, four fires, a deposit for all four", () => {
+    const { p, deposit, spec, plan } = decoded("weekly");
+    // IMD.decimals() is 18, so "at least 0" holds whenever the call answers.
+    expect(p.when.target).toBe(MAINNET.IMD);
+    expect(p.when.data).toBe(toFunctionSelector("decimals()"));
+    expect(p.when.cmp).toBe(1);
+    expect(p.when.threshold).toBe(0n);
+    expect(p.cooldown).toBe(604_800);
+    expect(p.maxFires).toBe(4);
+    expect(p.tip).toBe(IMD / 100n);
+    expect(p.hire.kindHash).toBe(kindHash("skill:research-report"));
+    expect([p.hire.minPay, p.hire.maxPay]).toEqual([(56n * IMD) / 100n, (60n * IMD) / 100n]);
+    expect(deposit).toBe(BigInt(p.maxFires) * (p.hire.maxPay + p.tip));
+    expect(spec).toContain("past seven days");
+    expect(plan.summary.join(" ")).toContain("It fires at most 4 times, at least 7 d apart.");
+  });
+
+  it("next step: WorkOrders.stateOf(2) equals 6 (Delivered), on the book's own desk", () => {
+    const { p, deposit } = decoded("next-step");
+    expect(p.when.target.toLowerCase()).toBe(MAINNET_DESK.toLowerCase());
+    expect(p.when.data).toBe(`${toFunctionSelector("stateOf(uint256)")}${"0".repeat(63)}2`);
+    expect(p.when.cmp).toBe(5);
+    expect(p.when.threshold).toBe(6n);
+    expect(p.maxFires).toBe(1);
+    expect(p.cooldown).toBe(0);
+    expect(p.hire.kindHash).toBe(kindHash("skill:create-image"));
+    expect(deposit).toBe(p.hire.maxPay + p.tip);
+  });
+
+  it("price: Chainlink's ETH / USD latestAnswer() at least 3,000 dollars, 8 decimals", () => {
+    const { p, deposit } = decoded("eth-price");
+    expect(p.when.target).toBe(CHAINLINK_ETH_USD);
+    expect(p.when.data).toBe(toFunctionSelector("latestAnswer()"));
+    expect(p.when.cmp).toBe(1);
+    expect(p.when.threshold).toBe(3_000n * 10n ** 8n);
+    expect(p.maxFires).toBe(1);
+    expect(deposit).toBe(p.hire.maxPay + p.tip);
+  });
+
+  it("/rules/new fills the standing rule's form with a chosen preset and prints its transactions once", async () => {
+    const world = testSources({ book: DEPLOYMENT_BOOK });
+    const model = (await rulesNewPage.load(ctxFor(world, "/rules/new?preset=weekly"), {}))!;
+    expect(model.activePreset).toBe("weekly");
+    expect(model.presetPlan?.steps).toHaveLength(2);
+    expect(model.presetPlan?.steps[1]?.label).toBe("Create the rule and escrow its deposit");
+    expect(model.presetPlan?.lines[0]).toBe(
+      `WHEN decimals() on ${MAINNET.IMD} is at least 0, THEN open an order for 1 robot researcher (kind skill:research-report) paying 0.56 to 0.6 IMD.`,
+    );
+    // The form starts with the preset; the worked example stays launch C's own; the conditional
+    // order's form is left alone.
+    expect(model.ruleFlow.preset).toMatchObject({ condFunction: "decimals()", cooldownHours: "168" });
+    expect(model.ruleFlow.exampleValues.condFunction).toBe("totalAssets()");
+    expect(model.flow.preset).toEqual({});
+    const markdown = rulesNewPage.markdown(model);
+    expect(markdown).toContain("## Start from a sentence");
+    expect(markdown).toContain("### Chosen: A research report every week, cancel any time");
+    expect(markdown).toContain("Tried on a fork of mainnet on 20 October 2026");
+    // A conditional-order preset still fills the conditional order's form, and nothing else.
+    const once = (await rulesNewPage.load(ctxFor(world, "/rules/new?preset=tvl"), {}))!;
+    expect(once.presetPlan).toBeNull();
+    expect(once.flow.preset).toMatchObject({ condFunction: "balanceOf(address)" });
+    expect(once.ruleFlow.preset).toEqual({});
   });
 });

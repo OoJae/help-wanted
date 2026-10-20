@@ -835,7 +835,12 @@ describe("pages that work on today's data", () => {
     const hire = markdownTwin((await loadPath("/hire/audit", ctxFor(world, "/hire/audit")))!);
     expect(hire).toContain("A claim that is untrue and that nobody challenges within 24 hours is paid");
     expect(hire).toContain("A challenge that nothing decides refunds you, even when the claim was true");
-    expect(hire).toContain("it is ticked only while IdentityMD's receipts are stalled");
+    // The box starts unticked on every order, and the form says that nobody hosted watches it.
+    expect(hire).toContain(
+      "The box that also accepts a bonded delivery claim starts unticked on every order.",
+    );
+    expect(hire).toContain("the team hosts no watcher");
+    expect(hire).not.toContain("ticked only while");
   });
 
   it("/judges keeps to 150 words whatever is launched, and its last sentence follows the deployments book", () => {

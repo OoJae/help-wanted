@@ -123,6 +123,8 @@ export function buildSources(
   });
   const chain = new RpcChainSource({
     reader: createEthReader(env.rpcUrl),
+    // The same RPC, given longer to answer a day of the WorkRegistry's log.
+    historyReader: createEthReader(env.rpcUrl, { timeoutMs: 15_000 }),
     rpcHost: hostOf(env.rpcUrl),
     logWindowBlocks: env.logWindowBlocks,
     archiveReader: env.archiveRpcUrl ? createEthReader(env.archiveRpcUrl, { timeoutMs: 30_000 }) : null,

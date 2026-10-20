@@ -19,7 +19,7 @@ import {
   seatAdapterAbi,
   workRegistryAbi,
 } from "@help-wanted/shared";
-import { PUBLIC_LOG_WINDOW_BLOCKS, SECONDS_PER_BLOCK, TOPIC } from "~/config/chain";
+import { PUBLIC_LOG_WINDOW_BLOCKS, REFERENCE_JOB, SECONDS_PER_BLOCK, TOPIC } from "~/config/chain";
 import { Breaker, messageOf, SlidingWindowLimiter, TtlCache, type Cached } from "~/lib/cache";
 import { isZeroHash, parseHash } from "~/lib/ids";
 import {
@@ -103,7 +103,8 @@ export interface IntakeHistory {
 
 /**
  * Whether IdentityMD's registry is writing receipts, from the registry's own log: its newest
- * `WorkRecorded` events in the last six hours of blocks.
+ * `WorkRecorded` events in the last six hours of blocks and, when there are none, its newest
+ * receipt before them, searched for as far back as the RPCs this server is given serve the log.
  */
 export interface ReceiptWriterRead {
   /**
@@ -112,14 +113,24 @@ export interface ReceiptWriterRead {
    * read.
    */
   stalled: boolean | null;
-  /** How many blocks were looked at: 1,800, six hours. */
+  /** How many blocks the six-hour test looks at: 1,800. */
   windowBlocks: number;
+  /** The six-hour test's range. */
   fromBlock: number | null;
   toBlock: number | null;
-  /** How many `WorkRecorded` events were in the range. */
+  /** How many `WorkRecorded` events were in the six-hour range. */
   events: number | null;
-  /** The block of the newest one, when there is one. */
+  /** The block of the newest `WorkRecorded` event found, in the six hours or before them. */
   newestBlock: number | null;
+  /** That block's time, in Unix seconds. Null when there is no such block or its time was not read. */
+  newestAt: number | null;
+  /**
+   * The oldest block of the range an RPC this server trusts for it answered, up to `toBlock`. When
+   * `newestBlock` is null, the registry wrote nothing in all of `searchedFrom` to `toBlock`; how far
+   * back that reaches is what the RPCs this server is given serve, and nothing is said of the
+   * blocks before it.
+   */
+  searchedFrom: number | null;
   fetchedAt: number;
   stale: boolean;
   error: string | null;
@@ -222,6 +233,12 @@ export interface RpcChainOptions {
   /** How many blocks back `reader` serves logs. */
   logWindowBlocks: number;
   archiveReader?: EthReader | null;
+  /**
+   * The same endpoint as `reader`, with a longer timeout, for the search back through the
+   * registry's log for its newest receipt: a day of logs can take a node longer than a page
+   * should wait. Its failures pause only that search. Defaults to `reader`.
+   */
+  historyReader?: EthReader | null;
   /** How many days of payments to ask the archive reader for. */
   tallyDays: number;
   cache?: TtlCache;
@@ -247,6 +264,12 @@ const REPORT_BLOCKS = PUBLIC_LOG_WINDOW_BLOCKS;
 
 /** Six hours of blocks: the test for "IdentityMD's receipts are stalled" that the launch documents use. */
 export const RECEIPT_STALL_BLOCKS = (6 * 3600) / SECONDS_PER_BLOCK;
+/** How far back the newest receipt is looked for once six hours hold none: fourteen days of blocks. */
+export const RECEIPT_SEARCH_BLOCKS = 14 * BLOCKS_PER_DAY;
+/** One log query of the backward search: a day of blocks. */
+const RECEIPT_SEARCH_CHUNK = 7200;
+/** How many days past its log window the main RPC is asked, when nothing shows it keeps them. */
+const RECEIPT_HOPEFUL_CHUNKS = 3;
 
 interface IntakeSeed {
   fromBlock: number;
@@ -313,6 +336,8 @@ export class RpcChainSource implements ChainSource {
   readonly #maxPerMinute: number;
   readonly #ownJobs: ReadonlySet<string>;
   readonly #archive: EthReader | null;
+  /** The search back through the registry's log: counted with every other read, paused on its own. */
+  readonly #history: EthReader;
   readonly logWindowBlocks: number;
   readonly #tallyDays: number;
   readonly #cache: TtlCache;
@@ -334,6 +359,14 @@ export class RpcChainSource implements ChainSource {
   readonly #blockTimes = new Map<number, number>();
   readonly #seatAgents = new Map<string, Set<string>>();
 
+  // The registry's log as far as it has been searched: blocks `from` to `to`, and the newest
+  // receipt in them (null for none).
+  #writerCover: { from: number; to: number; newest: number | null } | null = null;
+  /** Whether the main RPC was seen to serve the registry's log at the reference receipt's block. */
+  #oldLogs: { value: boolean; at: number } | null = null;
+  /** When the main RPC was last asked past its log window and returned no receipt. */
+  #hopefulAt: number | null = null;
+
   constructor(options: RpcChainOptions) {
     this.#maxPerMinute = options.maxPerMinute ?? 240;
     this.#all = new SlidingWindowLimiter({ max: this.#maxPerMinute, windowMs: MINUTE, now: options.now });
@@ -354,6 +387,12 @@ export class RpcChainSource implements ChainSource {
         now: options.now,
       }),
       breaker: this.#breaker,
+    });
+    this.#history = guardReader(options.historyReader ?? options.reader, {
+      name: "The Ethereum RPC's older logs",
+      all: this.#all,
+      visitor: null,
+      breaker: new Breaker("The Ethereum RPC's older logs", { now: options.now }),
     });
     this.#ownJobs = new Set((options.ownJobs ?? []).map((id) => id.toLowerCase()));
     this.rpcHost = options.rpcHost;
@@ -706,41 +745,157 @@ export class RpcChainSource implements ChainSource {
   // The registry's own log: is it writing receipts?
   // -------------------------------------------------------------------------------------------
 
+  /** The registry's `WorkRecorded` logs in a range, as block numbers: only its own logs count. */
+  async #registryBlocks(reader: EthReader, fromBlock: number, toBlock: number): Promise<number[]> {
+    const logs = await reader.getLogs({
+      address: MAINNET.WORK_REGISTRY,
+      topics: [TOPIC.WORK_RECORDED],
+      fromBlock: BigInt(fromBlock),
+      toBlock: BigInt(toBlock),
+    });
+    // Whatever the node chose to return, only the registry's own WorkRecorded logs count.
+    return logs
+      .filter(
+        (log) =>
+          !log.removed &&
+          sameAddress(log.address, MAINNET.WORK_REGISTRY) &&
+          log.topics[0]?.toLowerCase() === TOPIC.WORK_RECORDED,
+      )
+      .map((log) => Number(BigInt(log.blockNumber)));
+  }
+
+  /**
+   * Whether the main RPC serves the registry's log further back than it is said to: it must return
+   * the reference job's own receipt, in the block it was written in. A node that refuses, or that
+   * answers with nothing, is not trusted for older blocks. Asked once an hour at most.
+   */
+  async #servesOldRegistryLogs(): Promise<boolean> {
+    const known = this.#oldLogs;
+    if (known && (known.value || this.#now() - known.at < 60 * MINUTE)) return known.value;
+    let value = false;
+    try {
+      const logs = await this.#history.getLogs({
+        address: MAINNET.WORK_REGISTRY,
+        topics: [TOPIC.WORK_RECORDED],
+        fromBlock: BigInt(REFERENCE_JOB.receiptBlock),
+        toBlock: BigInt(REFERENCE_JOB.receiptBlock),
+      });
+      value = logs.some(
+        (log) =>
+          !log.removed &&
+          sameAddress(log.address, MAINNET.WORK_REGISTRY) &&
+          log.transactionHash.toLowerCase() === REFERENCE_JOB.receiptTx.toLowerCase(),
+      );
+    } catch {
+      value = false;
+    }
+    this.#oldLogs = { value, at: this.#now() };
+    return value;
+  }
+
+  /**
+   * The reader for blocks older than the main RPC's log window, and the oldest block it may be
+   * asked about: the archive RPC when one is configured, or else the main RPC once it has shown it
+   * keeps the registry's log that old. Either one's empty answer counts as "none there".
+   *
+   * Otherwise the main RPC is still asked a few days further back, but only a receipt it returns
+   * counts: a node that keeps less history drops the oldest blocks first, so a receipt it returns
+   * means it served every block after it, while an empty answer may only mean it no longer keeps
+   * those blocks, and is never said to be "none". Such a search that found nothing is not repeated
+   * for ten minutes. Null when nothing more is to be asked.
+   */
+  async #deepReader(
+    head: number,
+    windowStart: number,
+  ): Promise<{ reader: EthReader; floor: number; trusted: boolean } | null> {
+    const floor = Math.max(0, head - RECEIPT_SEARCH_BLOCKS + 1);
+    if (this.#archive) return { reader: this.#archive, floor, trusted: true };
+    if (await this.#servesOldRegistryLogs())
+      return { reader: this.#history, floor: Math.max(floor, REFERENCE_JOB.receiptBlock), trusted: true };
+    if (this.#hopefulAt !== null && this.#now() - this.#hopefulAt < 10 * MINUTE) return null;
+    return {
+      reader: this.#history,
+      floor: Math.max(floor, windowStart - RECEIPT_HOPEFUL_CHUNKS * RECEIPT_SEARCH_CHUNK),
+      trusted: false,
+    };
+  }
+
   async receiptWriter(): Promise<ReceiptWriterRead> {
-    const empty = { windowBlocks: RECEIPT_STALL_BLOCKS, fromBlock: null, toBlock: null, events: null };
+    const empty = {
+      windowBlocks: RECEIPT_STALL_BLOCKS,
+      fromBlock: null,
+      toBlock: null,
+      events: null,
+      newestBlock: null,
+      newestAt: null,
+      searchedFrom: null,
+    };
     try {
       const cached = await this.#cache.get("chain:receipt-writer", { ttlMs: 60 * SECOND }, async () => {
         const head = Number(await this.reader.blockNumber());
         const fromBlock = Math.max(0, head - RECEIPT_STALL_BLOCKS + 1);
-        const logs = await this.reader.getLogs({
-          address: MAINNET.WORK_REGISTRY,
-          topics: [TOPIC.WORK_RECORDED],
-          fromBlock: BigInt(fromBlock),
-          toBlock: BigInt(head),
-        });
-        // Only the registry's own WorkRecorded logs count, whatever the node chose to return.
-        const blocks = logs
-          .filter(
-            (log) =>
-              !log.removed &&
-              sameAddress(log.address, MAINNET.WORK_REGISTRY) &&
-              log.topics[0]?.toLowerCase() === TOPIC.WORK_RECORDED,
-          )
-          .map((log) => Number(BigInt(log.blockNumber)));
+        // The six-hour test: one query.
+        const blocks = await this.#registryBlocks(this.reader, fromBlock, head);
+        const inWindow = blocks.length > 0 ? Math.max(...blocks) : null;
+        // What an earlier read covered carries on, when it reaches up to this one's range and its
+        // newest receipt is older than it: the newest receipt only ever moves forward.
+        const before = this.#writerCover;
+        const carried =
+          before !== null &&
+          before.to >= fromBlock - 1 &&
+          before.from <= fromBlock &&
+          (before.newest === null || before.newest < fromBlock);
+        const cover = carried
+          ? { from: before.from, to: head, newest: inWindow ?? before.newest }
+          : { from: fromBlock, to: head, newest: inWindow };
+        // None in six hours: look further back, newest blocks first, as far as this server's RPCs
+        // serve the registry's log, and stop at the first receipt or the first refusal.
+        if (cover.newest === null) {
+          const windowStart = Math.max(0, head - this.logWindowBlocks + 1);
+          // Asked for only when the search passes the main RPC's log window.
+          let deeper: { reader: EthReader; floor: number; trusted: boolean } | null | undefined;
+          let to = cover.from - 1;
+          while (cover.newest === null && to >= 0) {
+            let source: { reader: EthReader; floor: number; trusted: boolean } | null;
+            if (to >= windowStart) {
+              source = {
+                reader: this.#history,
+                floor: Math.max(windowStart, head - RECEIPT_SEARCH_BLOCKS + 1),
+                trusted: true,
+              };
+            } else {
+              if (deeper === undefined) deeper = await this.#deepReader(head, windowStart);
+              source = deeper;
+            }
+            if (!source || to < source.floor) break;
+            const from = Math.max(source.floor, to - RECEIPT_SEARCH_CHUNK + 1);
+            let found: number[];
+            try {
+              found = await this.#registryBlocks(source.reader, from, to);
+            } catch {
+              break;
+            }
+            // Only blocks a trusted answer covered are said to hold no receipt.
+            if (source.trusted) cover.from = from;
+            if (found.length > 0) cover.newest = Math.max(...found);
+            to = from - 1;
+          }
+          if (deeper && !deeper.trusted && cover.newest === null) this.#hopefulAt = this.#now();
+        }
+        this.#writerCover = cover;
         return {
           fromBlock,
           toBlock: head,
           events: blocks.length,
-          newestBlock: blocks.length > 0 ? Math.max(...blocks) : null,
+          newestBlock: cover.newest,
+          newestAt: cover.newest === null ? null : await this.#timeOf(cover.newest),
+          searchedFrom: cover.from,
         };
       });
       return {
         stalled: cached.value.events === 0,
         windowBlocks: RECEIPT_STALL_BLOCKS,
-        fromBlock: cached.value.fromBlock,
-        toBlock: cached.value.toBlock,
-        events: cached.value.events,
-        newestBlock: cached.value.newestBlock,
+        ...cached.value,
         fetchedAt: cached.fetchedAt,
         stale: cached.stale,
         error: cached.error,
@@ -749,7 +904,6 @@ export class RpcChainSource implements ChainSource {
       return {
         stalled: null,
         ...empty,
-        newestBlock: null,
         fetchedAt: this.#now(),
         stale: true,
         error: messageOf(failure),

@@ -6,7 +6,7 @@ import NotLaunched from "~/components/NotLaunched.astro";
 import Layout from "~/layouts/Layout.astro";
 import { pageData } from "~/lib/page";
 import { ZAP_BUY_WORDS, type HireIndexModel } from "~/models/desk";
-import { receiptFlowMeaning } from "~/models/receipts";
+import { CLAIM_BOX_STARTS } from "~/models/receipts";
 
 const loaded = await pageData<HireIndexModel>(Astro);
 if (loaded instanceof Response) return loaded;
@@ -51,6 +51,7 @@ const { model: m, meta } = loaded;
             <li>
               Record kind: <span class="break data">{t.kind}</span>
             </li>
+            {t.runnerToday && <li>Runner today: {t.runnerToday}</li>}
           </ul>
           <div class="ad__foot">
             <p class="ad__links">
@@ -60,6 +61,7 @@ const { model: m, meta } = loaded;
         </article>
       ))}
     </div>
+    {m.served && <p class="small">{m.served}</p>}
     {m.ethNote && <p class="small">{m.ethNote}</p>}
     <h3 class="sub">Not offered yet</h3>
     <ul>
@@ -135,38 +137,23 @@ const { model: m, meta } = loaded;
   <section class="section" id="claims">
     <div class="section__head">
       <h2>Paying without a receipt: your choice, and its limits</h2>
-      <p>
-        {m.claim.preselected
-          ? "ticked for you today, because receipts are stalled"
-          : "off unless you tick it on the order"}
-      </p>
+      <p>off unless you tick it on the order</p>
     </div>
-    <p>
-      An order pays on an on-chain receipt. It may also accept a bonded delivery claim, and the order form
-      decides how that box starts by one rule: it is ticked only while IdentityMD's receipts are stalled,
-      which means its WorkRegistry has recorded no receipt for six hours.
-    </p>
-    <aside
-      class:list={["notice", m.claim.preselected && "notice--spot"]}
-      aria-label="How the form starts today"
-    >
-      <span class="label">How the form starts today</span>
+    <p>An order pays on an on-chain receipt. {CLAIM_BOX_STARTS}</p>
+    <aside class:list={["notice", m.claim.stalled === true && "notice--spot"]} aria-label="Receipts today">
+      <span class="label">Receipts today</span>
       <p>{m.claim.why}</p>
     </aside>
     <Commands
       commands={[
         {
-          comment:
-            "The test the form applies: receipts recorded by the WorkRegistry in the last six hours of blocks",
+          comment: "The six-hour test: receipts recorded by the WorkRegistry in the last six hours of blocks",
           command: m.claim.command,
         },
       ]}
     />
-    <p>
-      Read for this page as well: {m.receipts.observed} {receiptFlowMeaning(m.receipts)} When a receipt is
-      late, a receipt-only order is refunded at its deadline. If you let a runner claim delivery under its
-      bond instead, know these first:
-    </p>
+    {m.receipts.figures && <p class="small">Read for this page as well: {m.receipts.figures}</p>}
+    <p>If you let a runner claim delivery under its bond instead, know these first:</p>
     <ol>
       {m.claimLimits.map((line) => (
         <li>{line}</li>

@@ -15,7 +15,9 @@ const claimsRead = m.claims.filter((c) => c.readNow !== null).length;
 const h = m.headerJob;
 const findings = m.audits.reports.reduce((sum, report) => sum + report.findings.length, 0);
 const desk = m.audits.desk;
+const why = m.whyPayOnProof;
 const parts = [
+  ["#why-proof", "Why pay on proof"],
   ...(m.live ? [["#live", "Live on mainnet"]] : []),
   ["#what", "What this is"],
   ["#launched", "Where the launches stand"],
@@ -83,8 +85,52 @@ const parts = [
     </ul>
   </header>
 
+  <section class="section section--first" id="why-proof">
+    <div class="section__head">
+      <h2>Why pay on proof</h2>
+      <p>who decides, how soon, and whether it comes back · sources read {why.read}</p>
+    </div>
+    <p>{why.intro}</p>
+    <div class="tablewrap">
+      <table class="wide stack">
+        <thead>
+          <tr>
+            <th style="width:17%">Where</th>
+            <th>Who decides payment</th>
+            <th style="width:22%">Until money moves</th>
+            <th style="width:19%">Refund</th>
+            <th style="width:13%">Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          {why.rows.map((row) => (
+            <tr>
+              <th scope="row">{row.name}</th>
+              <td data-label="Who decides payment">{row.decides}</td>
+              <td data-label="Until money moves">{row.moneyMoves}</td>
+              <td data-label="Refund">{row.refund}</td>
+              <td data-label="Source">
+                {/* Separated as the other link lists on the site are, with a middle dot. */}
+                {row.sources.map((s, index) => (
+                  <>
+                    {index > 0 && " · "}
+                    <a href={s.url} rel="noopener">
+                      {s.label}
+                    </a>
+                  </>
+                ))}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <p class="small">{why.shape}</p>
+    <p>{why.limit}</p>
+  </section>
+
   {m.live && (
-    <section class="section section--first" id="live">
+    <section class="section" id="live">
       <div class="section__head">
         <h2>Live on mainnet</h2>
         <p>every transaction, on Etherscan</p>
@@ -877,13 +923,7 @@ const parts = [
           ))}
         </ul>
         <h3 class="sub">The receipt writer, read for this page</h3>
-        <p>
-          {m.receipts.observed}{" "}
-          {m.writer.stalled === true &&
-            "The WorkRegistry recorded no receipt in the last six hours of blocks."}
-          {m.writer.stalled === false &&
-            "The WorkRegistry recorded a receipt within the last six hours of blocks."}
-        </p>
+        <p>{m.receipts.observed}</p>
       </div>
     </div>
   </section>

@@ -81,4 +81,6 @@ export const IMD_LINK = {
   oracleRequest: (id: string) => `${IMD_API_BASE}/oracle/requests/${id}`,
   intakeRead: (transactionHash: string) => `${IMD_API_BASE}/intake/1/${transactionHash}`,
   workRecord: (hashNo0x: string) => `${IMD_API_BASE}/work-records/${hashNo0x}.json`,
+  /** A delivered file, by the sha256 a work record lists for it (`GET /jobs/:id/result` links the same). */
+  artifact: (sha256: string) => `${IMD_API_BASE}/artifacts/${sha256}`,
 } as const;

@@ -52,9 +52,11 @@ import {
 } from "./common";
 import { flowMarkdown, previewFlow, type FlowPreview } from "./flowPreview";
 import {
+  CLAIM_BOX_STARTS,
   claimDefault,
   loadReceiptFlow,
-  receiptFlowMeaning,
+  withWriter,
+  writerWords,
   type ClaimDefault,
   type ReceiptFlow,
 } from "./receipts";
@@ -347,15 +349,29 @@ function whoTakesMarkdown(whoTakes: string, statement: RunnerStatementView | nul
   ];
 }
 
+/** Said of a kind no runner serves: what becomes of an order of it. */
+export const NO_RUNNER_YET =
+  "No runner serves this kind yet: an order would wait until it expires and then refund.";
+
 /**
- * Whether the team says its runner takes a template's kind, in one sentence, or null on a book whose
- * desk is not mainnet's.
+ * Which kinds a runner serves today, in one sentence, from the team's dated statement about its
+ * hosted runner. Null on a book whose desk is not mainnet's.
+ */
+export function servedKindsWords(deskAddress: string | null): string | null {
+  if (!runnerStatement(deskAddress)) return null;
+  const others = TEMPLATES.filter((t) => !RUNNER_TAKES.includes(t.kind)).map((t) => t.kind);
+  return `Served today: the team's hosted runner serves ${RUNNER_TAKES.join(" and ")} only, one order at a time and one 0.5 IMD swarm fee per UTC day, so a second order that day waits for the next (the team's statement, ${RUNNER_STATEMENT.asOf}).${others.length > 0 ? ` For ${others.join(" and ")}, no runner serves the kind yet: an order would wait until it expires and then refund.` : ""} Anyone may run another runner.`;
+}
+
+/**
+ * Whether a runner serves a template's kind today, in one sentence, or null on a book whose desk
+ * is not mainnet's.
  */
 export function runnerTakesWords(deskAddress: string | null, kind: string): string | null {
   if (!runnerStatement(deskAddress)) return null;
   return RUNNER_TAKES.includes(kind)
-    ? `The team says its runner takes this kind of order when the order's bond is at most 0.25 IMD, one order at a time, and that it pays at most one 0.5 IMD swarm fee a day (${RUNNER_STATEMENT.asOf}). Any other runner may take it too.`
-    : `The team says its runner does not take this kind of order: it takes research reports and pictures (${RUNNER_STATEMENT.asOf}). An order of this kind waits for another runner.`;
+    ? `The team's hosted runner serves this kind: one order at a time, one 0.5 IMD swarm fee per UTC day, and bonds of at most 0.25 IMD (the team's statement, ${RUNNER_STATEMENT.asOf}). Any other runner may take it too.`
+    : `${NO_RUNNER_YET} The team's hosted runner serves ${RUNNER_TAKES.join(" and ")} only (the team's statement, ${RUNNER_STATEMENT.asOf}); anyone may run another.`;
 }
 
 /** Who the hire desk is for, and who it is not for. */
@@ -398,6 +414,11 @@ export interface TemplateCard {
   suggestedPay: string;
   /** The suggested pay in ETH, at the quote read for the page; null without one. */
   suggestedPayEth: string | null;
+  /**
+   * Whether a runner serves the kind today, by the team's statement about its hosted runner, in a
+   * few words for the card ("the team's" or "none yet"). Null on a book whose desk is not mainnet's.
+   */
+  runnerToday: string | null;
 }
 
 export interface HireIndexModel {
@@ -420,6 +441,8 @@ export interface HireIndexModel {
   whoTakes: string;
   /** What the team says of its own runner, dated; null where the book's desk is not mainnet's. */
   runnerStatement: RunnerStatementView | null;
+  /** Which kinds a runner serves today, in one sentence; null where the book's desk is not mainnet's. */
+  served: string | null;
   whoFor: readonly string[];
   /** Buying IMD with ETH through Zap, for a wallet that holds only ETH. */
   zapFlow: FlowPreview;
@@ -427,7 +450,11 @@ export interface HireIndexModel {
   ethNote: string | null;
 }
 
-function templateCard(t: JobTemplate, quote: ZapQuote | null = null): TemplateCard {
+function templateCard(
+  t: JobTemplate,
+  quote: ZapQuote | null = null,
+  deskAddress: string | null = null,
+): TemplateCard {
   const low = ethFor(parseUnits(t.suggestedMinPay, 18) ?? 0n, quote);
   const high = ethFor(parseUnits(t.suggestedMaxPay, 18) ?? 0n, quote);
   return {
@@ -442,6 +469,11 @@ function templateCard(t: JobTemplate, quote: ZapQuote | null = null): TemplateCa
     recordNote: t.recordNote ?? null,
     suggestedPay: `${t.suggestedMinPay} to ${t.suggestedMaxPay} IMD`,
     suggestedPayEth: low && high ? `about ${low} to ${high} ETH` : null,
+    runnerToday: runnerStatement(deskAddress)
+      ? RUNNER_TAKES.includes(t.kind)
+        ? "the team's"
+        : "none yet"
+      : null,
   };
 }
 
@@ -451,12 +483,12 @@ const HOW_AN_ORDER_WORKS = [
   "The swarm does the work and IdentityMD writes the work record's hash to its WorkRegistry on Ethereum.",
   "Anyone submits the record. The desk checks that it hashes to the registry's receipt, that it is the job you ordered and that it finished, and pays the runner. You get back what the price left.",
   "If none of that happens in time, the escrow goes back to you.",
-  "Only if you allowed it when you posted: with no receipt available, the runner may claim delivery under its bond, and is paid if nobody challenges the claim within 24 hours. The order form ticks that box for you only while IdentityMD's receipts are stalled, and says so. The limits of that choice are below.",
+  "Only if you allowed it when you posted: with no receipt available, the runner may claim delivery under its bond, and is paid if nobody challenges the claim within 24 hours. The order form leaves that box unticked; the limits of that choice are below.",
 ];
 
 /** The two limits of the bonded-claim path, as an employer must hear them before choosing it. */
 export const CLAIM_PATH_LIMITS = [
-  "A claim that is untrue and that nobody challenges within 24 hours is paid. Nothing on chain watches your order for you: you, or someone you ask, must, and a challenge means posting a bond equal to the runner's, which is lost if the claim turns out to be true.",
+  "A claim that is untrue and that nobody challenges within 24 hours is paid. Nothing on chain watches your order for you, and the team hosts no watcher: you, or someone you ask, must, and a challenge means posting a bond equal to the runner's, which is lost if the claim turns out to be true.",
   "A challenge that nothing decides refunds you, even when the claim was true: with no receipt by the delivery deadline the runner goes unpaid. While receipts are late, anyone can cause that at no cost to themselves.",
   "An arbiter helps with both: an address you name on the order that can decide a challenged claim either way, so a dispute need not wait for a receipt. It does not challenge for you. The other answer is to leave the claim path off and accept that an order whose receipt is late is refunded.",
 ];
@@ -474,18 +506,21 @@ export const hireIndexPage: PageDef<HireIndexModel> = {
   id: "hire",
   pattern: "/hire",
   async load({ sources, now }) {
-    const [receipts, writer, orders, quote] = await Promise.all([
+    const [flow, writer, orders, quote] = await Promise.all([
       loadReceiptFlow(sources),
       sources.chain.receiptWriter(),
       sources.house.orders(40),
       loadZapQuote(sources),
     ]);
+    const deskAddress = sources.deployments.contracts.workOrders.address;
+    // The figures and the claim box say the same of the registry's log: the read this page made.
+    const receipts = withWriter(flow, writer);
     return {
       generatedAt: now.toISOString(),
       desk: contractStatus(sources.deployments, "workOrders"),
       deskLaunch: launchWords(sources.deployments, "workOrders"),
       ordersOpened: ordersOpenedWords(orders),
-      templates: TEMPLATES.map((t) => templateCard(t, quote)),
+      templates: TEMPLATES.map((t) => templateCard(t, quote, deskAddress)),
       notOffered: [...NOT_OFFERED],
       how: HOW_AN_ORDER_WORKS,
       terms: ORDER_TERMS,
@@ -493,7 +528,8 @@ export const hireIndexPage: PageDef<HireIndexModel> = {
       receipts,
       claim: claimDefault(writer, PUBLIC_RPC),
       whoTakes: whoTakesOrders(orders, houseSet(sources.deployments)),
-      runnerStatement: runnerStatement(sources.deployments.contracts.workOrders.address),
+      runnerStatement: runnerStatement(deskAddress),
+      served: servedKindsWords(deskAddress),
       whoFor: HIRE_IS_FOR,
       zapFlow: previewFlow("zap-buy", sources.deployments, now, zapPreset(quote), zapPreset(quote)),
       ethNote: ethNote(quote),
@@ -515,16 +551,26 @@ export const hireIndexPage: PageDef<HireIndexModel> = {
       bullets([...m.whoFor]),
       "## Jobs on offer",
       table(
-        ["Job", "Who turns up", "What comes back", "Measured turnaround", "Suggested pay", "Page"],
+        [
+          "Job",
+          "Who turns up",
+          "What comes back",
+          "Measured turnaround",
+          "Suggested pay",
+          ...(m.served ? ["Runner today"] : []),
+          "Page",
+        ],
         m.templates.map((t) => [
           t.title,
           t.staff,
           t.delivers,
           t.turnaround,
           `${t.suggestedPay}${t.suggestedPayEth ? ` (${t.suggestedPayEth})` : ""}`,
+          ...(m.served ? [t.runnerToday ?? ""] : []),
           link(t.path, t.path),
         ]),
       ),
+      m.served,
       m.ethNote,
       "Turnaround was measured on real swarm jobs on 10 Oct 2026. It is an observation, not a promise.",
       "## Not offered yet",
@@ -534,12 +580,14 @@ export const hireIndexPage: PageDef<HireIndexModel> = {
       "## The terms, all fixed in code",
       bullets(m.terms),
       "## Paying without a receipt: your choice, and its limits",
-      `The desk ${PAYS_WHEN}. Read for this page: ${m.receipts.observed} ${receiptFlowMeaning(m.receipts)}`,
-      `How the order form's claim box starts today: ${m.claim.why}`,
+      `The desk ${PAYS_WHEN}. ${CLAIM_BOX_STARTS}`,
+      `Receipts today: ${m.claim.why}`,
       fence(
-        `# The test the form applies: receipts recorded by the WorkRegistry in the last six hours of blocks.\n${m.claim.command}`,
+        `# The six-hour test: receipts recorded by the WorkRegistry in the last six hours of blocks.\n${m.claim.command}`,
         "sh",
       ),
+      m.receipts.figures ? `Read for this page as well: ${m.receipts.figures}` : null,
+      "If you let a runner claim delivery under its bond instead, know these first:",
       bullets(m.claimLimits),
       "## Only ETH? Buy IMD first",
       ZAP_BUY_WORDS,
@@ -590,19 +638,20 @@ export const hireTemplatePage: PageDef<HireTemplateModel> = {
     const template = templateBySlug(params.template ?? "");
     if (!template) return null;
     const example = EXAMPLES[template.slug] ?? {};
-    const [receipts, writer] = await Promise.all([loadReceiptFlow(sources), sources.chain.receiptWriter()]);
+    const [flow, writer] = await Promise.all([loadReceiptFlow(sources), sources.chain.receiptWriter()]);
+    const receipts = withWriter(flow, writer);
     const claim = claimDefault(writer, PUBLIC_RPC);
-    // The form starts as the rule says. The box says which way and why in a line; what was read, and
-    // the test, are printed once, under the form.
+    // The box starts unticked on every order. Beside it the form says why receipts matter today and
+    // what ticking it means; what was read, and the test, are printed once, under the form.
     const preset = {
       template: template.slug,
-      allowClaimed: claim.preselected ? "true" : "false",
+      allowClaimed: "false",
       claimNote: claim.box,
     };
     return {
       generatedAt: now.toISOString(),
       desk: contractStatus(sources.deployments, "workOrders"),
-      template: templateCard(template),
+      template: templateCard(template, null, sources.deployments.contracts.workOrders.address),
       flow: previewFlow("hire", sources.deployments, now, preset, example),
       exampleSpec: template.spec(example),
       cardLine: `HELP WANTED: ${template.staff}. Pay up to ${template.suggestedMaxPay} IMD.`,
@@ -626,17 +675,20 @@ export const hireTemplatePage: PageDef<HireTemplateModel> = {
           `Work-record kind the order pins: ${inline(m.template.kind)}`,
           `Measured turnaround (10 Oct 2026): ${m.template.turnaround}`,
           m.template.recordSize ? `Measured work-record size: ${m.template.recordSize}` : "",
+          m.template.runnerToday ? `Runner today: ${m.template.runnerToday}` : "",
         ].filter(Boolean),
       ),
       m.template.recordNote,
       m.runnerTakes,
       "## Before you choose how it pays",
-      `An order pays on an on-chain receipt. It may also accept a bonded delivery claim, and the form decides how that box starts by one rule: it is ticked only while IdentityMD's receipts are stalled. Today: ${m.claim.why}`,
+      `An order pays on an on-chain receipt. ${CLAIM_BOX_STARTS} Beside the box the form says: ${m.claim.box}`,
+      `Receipts today: ${m.claim.why}`,
       fence(
-        `# The test the form applies: receipts recorded by the WorkRegistry in the last six hours of blocks.\n${m.claim.command}`,
+        `# The six-hour test: receipts recorded by the WorkRegistry in the last six hours of blocks.\n${m.claim.command}`,
         "sh",
       ),
-      `Read for this page as well: ${m.receipts.observed} ${receiptFlowMeaning(m.receipts)} If the order accepts a bonded delivery claim, these are its limits:`,
+      m.receipts.figures ? `Read for this page as well: ${m.receipts.figures}` : null,
+      "If the order accepts a bonded delivery claim, these are its limits:",
       bullets(m.claimLimits),
       "## The job text an order would carry (example)",
       quote(m.exampleSpec),
@@ -803,6 +855,12 @@ export interface OrderModel {
    * left out of every form of the page: nothing can be done to a delivered order.
    */
   delivered: boolean;
+  /**
+   * For an order still waiting on a receipt (open, taken, registered, claimed or disputed): what the
+   * WorkRegistry's own log shows today, and what it means for this order. Null otherwise, and when
+   * the log could not be read.
+   */
+  receiptsNow: string | null;
   /** The order's transactions, from `config/history.ts`. Empty for an order no history is kept for. */
   trail: TrailRow[];
   /** Where the trail comes from, in one sentence. Null with no trail. */
@@ -825,6 +883,85 @@ export interface OrderModel {
   commands: { comment: string; command: string }[];
   flows: FlowPreview[];
   sources: SourceNote[];
+}
+
+/** A file the accepted work lists, from a work record whose bytes hash to the order's record hash. */
+interface DeliveredFile {
+  sha256: string;
+  mediaType: string;
+  bytes: number | null;
+}
+
+/**
+ * The files the accepted submissions of a work record list. The record is third-party JSON, so only
+ * a 64-hex sha256, a media type of the plain `type/subtype` form and a byte count are taken from it;
+ * no name or path it carries is ever printed.
+ */
+export function deliveredFiles(record: Uint8Array): DeliveredFile[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(new TextDecoder().decode(record));
+  } catch {
+    return [];
+  }
+  const o = parsed as { nodes?: unknown; submissions?: unknown };
+  const accepted = new Set(
+    (Array.isArray(o.nodes) ? o.nodes : [])
+      .map((n) => (n as { acceptedSubmissionHash?: unknown }).acceptedSubmissionHash)
+      .filter((h): h is string => typeof h === "string"),
+  );
+  const files: DeliveredFile[] = [];
+  for (const sub of Array.isArray(o.submissions) ? o.submissions : []) {
+    const s = sub as { hash?: unknown; artifacts?: unknown };
+    if (typeof s.hash !== "string" || !accepted.has(s.hash)) continue;
+    for (const a of Array.isArray(s.artifacts) ? s.artifacts : []) {
+      const f = a as { hash?: unknown; mediaType?: unknown; bytes?: unknown };
+      if (typeof f.hash !== "string" || !/^[0-9a-f]{64}$/.test(f.hash)) continue;
+      const mediaType =
+        typeof f.mediaType === "string" && /^[a-z]+\/[a-z0-9.+-]+$/i.test(f.mediaType)
+          ? f.mediaType.toLowerCase()
+          : "application/octet-stream";
+      const bytes =
+        typeof f.bytes === "number" && Number.isSafeInteger(f.bytes) && f.bytes >= 0 ? f.bytes : null;
+      files.push({ sha256: f.hash, mediaType, bytes });
+    }
+  }
+  return files;
+}
+
+/**
+ * The link to a delivered order's work that its page shows, for an order no history is kept for:
+ * the first file the accepted work lists, at the address IdentityMD's API serves it from. This site
+ * serves no copy. Null when the record lists no file.
+ */
+export function deliveredWork(files: readonly DeliveredFile[]): OrderModel["work"] {
+  const file = files[0];
+  if (!file) return null;
+  const size = file.bytes === null ? "" : ` of ${formatInt(file.bytes)} bytes`;
+  const url = IMD_LINK.artifact(file.sha256);
+  if (file.mediaType === "text/markdown")
+    return {
+      label: "Download the report (Markdown)",
+      url,
+      what: `The report the order paid for: a Markdown file${size}. IdentityMD's API serves it as a download, so the link saves the file rather than opening a page.`,
+    };
+  if (file.mediaType.startsWith("image/"))
+    return {
+      label: "See the picture",
+      url,
+      what: `The picture the order paid for: a ${file.mediaType} file${size}, as IdentityMD serves it.`,
+    };
+  if (file.mediaType.startsWith("video/"))
+    return {
+      label: "Download the video",
+      url,
+      what: `The video the order paid for: a ${file.mediaType} file${size}, as IdentityMD serves it.`,
+    };
+  return {
+    label: "Download the delivered file",
+    url,
+    what: `The file the order paid for: ${file.mediaType}${size}, as IdentityMD serves it.`,
+  };
 }
 
 /** The prove answer as cast prints it, each hash in full. */
@@ -893,6 +1030,15 @@ function timeline(order: Order): TimelineStep[] {
     steps.push({ label: "REFUNDED", at: "done", detail: "The escrow went back to the employer." });
   return steps;
 }
+
+/** The states in which an order can still be settled by a receipt. */
+const WAITS_ON_A_RECEIPT: ReadonlySet<Order["state"]> = new Set([
+  "Open",
+  "Claimed",
+  "Registered",
+  "Asserted",
+  "Disputed",
+]);
 
 /** Amounts on an order's page are given to the wei: a price on a ramp is rarely a round number. */
 const EXACT = 18;
@@ -983,6 +1129,8 @@ export const orderPage: PageDef<OrderModel> = {
     let proof: OrderProof | null = null;
     let tips: OrderTip[] = [];
     let mediaCid: string | null = null;
+    // The files the accepted work lists, from the record whose bytes hash to the order's record hash.
+    let files: DeliveredFile[] = [];
     const proofSources: SourceNote[] = [];
     if (order && delivered && c?.jobId && c.recordHash) {
       const jobHex = jobIdToBytes16(c.jobId);
@@ -1008,6 +1156,7 @@ export const orderPage: PageDef<OrderModel> = {
         if (hashed.matches)
           bytes = hashed.strippedNewline ? served.bytes.subarray(0, served.bytes.length - 1) : served.bytes;
       }
+      if (bytes) files = deliveredFiles(bytes);
       let answer: OrderProof["answer"] = null;
       let source: OrderProof["source"] = null;
       if (bytes && workProof) {
@@ -1157,6 +1306,22 @@ export const orderPage: PageDef<OrderModel> = {
       }
     }
 
+    // An order that a receipt can still settle is told what the registry's log shows today.
+    let receiptsNow: string | null = null;
+    if (order && WAITS_ON_A_RECEIPT.has(order.state)) {
+      const writer = await chain.receiptWriter();
+      if (writer.stalled !== null) {
+        const claims = t ? (t.flags & 1) === 1 : false;
+        receiptsNow = `${writerWords(writer)}${
+          writer.stalled
+            ? claims
+              ? " This order also accepts a bonded delivery claim, paid 24 hours after it is made unless someone challenges it; the team hosts no watcher."
+              : " This order pays only on a receipt: until one is written it waits, and if none comes by its deadline anyone may send the escrow back to the employer."
+            : ""
+        }`;
+      }
+    }
+
     const trail: TrailRow[] = (pinned?.trail ?? []).map((step) => ({
       key: step.key,
       label: step.label,
@@ -1188,6 +1353,7 @@ export const orderPage: PageDef<OrderModel> = {
       jobUrl: c?.jobId ? explorerJob(c.jobId) : null,
       verifyPath: c?.jobId ? `/verify/${c.jobId}` : null,
       delivered,
+      receiptsNow,
       trail,
       trailNote:
         trail.length > 0
@@ -1206,7 +1372,14 @@ export const orderPage: PageDef<OrderModel> = {
               url: explorerJob(c.jobId),
             }
           : null,
-      work: delivered && pinned?.work && c?.jobId === pinned.jobId ? { ...pinned.work } : null,
+      // The work itself: the history's own words for an order it keeps; for any other delivered order,
+      // the file its verified record lists (a picture is shown by IdentityMD's page of the job).
+      work:
+        delivered && pinned?.work && c?.jobId === pinned.jobId
+          ? { ...pinned.work }
+          : delivered && template?.kind !== "skill:create-image"
+            ? deliveredWork(files)
+            : null,
       commands: [
         {
           comment: "The order's state and money: (state, employer, escrow, spent, returned).",
@@ -1295,6 +1468,7 @@ export const orderPage: PageDef<OrderModel> = {
               ["Step", "Reached", "Detail"],
               m.timeline.map((s) => [s.label, s.at, s.detail]),
             ),
+            m.receiptsNow ? `Receipts today: ${m.receiptsNow}` : null,
             "## Money",
             table(
               ["", "IMD"],
@@ -1481,9 +1655,9 @@ export const runnersPage: PageDef<RunnersModel> = {
       headerExample: { ticket, header: orderHeader(ticket), bytes: orderHeader(ticket).length },
       receiptsNow:
         writer.stalled === true
-          ? `Receipts are stalled: the WorkRegistry recorded none in the last six hours of blocks (${writer.fromBlock} to ${writer.toBlock}). A receipt-only order taken now may not be paid before its deadline.`
+          ? `Receipts are stalled: ${writerWords(writer)} A receipt-only order taken now may not be paid before its deadline.`
           : writer.stalled === false
-            ? `Receipts are arriving: the WorkRegistry recorded ${writer.events} in the last six hours of blocks (${writer.fromBlock} to ${writer.toBlock}).`
+            ? `Receipts are arriving: ${writerWords(writer)}`
             : `Whether receipts are arriving could not be read just now${writer.error ? ` (${writer.error})` : ""}; run the command.`,
       flows: [
         previewFlow("runner-claim", deployments, now, {}, { id: "1" }),

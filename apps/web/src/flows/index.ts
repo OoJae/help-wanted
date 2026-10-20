@@ -313,9 +313,13 @@ export function castReadCommand(r: FlowRead, rpcUrl: string): string {
 /** How long an order must stay open at the least, on this form. The desk itself asks only for a future time. */
 const MIN_OPEN_SECS = 3600;
 
-/** What the claim checkbox says. A page may add why it is ticked or not today (`claimNote`). */
+/**
+ * What the claim checkbox says. A page that prints the claim path's limits itself gives its own
+ * note instead (`claimNote`: that the box starts unticked, why receipts matter today, and what
+ * ticking it means), so the explanation is printed once.
+ */
 const CLAIM_HELP =
-  "Off: only an on-chain receipt pays, and an order whose receipt does not arrive in time is refunded. On: a runner may claim delivery under its bond, and is paid if nobody challenges the claim within 24 hours. That has two limits. A claim that is untrue is paid if nobody challenges it in time, so someone has to watch your order. And a challenge that nothing decides refunds you even when the claim was true. A receipt that exists in time decides either way.";
+  "Off: only an on-chain receipt pays, and an order whose receipt does not arrive in time is refunded. On: a runner may claim delivery under its bond, and is paid if nobody challenges the claim within 24 hours. That has two limits. A claim that is untrue is paid if nobody challenges it in time, so someone has to watch your order; the team hosts no watcher. And a challenge that nothing decides refunds you even when the claim was true. A receipt that exists in time decides either way.";
 
 function payFields(preset: Record<string, string>): FlowField[] {
   return [
@@ -357,7 +361,7 @@ function payFields(preset: Record<string, string>): FlowField[] {
       label: "Also accept a bonded delivery claim when no receipt is available",
       kind: "checkbox",
       initial: "false",
-      help: preset.claimNote ? `${preset.claimNote} ${CLAIM_HELP}` : CLAIM_HELP,
+      help: preset.claimNote ? preset.claimNote : CLAIM_HELP,
     },
     {
       name: "arbiter",

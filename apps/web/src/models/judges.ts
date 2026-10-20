@@ -86,6 +86,8 @@ import {
   claimDefault,
   loadReceiptFlow,
   receiptFlowMeaning,
+  withWriter,
+  writerWords,
   type ClaimDefault,
   type ReceiptFlow,
 } from "./receipts";
@@ -300,6 +302,108 @@ export interface VerificationRow {
   words: string;
 }
 
+/** One row of "Why pay on proof". */
+export interface PayOnProofRow {
+  name: string;
+  /** Who decides that the work is paid. */
+  decides: string;
+  /** How long until the money moves. */
+  moneyMoves: string;
+  /** Whether, and how, the payer gets the money back. */
+  refund: string;
+  sources: { label: string; url: string }[];
+}
+
+/**
+ * Where the money waits for the work, someone decides when it moves. Here that is code; elsewhere
+ * a person, a vote, an evaluator or an arbiter, or nobody because it was paid before the work. Each
+ * other row is what its own published terms (or, where marked, a reported account) said when read.
+ */
+export const WHY_PAY_ON_PROOF = {
+  read: "20 October 2026",
+  intro:
+    "Where money waits for work, somebody decides when it moves. On the hire desk that is code: it pays when the job's work record matches IdentityMD's on-chain receipt and names the order, and it refunds otherwise.",
+  rows: [
+    {
+      name: "HELP WANTED, receipt path",
+      decides:
+        "Code: WorkProof holds the job's work record against IdentityMD's WorkRegistry receipt and the order's 85-byte header. No person and no vote.",
+      moneyMoves:
+        "In the settling transaction. Order 2 was paid 44 blocks (8 min 48 s) after its rule fired.",
+      refund:
+        "Yes, with nobody's leave: once an order's deadline passes with no receipt, anyone may send its escrow back to the employer.",
+      sources: [{ label: "order 2", url: "/orders/2" }],
+    },
+    {
+      name: "Upwork, fixed price",
+      decides:
+        "The client approves, and silence approves after 14 days. A dispute goes to Upwork's team, then to paid arbitration.",
+      moneyMoves: "Up to 14 days of review, then a 5-day security hold.",
+      refund: "Through a dispute.",
+      sources: [
+        {
+          label: "Upwork: getting paid",
+          url: "https://support.upwork.com/hc/en-us/articles/211063718-Get-Paid-for-Fixed-Price-Contracts",
+        },
+        { label: "Upwork: disputes", url: "https://support.upwork.com/hc/en-us/articles/14044146250259" },
+      ],
+    },
+    {
+      name: "Fiverr",
+      decides: "The buyer accepts, or the order completes by itself 3 days after delivery.",
+      moneyMoves:
+        "3 days to complete (up to 5 more if the buyer extends), then 14 days of clearance (7 for some sellers).",
+      refund: "By cancellation, through Fiverr's Resolution Center.",
+      sources: [
+        {
+          label: "Fiverr: order statuses",
+          url: "https://help.fiverr.com/hc/en-us/articles/37552517993105-The-complete-guide-to-your-Fiverr-order-Statuses-and-process",
+        },
+        { label: "Wise: clearance (reported)", url: "https://wise.com/us/blog/how-to-get-paid-on-fiverr" },
+      ],
+    },
+    {
+      name: "Bountycaster, a bounty board",
+      decides: "Only the poster can mark a bounty complete.",
+      moneyMoves: "Whenever the poster pays, peer to peer.",
+      refund: "Nothing is held, so there is nothing to refund.",
+      sources: [{ label: "Bountycaster FAQ", url: "https://www.bountycaster.xyz/faq" }],
+    },
+    {
+      name: "ERC-8183, and Virtuals ACP v2 built on it",
+      decides:
+        "One evaluator named when the job is made, which may be a contract. Once work is submitted it alone completes or rejects; there is no dispute step.",
+      moneyMoves: "When the evaluator completes the job.",
+      refund: "Yes: on rejection, or by anyone after the job expires.",
+      sources: [
+        { label: "EIP-8183 (Draft)", url: "https://eips.ethereum.org/EIPS/eip-8183" },
+        { label: "Virtuals ACP changelog", url: "https://whitepaper.virtuals.io/acp/acp-changelogs" },
+      ],
+    },
+    {
+      name: "x402r, escrow for x402 payments (beta)",
+      decides: "An arbiter decides a dispute.",
+      moneyMoves: "The receiver can claim after a 14-day timelock, unless the sender releases it sooner.",
+      refund: "Yes, from escrow, released by the arbiter.",
+      sources: [
+        { label: "x402r", url: "https://www.x402r.org/" },
+        { label: "x402r at ETHGlobal (reported)", url: "https://ethglobal.com/showcase/x402r-and-d-1k9yg" },
+      ],
+    },
+    {
+      name: "IdentityMD's Intake",
+      decides: "Nobody, after the fact: the Intake takes the fee in the call that opens the job.",
+      moneyMoves: "Before the work starts.",
+      refund: 'None. Its docs say "Refunds: None".',
+      sources: [{ label: "IdentityMD docs", url: "https://imd.fun/docs/llms.txt" }],
+    },
+  ] satisfies PayOnProofRow[],
+  shape:
+    "An order on the desk is in the shape of ERC-8183: the employer is the client, the runner the provider, the receipt check the evaluator, the record hash the reason, and the refund at the deadline its claimRefund. The difference is the evaluator: here it is a fixed check of a receipt that IdentityMD wrote, not a party someone names.",
+  limit:
+    "What the desk proves is delivery, not quality. It pays a completed job of the order's kind whose work record names the order. IdentityMD's own verification of a research report is structural: for order 2's job it reads \"paths and tree verified; no suite was run for this kind of work\". Nothing in this chain judges how good the work is, so the desk is not for work only a person can judge.",
+};
+
 export interface JudgesModel {
   generatedAt: string;
   /**
@@ -323,6 +427,8 @@ export interface JudgesModel {
   provenOnChain: ProvenOnChain[];
   /** Five lines: what it is, what happened, how to check it, what is live, what is not. */
   thirtySeconds: string[];
+  /** Who decides payment, how soon money moves and whether it comes back, here and elsewhere, sourced. */
+  whyPayOnProof: typeof WHY_PAY_ON_PROOF;
   /** Every launched contract's Etherscan page and verification status. */
   verification: { checked: string; rows: VerificationRow[] };
   /** Parts of IdentityMD's protocol our contracts do not use, with where each choice is written down. */
@@ -653,7 +759,7 @@ export const judgesPage: PageDef<JudgesModel> = {
       staking,
       seats,
       simdBalance,
-      flow,
+      flowRead,
       writerRead,
       ledger,
       orders,
@@ -725,6 +831,8 @@ export const judgesPage: PageDef<JudgesModel> = {
     });
     const oneGo = verifyCmds[2]?.command ?? "";
     const writer = claimDefault(writerRead, PUBLIC_RPC);
+    // The figures and the six-hour test say the same of the registry's log: the read this page made.
+    const flow = withWriter(flowRead, writerRead);
 
     // ---- What the launch pipeline's audits found in launch B (launches/b-desk/ADAPTATION.md). ----
     const deskMedium = DESK_ADAPTATION.findings.filter((f) => f.severity === "medium").length;
@@ -957,7 +1065,7 @@ export const judgesPage: PageDef<JudgesModel> = {
         readNow:
           writer.stalled === null && flow.state === "unknown"
             ? null
-            : `${writer.stalled === true ? "The WorkRegistry recorded no receipt in the last six hours of blocks." : writer.stalled === false ? "The WorkRegistry recorded a receipt within the last six hours of blocks." : "The registry's log could not be read."} ${flow.state === "unknown" ? "" : `${flow.observed} ${receiptFlowMeaning(flow)}`}`.trim(),
+            : `${flow.observed} ${flow.state === "unknown" ? "" : receiptFlowMeaning(flow)}`.trim(),
         evidence: [
           { label: "recent jobs and their receipts", url: "/" },
           { label: "the hire form's default, and why", url: "/hire" },
@@ -1735,17 +1843,17 @@ export const judgesPage: PageDef<JudgesModel> = {
         `No use of our contracts by anyone outside the team was found in what this page read: ${[...notHappened, ...byUsOnly].join("; ")}.${notRead.length > 0 ? ` Not read: ${notRead.join("; ")}.` : ""} What our own wallets and contracts do is HOUSE and is never counted as outside usage.`,
       );
     }
-    // Receipts: the six-hour test the hire form applies, and the figures read beside it.
+    // Receipts: the registry's own log, with the stall's length, and the figures read beside it.
     const whilstStalled =
-      "While that lasts, only an order whose employer allowed the bonded-claim path can be paid; a receipt-only order ends in a refund.";
-    const observed = flow.state === "unknown" ? "" : ` ${flow.observed}`;
+      "While that lasts, a receipt-only order waits, and is refunded at its deadline if no receipt comes; only an order whose employer allowed the bonded-claim path can be paid without one.";
+    const figures = flow.figures ? ` ${flow.figures}` : "";
     if (writer.stalled === true) {
       notLive.push(
-        `IdentityMD's receipts are stalled: its WorkRegistry recorded none in the last six hours of blocks.${observed} ${whilstStalled}`,
+        `IdentityMD's receipts are stalled: ${writerWords(writerRead, "its WorkRegistry")}${figures} ${whilstStalled}`,
       );
     } else if (writer.stalled === null && flow.state === "late") {
       notLive.push(
-        `IdentityMD's receipts are late or not arriving:${observed} The registry's own log of the last six hours could not be read just now, so the six-hour test was not run for this page. ${whilstStalled}`,
+        `IdentityMD's receipts are late or not arriving:${figures} The registry's own log could not be read just now, so the six-hour test was not run for this page. ${whilstStalled}`,
       );
     } else if (writer.stalled === null) {
       notLive.push(
@@ -2132,6 +2240,7 @@ export const judgesPage: PageDef<JudgesModel> = {
       live,
       provenOnChain,
       thirtySeconds,
+      whyPayOnProof: WHY_PAY_ON_PROOF,
       verification,
       unused: UNUSED_FEATURES.map((u) => ({ ...u })),
       // Each launch's pull request is shown once the book records that launch.
@@ -2266,8 +2375,8 @@ export const judgesPage: PageDef<JudgesModel> = {
           ].join("\n\n"),
         },
         {
-          title: "Is the receipt writer stalled? The test the hire form uses",
-          note: "Counts WorkRecorded events in the last six hours of blocks. Zero means stalled.",
+          title: "Is the receipt writer stalled? The six-hour test",
+          note: "Counts WorkRecorded events in the last six hours of blocks. Zero means stalled; the page's figures then give the time of the newest receipt.",
           commands: writer.command,
         },
         {
@@ -2381,7 +2490,7 @@ export const judgesPage: PageDef<JudgesModel> = {
         sourceNote("Swarm state", `GET ${IMD_API_BASE}/health`, health.value, health.error),
         sourceNote(
           "Receipt writer",
-          `WorkRecorded logs of ${MAINNET.WORK_REGISTRY}, newest six hours of blocks`,
+          `WorkRecorded logs of ${MAINNET.WORK_REGISTRY}: the newest six hours of blocks, then back to the newest receipt`,
           writerRead,
           writerRead.error,
         ),
@@ -2403,9 +2512,24 @@ export const judgesPage: PageDef<JudgesModel> = {
   }),
   markdown(m) {
     const h = m.headerJob;
+    const w = m.whyPayOnProof;
     return doc(
       "## Read in 30 seconds",
       bullets(m.thirtySeconds),
+      "## Why pay on proof",
+      `${w.intro} Sources read on ${w.read}.`,
+      table(
+        ["Where", "Who decides payment", "Until money moves", "Refund", "Source"],
+        w.rows.map((r) => [
+          r.name,
+          r.decides,
+          r.moneyMoves,
+          r.refund,
+          r.sources.map((s) => link(s.label, s.url)).join(" · "),
+        ]),
+      ),
+      w.shape,
+      w.limit,
       m.live
         ? doc(
             "## Live on mainnet",

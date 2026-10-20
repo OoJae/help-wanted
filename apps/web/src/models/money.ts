@@ -1503,7 +1503,28 @@ export interface RulePreset {
   slug: string;
   title: string;
   sentence: string;
+  /**
+   * Which form it fills: `once`, the conditional order on the hire desk; `standing`, a rule on
+   * Rules (launch C) that holds its own escrow and may fire more than once.
+   */
+  form: "once" | "standing";
+  /** Where the preset's link goes. */
+  href: string;
+  /** What to know before using it, in a sentence or two. Null when there is nothing to add. */
+  caveat: string | null;
+  /** How it was tried before it was offered. Null for the older presets of the conditional order. */
+  tested: string | null;
   values: Record<string, string>;
+}
+
+/** A standing preset as the page prints it once chosen: its sentence, its cost and its transactions. */
+export interface PresetPlan {
+  slug: string;
+  title: string;
+  /** The plan's first lines: the rule as a sentence, and what one fire costs. */
+  lines: string[];
+  steps: { label: string; command: string }[];
+  problems: string[];
 }
 
 export interface RuleRow {
@@ -1543,7 +1564,12 @@ export interface RulesNewModel {
   doorbellLimits: string;
   presets: RulePreset[];
   activePreset: string | null;
-  /** The standing rule: `Rules.createRule` (launch C). */
+  /** The chosen preset's transactions, when it is a standing rule. Null otherwise. */
+  presetPlan: PresetPlan | null;
+  /**
+   * The standing rule: `Rules.createRule` (launch C). Its worked example is always launch C's own;
+   * a chosen standing preset fills its form.
+   */
   ruleFlow: FlowPreview;
   /** What anyone can do to a rule that exists: fire, reconcile; and its creator: cancel. */
   ruleFlows: FlowPreview[];
@@ -1567,11 +1593,116 @@ export interface RulesNewModel {
   sources: SourceNote[];
 }
 
+/** Stands for the hire desk's address in a preset; the page puts in the address from the deployments book. */
+const DESK_ADDRESS = "$WORK_ORDERS";
+/** Chainlink's ETH / USD price feed on Ethereum mainnet (its `description()` reads "ETH / USD"). */
+export const CHAINLINK_ETH_USD = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419";
+/** How the standing presets were tried before they were offered. */
+const FORK_TESTED =
+  "Tried on a fork of mainnet on 20 October 2026 with these exact values: created, checked, fired where the condition held (the price line was not crossed that day; the same rule at 2,000 dollars fired), the order it opened taken back, the rule cancelled and its unspent escrow refunded to the wei. Not yet run on mainnet itself.";
+
 const PRESETS: RulePreset[] = [
+  {
+    slug: "weekly",
+    title: "A research report every week, cancel any time",
+    sentence:
+      "WHEN always (IMD's decimals() is at least 0) THEN hire 1 robot researcher, at most once a week, 4 times. An order's pay is spent only on a week whose report is delivered; cancel any time and take the rest back.",
+    form: "standing",
+    href: "/rules/new?preset=weekly#chosen",
+    caveat:
+      "Nothing fires it by itself: anyone may fire it each week for the 0.01 IMD tip, and the team hosts no keeper that does. The tip is spent every week; an order nobody delivers is refunded to the rule. The job text is the same every week.",
+    tested: FORK_TESTED,
+    values: {
+      condKind: "view",
+      condTarget: MAINNET.IMD,
+      condFunction: "decimals()",
+      condArg: "",
+      condCmp: "1",
+      condThreshold: "0",
+      action: "hire",
+      template: "research",
+      spec: "Write a one-page plain-language summary of the past seven days of the IdentityMD swarm on Ethereum: jobs paid, receipts written to the WorkRegistry and anything that stalled, with every figure sourced to a transaction or to api.imd.fun.",
+      maxPay: "0.6",
+      minPay: "0.56",
+      rampHours: "24",
+      orderDays: "7",
+      allowClaimed: "false",
+      tip: "0.01",
+      cooldownHours: "168",
+      maxFires: "4",
+      deposit: "2.44",
+    },
+  },
+  {
+    slug: "next-step",
+    title: "When order 2 is delivered, hire the next step",
+    sentence:
+      "WHEN order 2 on the hire desk is Delivered (stateOf(2) equals 6) THEN hire 1 robot illustrator for its cover. Put your own order's number in place of 2.",
+    form: "standing",
+    href: "/rules/new?preset=next-step#chosen",
+    caveat:
+      "Delivered also covers an order paid on a bonded claim nobody challenged; only on an order that pays on a receipt alone does it mean the work was proven. Someone must fire the rule once the order is delivered.",
+    tested: FORK_TESTED,
+    values: {
+      condKind: "view",
+      condTarget: DESK_ADDRESS,
+      condFunction: "stateOf(uint256)",
+      condArg: "2",
+      condCmp: "5",
+      condThreshold: "6",
+      action: "hire",
+      template: "image",
+      spec: "Make one square cover picture for a plain-language report on who paid an AI swarm for its work: coins passing along a row of small robots, morning light. No text in the picture.",
+      maxPay: "2",
+      minPay: "1",
+      rampHours: "24",
+      orderDays: "7",
+      allowClaimed: "false",
+      tip: "0.01",
+      cooldownHours: "0",
+      maxFires: "1",
+      deposit: "2.01",
+    },
+  },
+  {
+    slug: "eth-price",
+    title: "ETH passes 3,000 dollars: commission a report",
+    sentence:
+      "WHEN Chainlink's ETH / USD feed answers at least 3,000 dollars (latestAnswer() at least 300000000000, 8 decimals) THEN hire 1 robot researcher.",
+    form: "standing",
+    href: "/rules/new?preset=eth-price#chosen",
+    caveat:
+      "latestAnswer() carries no timestamp, so a stale price can fire the rule. Rules reads the first word the call returns, as an unsigned number.",
+    tested: FORK_TESTED,
+    values: {
+      condKind: "view",
+      condTarget: CHAINLINK_ETH_USD,
+      condFunction: "latestAnswer()",
+      condArg: "",
+      condCmp: "1",
+      condThreshold: "300000000000",
+      action: "hire",
+      template: "research",
+      spec: "Write a one-page plain-language report on why the price of ETH rose above 3,000 US dollars, with every claim sourced to a public page and dated.",
+      maxPay: "0.6",
+      minPay: "0.56",
+      rampHours: "24",
+      orderDays: "7",
+      allowClaimed: "false",
+      tip: "0.01",
+      cooldownHours: "0",
+      maxFires: "1",
+      deposit: "0.61",
+    },
+  },
   {
     slug: "milestone",
     title: "A token hits a milestone: commission its picture",
     sentence: "WHEN a token's totalSupply() is at least a number THEN hire 1 robot illustrator.",
+    form: "once",
+    href: "/rules/new?preset=milestone",
+    caveat: null,
+    tested: null,
     values: {
       condFunction: "totalSupply()",
       condArg: "",
@@ -1587,6 +1718,10 @@ const PRESETS: RulePreset[] = [
     slug: "tvl",
     title: "A vault's holdings double: order an audit",
     sentence: "WHEN a token's balanceOf(vault) is at least twice today's THEN hire 4 robot auditors.",
+    form: "once",
+    href: "/rules/new?preset=tvl",
+    caveat: null,
+    tested: null,
     values: {
       condFunction: "balanceOf(address)",
       condCmp: "1",
@@ -1623,6 +1758,15 @@ const FIRST_RULE_EXAMPLE = {
   maxFires: "1",
   deposit: "5.05",
 };
+
+/** The presets as the page offers them, with the hire desk's address put in from the deployments book. */
+export function rulePresets(deskAddress: string | null): RulePreset[] {
+  return PRESETS.map((p) =>
+    p.values.condTarget === DESK_ADDRESS
+      ? { ...p, values: { ...p.values, condTarget: deskAddress ?? "" } }
+      : p,
+  );
+}
 
 const HOW_SAY_WHEN_WORKS = [
   "You write one sentence: WHEN a contract's view call compares true against a number, THEN hire. It becomes an order on the hire desk with a condition attached, and your IMD is escrowed.",
@@ -1939,7 +2083,11 @@ export const rulesNewPage: PageDef<RulesNewModel> = {
   async load({ sources, now, url }) {
     const { house, deployments } = sources;
     const slug = url.searchParams.get("preset");
-    const preset = PRESETS.find((p) => p.slug === slug) ?? null;
+    const presets = rulePresets(deployments.contracts.workOrders.address);
+    const preset = presets.find((p) => p.slug === slug) ?? null;
+    const once = preset?.form === "once" ? preset : null;
+    const standing = preset?.form === "standing" ? preset : null;
+    const firstOnce = presets.find((p) => p.form === "once");
     const [doorbell, rulesRead, ringCostRead] = await Promise.all([
       house.doorbell(),
       house.rules(20),
@@ -1950,11 +2098,13 @@ export const rulesNewPage: PageDef<RulesNewModel> = {
     const outside = bell ? outsideRingers(bell.ringers, ours) : [];
     const example = {
       condTarget: MAINNET.IMD,
-      ...(preset?.values ?? PRESETS[0]?.values ?? {}),
-      ...(preset?.slug === "tvl"
-        ? { condArg: MAINNET.SIMD, condThreshold: "4000000000000000000000000" }
-        : {}),
+      ...(once?.values ?? firstOnce?.values ?? {}),
+      ...(once?.slug === "tvl" ? { condArg: MAINNET.SIMD, condThreshold: "4000000000000000000000000" } : {}),
     };
+    // A chosen standing preset: its exact transactions, worked out from its own values.
+    const chosen = standing
+      ? previewFlow("create-rule", deployments, now, standing.values, standing.values)
+      : null;
     const rules = contractStatus(deployments, "rules");
     const book = rulesRead.live ? rulesRead.data : null;
     // Rule 1 on mainnet is the team's own: kept with the site, said only for the book's Rules.
@@ -2005,9 +2155,20 @@ export const rulesNewPage: PageDef<RulesNewModel> = {
             }
           : null,
       doorbellLimits: DOORBELL_LIMITS,
-      presets: PRESETS,
+      presets,
       activePreset: preset?.slug ?? null,
-      ruleFlow: previewFlow("create-rule", deployments, now, {}, FIRST_RULE_EXAMPLE),
+      presetPlan:
+        standing && chosen
+          ? {
+              slug: standing.slug,
+              title: standing.title,
+              lines: chosen.summary.slice(0, 2),
+              steps: chosen.steps,
+              problems: chosen.problems,
+            }
+          : null,
+      // The form starts with a chosen standing preset; the worked example stays launch C's own.
+      ruleFlow: previewFlow("create-rule", deployments, now, standing?.values ?? {}, FIRST_RULE_EXAMPLE),
       ruleFlows: [
         previewFlow("fire-rule", deployments, now, {}, { id: "1", spec: ruleOneSpec }),
         previewFlow("reconcile-rule", deployments, now, {}, { id: "1", orderId: "2" }),
@@ -2017,7 +2178,7 @@ export const rulesNewPage: PageDef<RulesNewModel> = {
       ruleCount: book ? book.count : null,
       rulesError: rulesRead.live ? rulesRead.error : null,
       firstRule,
-      flow: previewFlow("say-when", deployments, now, preset?.values ?? {}, example),
+      flow: previewFlow("say-when", deployments, now, once?.values ?? {}, example),
       ringFlow: previewFlow("ring", deployments, now),
       how: HOW_SAY_WHEN_WORKS,
       limits: SAY_WHEN_LIMITS,
@@ -2083,9 +2244,28 @@ export const rulesNewPage: PageDef<RulesNewModel> = {
       flowMarkdown(m.ruleFlow),
       ...m.ruleFlows.map(flowMarkdown),
       fence(m.commands.map((c) => `# ${c.comment}\n${c.command}`).join("\n\n"), "sh"),
+      "## Start from a sentence",
+      "A preset fills a form: a standing rule's, or the conditional order's.",
+      bullets(
+        m.presets.map(
+          (p) =>
+            `${link(p.title, p.href)} (${p.form === "once" ? "once, as an order" : "a standing rule"}${p.tested ? ", tried on a mainnet fork" : ""}): ${p.sentence}${p.caveat ? ` ${p.caveat}` : ""}`,
+        ),
+      ),
+      m.presets.find((p) => p.tested)?.tested ?? null,
+      m.presetPlan
+        ? doc(
+            `### Chosen: ${m.presetPlan.title}`,
+            m.presetPlan.problems.length > 0
+              ? bullets(m.presetPlan.problems)
+              : doc(
+                  numbered(m.presetPlan.lines),
+                  fence(m.presetPlan.steps.map((s) => `# ${s.label}\n${s.command}`).join("\n\n"), "sh"),
+                ).trimEnd(),
+            "The standing rule's form below starts with these values; the rest of what the rule does is said there.",
+          ).trimEnd()
+        : null,
       "## Once: an order with a condition",
-      "### Presets",
-      bullets(m.presets.map((p) => `${link(p.title, `/rules/new?preset=${p.slug}`)}: ${p.sentence}`)),
       "### How it works",
       numbered(m.how),
       "### The limits",

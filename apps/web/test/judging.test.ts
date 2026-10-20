@@ -16,17 +16,21 @@ import { fenceUntrusted, jsonTwin, loadPath, markdownTwin } from "~/lib/twins";
 import { handleApi } from "~/lib/api";
 import { llmsTxt } from "~/lib/siteDocs";
 import {
+  deliveredFiles,
+  deliveredWork,
   RUNNING_IS_FOR,
   WHY_RUNNERS,
   ZAP_BUY_WORDS,
   type HireIndexModel,
+  type OrderModel,
   type RunnersModel,
 } from "~/models/desk";
+import type { JudgesModel } from "~/models/judges";
 import type { PotsModel, RulesNewModel, SeatsModel } from "~/models/money";
 import { flowById, initialValues } from "~/flows";
 import { STANDING_VS_SCHEDULES, type QuestionsModel } from "~/models/questions";
 import { HOW_AN_ORDER_FLOWS, WHAT_IS_NEW, type WireModel } from "~/models/wire";
-import { BANNED, ctxFor, testSources } from "./helpers";
+import { BANNED, ctxFor, HEADER_RECORD, testSources } from "./helpers";
 
 describe("security headers", () => {
   it("every response says: no framing by another site, HTTPS only, no sniffing", () => {
@@ -364,5 +368,134 @@ describe("examples that show what happened, not what would have", () => {
   it("the form to open a pot starts small and receipt-only", () => {
     const values = initialValues(flowById("open-pot")!);
     expect(values).toMatchObject({ target: "1.5", minPay: "0.8", bond: "0.25", allowClaimed: "false" });
+  });
+});
+
+describe("why pay on proof: who decides payment, how soon, and whether it comes back", () => {
+  it("/judges says it near the top, sourced row by row, in the HTML's model and its Markdown twin", async () => {
+    const world = testSources({ book: DEPLOYMENT_BOOK });
+    const loaded = (await loadPath("/judges", ctxFor(world, "/judges")))!;
+    const model = loaded.model as JudgesModel;
+    const why = model.whyPayOnProof;
+    expect(why.rows.map((r) => r.name)).toEqual([
+      "HELP WANTED, receipt path",
+      "Upwork, fixed price",
+      "Fiverr",
+      "Bountycaster, a bounty board",
+      "ERC-8183, and Virtuals ACP v2 built on it",
+      "x402r, escrow for x402 payments (beta)",
+      "IdentityMD's Intake",
+    ]);
+    // Every other row links to where its terms were read.
+    for (const row of why.rows.slice(1)) {
+      expect(row.sources.length, row.name).toBeGreaterThan(0);
+      for (const source of row.sources) expect(source.url, row.name).toMatch(/^https:\/\//);
+    }
+    expect(why.rows[0]?.moneyMoves).toContain("44 blocks (8 min 48 s) after its rule fired");
+    expect(why.rows.at(-1)?.refund).toContain('"Refunds: None"');
+    // Said as a shape, never as conformance; and what the proof does not show.
+    expect(why.shape).toContain("in the shape of ERC-8183");
+    expect(JSON.stringify(why)).not.toMatch(/complian/i);
+    expect(why.limit).toContain("What the desk proves is delivery, not quality.");
+    expect(why.limit).toContain("no suite was run for this kind of work");
+    const markdown = markdownTwin(loaded);
+    expect(markdown).toContain("## Why pay on proof");
+    // Right after the read-in-30-seconds lines, before anything else.
+    expect(markdown.indexOf("## Why pay on proof")).toBeGreaterThan(
+      markdown.indexOf("## Read in 30 seconds"),
+    );
+    expect(markdown.indexOf("## Why pay on proof")).toBeLessThan(markdown.indexOf("## Live on mainnet"));
+    expect(markdown).toContain("| Where | Who decides payment | Until money moves | Refund | Source |");
+    expect(markdown).toContain("[EIP-8183 (Draft)](https://eips.ethereum.org/EIPS/eip-8183)");
+    expect(markdown).not.toMatch(BANNED);
+    expect(markdown).not.toMatch(/\u2014/);
+  });
+});
+
+describe("receipts, said once and alike: the front page, /hire and /api/v1/swarm", () => {
+  it("give the same queue count from the same read, in the same words, beside the stall's length", async () => {
+    const world = testSources();
+    const wire = (await loadPath("/", ctxFor(world)))!.model as WireModel;
+    const hire = (await loadPath("/hire", ctxFor(world, "/hire")))!;
+    const response = await handleApi(
+      "swarm",
+      new Request("https://help-wanted.test/api/v1/swarm"),
+      ctxFor(world),
+    );
+    const swarm = (await response.json()) as {
+      receiptsQueued: number;
+      receipts: { queued: number; observed: string; stall: string; meaning: string; lastReceipt: unknown };
+    };
+    expect(swarm.receipts.queued).toBe(swarm.receiptsQueued);
+    expect(wire.swarm?.receiptsQueued).toBe(swarm.receiptsQueued);
+    expect(swarm.receipts.observed).toBe(wire.receipts.observed);
+    expect(swarm.receipts.stall).toBe("no receipt in the last 24 hours of blocks");
+    expect(swarm.receipts.lastReceipt).toBeNull();
+    const queue = "IdentityMD's API counted 1,774 receipts waiting to go on chain";
+    expect(wire.receipts.observed).toContain(queue);
+    expect(markdownTwin(hire)).toContain(queue);
+    expect(markdownTwin((await loadPath("/", ctxFor(world)))!)).toContain(
+      "| Receipts waiting to go on chain | 1,774 |",
+    );
+  });
+
+  it("an order still waiting on a receipt says what the registry's log shows; a delivered one does not", async () => {
+    const world = testSources({ env: { HW_SAMPLE_DATA: "1" } });
+    const open = (await loadPath("/orders/8", ctxFor(world, "/orders/8")))!;
+    const model = open.model as OrderModel;
+    expect(model.order?.state).toBe("Open");
+    expect(model.receiptsNow).toContain(
+      "IdentityMD's WorkRegistry has written no receipt in the last 24 hours of blocks",
+    );
+    expect(model.receiptsNow).toContain(
+      (model.order?.terms?.flags ?? 0) & 1
+        ? "the team hosts no watcher"
+        : "if none comes by its deadline anyone may send the escrow back to the employer",
+    );
+    expect(markdownTwin(open)).toContain(`Receipts today: ${model.receiptsNow}`);
+    const delivered = (await loadPath("/orders/4", ctxFor(world, "/orders/4")))!.model as OrderModel;
+    expect(delivered.order?.state).toBe("Delivered");
+    expect(delivered.receiptsNow).toBeNull();
+  });
+});
+
+describe("a delivered order's work, linked from its verified record and never copied", () => {
+  it("takes the accepted submission's file, by its sha256, and says a report downloads as Markdown", () => {
+    const files = deliveredFiles(HEADER_RECORD);
+    expect(files).toEqual([
+      {
+        sha256: "3a4ee8598a281c1d68fe84ada34f338650264fe3b51f7ff9f833e43d40facb4e",
+        mediaType: "text/markdown",
+        bytes: 3647,
+      },
+    ]);
+    expect(deliveredWork(files)).toEqual({
+      label: "Download the report (Markdown)",
+      url: "https://api.imd.fun/artifacts/3a4ee8598a281c1d68fe84ada34f338650264fe3b51f7ff9f833e43d40facb4e",
+      what: "The report the order paid for: a Markdown file of 3,647 bytes. IdentityMD's API serves it as a download, so the link saves the file rather than opening a page.",
+    });
+  });
+
+  it("ignores submissions that were not accepted and anything that is not a plain hash or type", () => {
+    const record = new TextEncoder().encode(
+      JSON.stringify({
+        nodes: [{ acceptedSubmissionHash: "aa" }],
+        submissions: [
+          { hash: "bb", artifacts: [{ hash: "1".repeat(64), mediaType: "text/markdown", bytes: 1 }] },
+          {
+            hash: "aa",
+            artifacts: [
+              { hash: "not a hash", mediaType: "text/markdown" },
+              { hash: "2".repeat(64), mediaType: "text/html; <script>", bytes: -4 },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(deliveredFiles(record)).toEqual([
+      { sha256: "2".repeat(64), mediaType: "application/octet-stream", bytes: null },
+    ]);
+    expect(deliveredFiles(new TextEncoder().encode("not json"))).toEqual([]);
+    expect(deliveredWork([])).toBeNull();
   });
 });
