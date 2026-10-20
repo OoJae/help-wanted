@@ -416,6 +416,12 @@ describe("/mcp: tools/call", () => {
     expect(bad.structuredContent.problems).toEqual(['"id" must be a whole number.']);
     const missing = await tool(world, "quote_order", {});
     expect(String((missing.structuredContent.problems as string[])[0])).toContain('"template" is needed');
+    // A research order without its question names the argument to add.
+    const noText = await tool(world, "plan_order", { template: "research", maxPay: "0.6" });
+    expect(noText.isError).toBe(true);
+    expect(String((noText.structuredContent.problems as string[])[0])).toContain(
+      '"jobText" is needed for a research order',
+    );
   });
 
   it("cuts a call off at its time limit and says to try again; the reads carry on", async () => {

@@ -733,6 +733,10 @@ function unsignedTx(c: FlowCall, index: number, from: string | null) {
 const UNSIGNED_NOTE =
   "Unsigned. This server holds no key and sends nothing: show every transaction to the user, and let the user check it and sign it, in order, with their own wallet on Ethereum mainnet (chain 1). Each later step needs the one before it mined.";
 
+/** What the bonded-claim path means, for an agent: said with every reading of whether receipts are stalled. */
+const CLAIM_PATH_NOTE =
+  "An order opened with allowClaimed can also be paid on a bonded delivery claim that nobody challenges within 24 hours, so it can be paid while receipts are stalled. An untrue claim nobody challenges is paid too, and the team hosts no watcher that challenges claims. plan_order leaves allowClaimed false unless asked.";
+
 const planOrder: ToolDef = {
   name: "plan_order",
   title: "Plan an order",
@@ -813,6 +817,12 @@ const planOrder: ToolDef = {
     const flow = flowById("hire");
     if (!flow) return problemOutput(["The hire flow is missing from this server."]);
     const jobText = ((args.jobText as string | undefined) ?? "").trim();
+    if (template.slug !== "audit" && !jobText) {
+      const what = (template.slots[0]?.label ?? "the job text").replace(/^\w/, (c) => c.toLowerCase());
+      return problemOutput([
+        `"jobText" is needed for a ${template.slug} order: ${what}, as one line of plain ASCII.`,
+      ]);
+    }
     const values: Record<string, string> = {
       template: template.slug,
       maxPay: args.maxPay as string,
@@ -875,7 +885,7 @@ const planOrder: ToolDef = {
       expiresNote:
         "The order's expiry is fixed in these bytes from the time of planning. Sign soon, or plan again.",
       allowClaimed: values.allowClaimed === "true",
-      claimPath: { formStartsUnticked: true, receiptsStalled: claim.stalled, why: claim.why, box: claim.box },
+      claimPath: { receiptsStalled: claim.stalled, note: CLAIM_PATH_NOTE },
       hostedRunner: (() => {
         const runner = hostedRunner(desk);
         if (!runner || params.minPay === undefined) return null;
@@ -1067,7 +1077,7 @@ const receiptsStatus: ToolDef = {
   name: "receipts_status",
   title: "Are receipts arriving?",
   description:
-    "Whether IdentityMD's receipts are reaching its WorkRegistry now, from figures read for this answer: how many of the newest ended jobs have a receipt, the API's count of receipts waiting, and whether the registry recorded any receipt in the last six hours (the rule the hire form uses to suggest the bonded-claim path). An order that pays only on a receipt waits while receipts are late. Read-only.",
+    "Whether IdentityMD's receipts are reaching its WorkRegistry now, from figures read for this answer: the newest receipt the registry recorded and how long ago, how many of the newest ended jobs have a receipt, the API's count of receipts waiting, and whether any receipt was recorded in the last six hours. An order that pays only on a receipt waits while receipts are late, and is refunded at its deadline if none comes. Read-only.",
   inputSchema: NO_ARGS,
   async run(_args, ctx) {
     const [flow, writer] = await Promise.all([
@@ -1091,11 +1101,11 @@ const receiptsStatus: ToolDef = {
         newestBlock: writer.newestBlock,
         error: writer.error,
       },
-      claimPath: { formStartsUnticked: true, receiptsStalled: claim.stalled, why: claim.why, box: claim.box },
+      claimPath: { receiptsStalled: claim.stalled, note: CLAIM_PATH_NOTE },
       command: claim.command,
       error: flow.error,
     };
-    return { summary: `Receipts: ${flow.observed} ${receiptFlowMeaning(flow)} ${claim.why}`, data };
+    return { summary: `Receipts: ${flow.observed} ${receiptFlowMeaning(flow)}`, data };
   },
 };
 

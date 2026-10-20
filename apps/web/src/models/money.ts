@@ -326,6 +326,9 @@ export const potPage: PageDef<PotModel> = {
     // A pot takes chips only while it collects; once it has settled, what it holds goes back.
     const collecting = !pot || pot.stage === "Funding" || pot.stage === "Series";
     const settled = pot?.stage === "Refundable" || pot?.stage === "Delivered";
+    // Once every chip has been claimed there is nothing left to offer.
+    const claimable = settled && pot?.allClaimed !== true;
+    const ours = houseSet(deployments);
     if (pot) {
       facts.push({ label: "Stage", value: pot.stage });
       facts.push({
@@ -346,7 +349,13 @@ export const potPage: PageDef<PotModel> = {
         facts.push({ label: "Waits for a runner for", value: formatDuration(pot.hireSecs * 1000) });
       if (pot.deliverySecs !== null)
         facts.push({ label: "Delivery time", value: formatDuration(pot.deliverySecs * 1000) });
-      if (pot.opener) facts.push({ label: "Opened by", value: pot.opener });
+      if (pot.opener)
+        facts.push({
+          label: "Opened by",
+          value: `${pot.opener}${ours.has(pot.opener.toLowerCase()) ? " (HOUSE: the team's own wallet)" : ""}`,
+        });
+      if (pot.allClaimed)
+        facts.push({ label: "Claims", value: "every chip has been paid back (chipsLeft 0)" });
       if (pot.allowClaimed !== null) {
         facts.push({
           label: "Pays on",
@@ -383,7 +392,7 @@ export const potPage: PageDef<PotModel> = {
         pot && !pot.spec
           ? "The job text of this pot could not be read from the chain just now: its SpecPinned log is older than the public RPC serves, or the RPC did not answer. Only its hash is shown. Read the text (the command below finds it on an archive RPC) before you chip in."
           : null,
-      flows: settled
+      flows: claimable
         ? [
             previewFlow(
               "claim-refund",
@@ -399,7 +408,7 @@ export const potPage: PageDef<PotModel> = {
               previewFlow("zap-chip-in", deployments, now, { potId: String(id), ...zapPreset(quote) }),
             ]
           : [],
-      flowsHeading: settled
+      flowsHeading: claimable
         ? {
             title: "Claim a refund",
             note:
@@ -410,7 +419,7 @@ export const potPage: PageDef<PotModel> = {
         : collecting
           ? { title: "Chip in", note: "with IMD, or with ETH through Zap" }
           : null,
-      flowNotes: settled
+      flowNotes: claimable
         ? [`pot ${id} and a contributor's address`]
         : [`0.5 IMD and pot ${id}`, `0.01 ETH and pot ${id}`],
       ethNote: ethNote(quote),

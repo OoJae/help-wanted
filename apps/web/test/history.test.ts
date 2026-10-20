@@ -813,10 +813,11 @@ describe("the judges page on mainnet's book", () => {
       "The launches",
       "The house feeds' first rounds: three Intake requests, three answers",
       "The first Robot Jobs Report",
-      "The Doorbell's 25 rings",
+      "The Doorbell's first 25 rings, up to its first hire",
       "Order 1: opened by a contract, paid on proof",
       "Order 2: opened by a rule, paid on proof",
       "Endowment 1: the team's own drill, with the team's own IMD",
+      "Pot 1: the team's refund drill, with the team's own IMD",
     ]);
     // Order 2's group: the rule's creation, the order's trail, the change taken back (block
     // 26,204,586), then the tip (block 26,204,587): oldest first, as the intro says.
@@ -1635,7 +1636,9 @@ describe("what a mock judging found, on mainnet's book", () => {
     expect(facts).not.toMatch(/nothing is lost|lose nothing/i);
 
     const judges = await page<JudgesModel>(world, "/judges");
-    const group = judges.model.live?.groups.find((g) => g.title === "The Doorbell's 25 rings");
+    const group = judges.model.live?.groups.find(
+      (g) => g.title === "The Doorbell's first 25 rings, up to its first hire",
+    );
     expect(group?.rows.map((r) => r.tx)).toEqual([RING_HISTORY.first.hash, RING_HISTORY.last.hash]);
     expect(group?.rows[0]?.what).toContain("house wallet H1 (25 rings): all HOUSE, none OUTSIDE");
     expect(judges.model.notLive).toContain(NO_WATCHER);

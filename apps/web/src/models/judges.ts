@@ -35,6 +35,7 @@ import {
   LAUNCH_C_ON_CHAIN,
   LAUNCH_PRS,
   pinnedEndowment,
+  pinnedPot,
   pinnedOrder,
   pinnedPrint,
   pinnedRings,
@@ -1960,7 +1961,7 @@ export const judgesPage: PageDef<JudgesModel> = {
           `${houseLabel(r.ringer) ? `house wallet ${houseLabel(r.ringer)}` : r.ringer} (${plural(r.rings, "ring")})`,
       );
       groups.push({
-        title: `The Doorbell's ${rings.rings} rings`,
+        title: `The Doorbell's first ${rings.rings} rings, up to its first hire`,
         rows: [
           liveTx(
             "Ring 1",
@@ -2026,6 +2027,19 @@ export const judgesPage: PageDef<JudgesModel> = {
       groups.push({
         title: `Endowment ${drill.id}: ${drill.purpose}`,
         rows: drill.trail.map((step) =>
+          liveTx(
+            step.label,
+            `${step.what} Sent by house wallet ${houseLabel(step.tx.from) ?? step.tx.from}.`,
+            step.tx,
+          ),
+        ),
+      });
+    }
+    const potDrill = pinnedPot(deployments.contracts.crowdPots.address, 1);
+    if (potDrill) {
+      groups.push({
+        title: `Pot ${potDrill.id}: ${potDrill.purpose}`,
+        rows: potDrill.trail.map((step) =>
           liveTx(
             step.label,
             `${step.what} Sent by house wallet ${houseLabel(step.tx.from) ?? step.tx.from}.`,

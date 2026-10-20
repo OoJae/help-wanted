@@ -180,6 +180,12 @@ export interface Pot {
   /** Zero for a pot that belongs to no series. */
   seriesId: number | null;
   /**
+   * True once the pot has settled in storage (delivered or refundable) and no chip is left
+   * unclaimed (`chipsLeft` 0): everything it had to give back has been paid. False while claims are
+   * open, including a pot past its deadline that nobody has settled yet. Null when unread.
+   */
+  allClaimed?: boolean | null;
+  /**
    * The job text the pot will order, from its `SpecPinned` log, when that log is still within reach
    * of the RPC and hashes to `specHash`. Null otherwise (a list never reads it). Third-party text.
    */
@@ -896,6 +902,11 @@ export class ChainHouseSource implements HouseSource {
       deliverySecs: p ? Number(p.deliverySecs) : null,
       hireSecs: p ? Number(p.hireSecs) : null,
       seriesId: p ? Number(p.seriesId) : null,
+      allClaimed: p
+        ? (Number(p.stage) === POT_STAGES.indexOf("Delivered") ||
+            Number(p.stage) === POT_STAGES.indexOf("Refundable")) &&
+          (p.chipsLeft as bigint) === 0n
+        : null,
       spec: null,
     };
   }

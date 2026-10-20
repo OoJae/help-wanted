@@ -623,6 +623,31 @@ describe("a pot's page shows what the pot will order", () => {
     expect(markdown).toContain("Claim a pot refund");
     expect(markdown).not.toContain("Chip in with ETH");
   });
+
+  it("says every chip has been paid back once a settled pot has none left to claim", async () => {
+    const world = testSources({
+      env: { HW_ADDR_CROWD_POTS: POTS },
+      chain: {
+        views: {
+          ...views(potOf({ stage: 4, chipsLeft: 0n })),
+          [`${POTS}:remaining`]: { abi: crowdPotsAbi, result: 0n },
+          [`${POTS}:stageOf`]: { abi: crowdPotsAbi, result: 4 },
+        },
+      },
+    });
+    const loaded = await loadPath("/pots/1", ctxFor(world, "/pots/1"));
+    const model = loaded!.model as PotPage & {
+      flows: { id: string }[];
+      flowsHeading: { title: string } | null;
+      card: { deadlineWords: string | null; stamp: { text: string } | null };
+    };
+    expect(model.flows).toEqual([]);
+    expect(model.flowsHeading).toBeNull();
+    expect(model.card.stamp?.text).toBe("REFUNDED");
+    expect(model.card.deadlineWords).toContain("every chip has been paid back");
+    expect(model.facts.find((f) => f.label === "Claims")?.value).toContain("every chip has been paid back");
+    expect(markdownTwin(loaded!)).not.toContain("Claim a pot refund");
+  });
 });
 
 describe("the address in the configuration is asked to identify itself", () => {

@@ -808,6 +808,66 @@ export const ENDOWMENT_HISTORY: { endowments: Address; entries: readonly PinnedE
   ],
 };
 
+// ---------------------------------------------------------------------------------------------
+// CrowdPots: the team's refund drill
+// ---------------------------------------------------------------------------------------------
+
+export interface PinnedPot {
+  id: number;
+  /** The `PotOpened` log's opener. */
+  opener: Address;
+  /** Why it exists, in a few words a page can print after "Pot 1:". */
+  purpose: string;
+  /** The transactions, oldest first, each sent to CrowdPots by the wallet it names. */
+  trail: readonly { label: string; what: string; tx: PinnedTx }[];
+}
+
+/**
+ * Pot 1, opened by house wallet H1 on 20 October 2026 to show a refund on mainnet with the team's
+ * own IMD: a 1 IMD target, 72 minutes to collect, one chip of 0.01 IMD. Nobody else chipped in, so
+ * it ran out of time and H1 claimed the chip back. Both transactions were read with `cast receipt`
+ * that day (status 1, sent by H1 to CrowdPots) and their logs decoded with the launch's ABI. A page
+ * reads the pot's state live; this is kept because the logs fall out of the public RPC's reach.
+ */
+export const POT_HISTORY: { crowdPots: Address; entries: readonly PinnedPot[] } = {
+  crowdPots: "0x8C2FfCdcb103659aa05c772b8F2059868B496EB5",
+  entries: [
+    {
+      id: 1,
+      opener: H1,
+      purpose: "the team's refund drill, with the team's own IMD",
+      trail: [
+        {
+          label: "Opened",
+          what: "openPot with a first chip of 0.01 IMD: SpecPinned, PotOpened(1, H1) for a research report with a 1 IMD target and 72 minutes to collect, and ChippedIn(1, H1, 0.01 IMD).",
+          tx: {
+            hash: "0x74a9a85132fd9e157995fb84400ac87cd17183e102a0dbaa4c70f59a9d3bb4e9",
+            block: 26234345,
+            at: "2026-10-20T14:18:35Z",
+            from: H1,
+          },
+        },
+        {
+          label: "Refunded",
+          what: "claimRefund(1, H1) after the pot ran out of time unfilled at 15:30:35 UTC: PotSettled(1, Refundable, spent 0, refundable 0.01 IMD), then RefundPaid(1, H1, 0.01 IMD). The chip came back to the wei.",
+          tx: {
+            hash: "0x61a72aef66a740fd5b8a347d35996f7774bc756088f79ce0745f1b66df125618",
+            block: 26234717,
+            at: "2026-10-20T15:33:11Z",
+            from: H1,
+          },
+        },
+      ],
+    },
+  ],
+};
+
+/** The pinned record of a pot, when the book's CrowdPots is the one it was read from. */
+export function pinnedPot(crowdPots: string | null, id: number): PinnedPot | null {
+  if (!crowdPots || crowdPots.toLowerCase() !== POT_HISTORY.crowdPots.toLowerCase()) return null;
+  return POT_HISTORY.entries.find((e) => e.id === id) ?? null;
+}
+
 /** The pinned record of an endowment, when the book's Endowments is the one it was read from. */
 export function pinnedEndowment(endowments: string | null, id: number): PinnedEndowment | null {
   if (!endowments || endowments.toLowerCase() !== ENDOWMENT_HISTORY.endowments.toLowerCase()) return null;

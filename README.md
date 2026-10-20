@@ -17,6 +17,10 @@ challenges for 24 hours is paid without waiting for step 4.
 - **The hire desk**, `WorkOrders`, on Ethereum mainnet:
   [`0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2`](https://etherscan.io/address/0x730CB6C845d896e33283d3A4Ed8967F8BAA778d2)
 - **The site:** <https://web-production-a7c148.up.railway.app>
+- **Check the central claim, no wallet needed:**
+  <https://web-production-a7c148.up.railway.app/verify/42f26c64-eea9-46f2-822a-33547ec18abf>: your
+  browser reads IdentityMD's receipt for order 2's job from the chain and hashes the work record
+  itself. Every claim, its proof and the limits: <https://web-production-a7c148.up.railway.app/judges>
 - **On X:** <https://x.com/HELPWANTED_imd>
 - **The source:** <https://github.com/OoJae/help-wanted>
 
@@ -57,15 +61,15 @@ when the job's work record matches IdentityMD's on-chain receipt and names the o
 otherwise. The other rows are what each one's published terms said when read on 20 October 2026
 (two figures, marked, are reported by others).
 
-| Where                                  | Who decides payment                                                                           | Until money moves                                                           | Refund                                                    | Source                                                                                                                                                                                         |
-| -------------------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| HELP WANTED, receipt path              | Code: `WorkProof` holds the work record against the WorkRegistry receipt and the order header | In the settling transaction; order 2 was paid 8 min 48 s after its rule fired | Yes: after the deadline, anyone may send it back          | Check 7 below                                                                                                                                                                                  |
-| Upwork, fixed price                    | The client; silence approves after 14 days; disputes go to Upwork, then paid arbitration      | Up to 14 days of review, then a 5-day hold                                  | Through a dispute                                         | [getting paid](https://support.upwork.com/hc/en-us/articles/211063718-Get-Paid-for-Fixed-Price-Contracts), [disputes](https://support.upwork.com/hc/en-us/articles/14044146250259)                |
-| Fiverr                                 | The buyer; the order completes by itself 3 days after delivery                               | 3 days (up to 5 more if extended), then 14 days of clearance                | By cancellation                                           | [order statuses](https://help.fiverr.com/hc/en-us/articles/37552517993105-The-complete-guide-to-your-Fiverr-order-Statuses-and-process), [clearance, reported](https://wise.com/us/blog/how-to-get-paid-on-fiverr) |
-| Bountycaster, a bounty board           | Only the poster                                                                               | Whenever the poster pays                                                    | Nothing is held                                           | [FAQ](https://www.bountycaster.xyz/faq)                                                                                                                                                        |
-| ERC-8183, and Virtuals ACP v2 on it    | One evaluator named at the start; no dispute step                                             | When the evaluator completes the job                                        | Yes, on rejection or after expiry                         | [EIP-8183](https://eips.ethereum.org/EIPS/eip-8183), [ACP changelog](https://whitepaper.virtuals.io/acp/acp-changelogs)                                                                          |
-| x402r, escrow for x402 payments (beta) | An arbiter                                                                                    | After a 14-day timelock, unless released sooner                             | Yes, released by the arbiter                              | [x402r](https://www.x402r.org/), [timelock, reported](https://ethglobal.com/showcase/x402r-and-d-1k9yg)                                                                                          |
-| IdentityMD's Intake                    | Nobody after the fact: the fee is taken in the call that opens the job                       | Before the work starts                                                      | "Refunds: None", in its docs                              | [IdentityMD docs](https://imd.fun/docs/llms.txt)                                                                                                                                               |
+| Where                                  | Who decides payment                                                                           | Until money moves                                                             | Refund                                           | Source                                                                                                                                                                                                             |
+| -------------------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| HELP WANTED, receipt path              | Code: `WorkProof` holds the work record against the WorkRegistry receipt and the order header | In the settling transaction; order 2 was paid 8 min 48 s after its rule fired | Yes: after the deadline, anyone may send it back | Check 7 below                                                                                                                                                                                                      |
+| Upwork, fixed price                    | The client; silence approves after 14 days; disputes go to Upwork, then paid arbitration      | Up to 14 days of review, then a 5-day hold                                    | Through a dispute                                | [getting paid](https://support.upwork.com/hc/en-us/articles/211063718-Get-Paid-for-Fixed-Price-Contracts), [disputes](https://support.upwork.com/hc/en-us/articles/14044146250259)                                 |
+| Fiverr                                 | The buyer; the order completes by itself 3 days after delivery                                | 3 days (up to 5 more if extended), then 14 days of clearance                  | By cancellation                                  | [order statuses](https://help.fiverr.com/hc/en-us/articles/37552517993105-The-complete-guide-to-your-Fiverr-order-Statuses-and-process), [clearance, reported](https://wise.com/us/blog/how-to-get-paid-on-fiverr) |
+| Bountycaster, a bounty board           | Only the poster                                                                               | Whenever the poster pays                                                      | Nothing is held                                  | [FAQ](https://www.bountycaster.xyz/faq)                                                                                                                                                                            |
+| ERC-8183, and Virtuals ACP v2 on it    | One evaluator named at the start; no dispute step                                             | When the evaluator completes the job                                          | Yes, on rejection or after expiry                | [EIP-8183](https://eips.ethereum.org/EIPS/eip-8183), [ACP changelog](https://whitepaper.virtuals.io/acp/acp-changelogs)                                                                                            |
+| x402r, escrow for x402 payments (beta) | An arbiter                                                                                    | After a 14-day timelock, unless released sooner                               | Yes, released by the arbiter                     | [x402r](https://www.x402r.org/), [timelock, reported](https://ethglobal.com/showcase/x402r-and-d-1k9yg)                                                                                                            |
+| IdentityMD's Intake                    | Nobody after the fact: the fee is taken in the call that opens the job                        | Before the work starts                                                        | "Refunds: None", in its docs                     | [IdentityMD docs](https://imd.fun/docs/llms.txt)                                                                                                                                                                   |
 
 An order on the desk is in the shape of ERC-8183: the employer is the client, the runner the
 provider, the receipt check the evaluator. The difference is that the evaluator is a fixed check of a
@@ -74,8 +78,25 @@ it pays a completed job of the order's kind whose work record names the order, a
 verification of a research report is structural (for order 2's job: "paths and tree verified; no
 suite was run for this kind of work"). It is not for work only a person can judge.
 
-## Read this first: what is true on 16 October 2026
+## Read this first: what is true on 20 October 2026
 
+- **New on 20 October 2026, all of it the team's own use.** Anyone can now ring the Doorbell in one
+  step from <https://web-production-a7c148.up.railway.app/rules/new#doorbell>, with a browser
+  wallet or a phone wallet's link or QR code; ring 26 was the team's wallet W1, through that page.
+  The first crowd pot was a refund drill: H1 opened pot 1 with one chip of 0.01 IMD and 72 minutes
+  to collect, it ran out of time, and `claimRefund` paid the chip back to the wei
+  ([`0x61a72aef…5618`](https://etherscan.io/tx/0x61a72aef66a740fd5b8a347d35996f7774bc756088f79ce0745f1b66df125618)).
+  H1, which paid for both orders' swarm jobs, recorded one review of each job's agent in the
+  ERC-8004 reputation registry on mainnet, saying that delivery was checked against the receipt and
+  quality was not
+  ([`0xc68d8e8a…f24f`](https://etherscan.io/tx/0xc68d8e8ac90552c1f7848ef7ead2019de37c0d357661fe8f4064d910608cf24f),
+  [`0x5e5eba6d…d5d6`](https://etherscan.io/tx/0x5e5eba6da6c34f7171b58863fdeeb4f4eb662d05d865896446447a6b0e53d5d6)).
+  An AI agent can use the site through a key-free MCP server at `/mcp` ("Use it from an AI agent",
+  below).
+- **IdentityMD's receipts are stalled again.** Its WorkRegistry has written no receipt since
+  19 October 2026, 06:39 UTC (block 26,224,887). Until it writes again, an order that pays only on
+  a receipt waits for one and is refunded at its deadline if none comes. The site says how long the
+  stall has lasted on every page that depends on it.
 - **Launch A is live on Ethereum mainnet** since 13 October 2026. Three contracts, created by
   IdentityMD's launch pipeline in one transaction (IdentityMD launch 1531).
 - **The first Robot Jobs Report was printed that day**: 112 IMD paid to the swarm in blocks
@@ -508,7 +529,7 @@ Stated as plainly as what is.
 - **Two orders, and all of them the team's own.** Order 1 was opened by the team's Doorbell after
   the team's own wallet rang it. Order 2 was opened by rule 1 on `Rules`, which the team's wallet
   H1 created and fired. The team's runner took both. No outside employer, runner, ringer or rule
-  creator has used the desk, and no crowd pot has been opened.
+  creator has used the desk. The one crowd pot, pot 1, was the team's refund drill of 20 October 2026.
 - **IdentityMD's receipts stalled for about six days.** The WorkRegistry wrote no receipt from
   about 8 October until 13 October 2026, 17:26 UTC (block 26,185,055). It then worked through its
   backlog, and the receipts of jobs bought on 13 October, order 1's among them, landed on
@@ -518,7 +539,8 @@ Stated as plainly as what is.
   during the stall with the desk's other path switched on, for good: a bonded delivery claim paid
   after 24 hours without a challenge, with its own limits (L1, L2 and D2 in the same file). Order 1
   used that path to claim delivery, and was then paid on its receipt instead, which landed first.
-  The writer has kept writing since. On 16 October it wrote the receipt of order 2's job 16
+  The writer then kept writing until 19 October 2026, 06:39 UTC (block 26,224,887), and has written
+  nothing since. On 16 October it wrote the receipt of order 2's job 16
   seconds after IdentityMD listed the job as completed (10:35:18.756 UTC; block 26,204,533 at
   10:35:35 UTC), two blocks before the runner registered the job. Order 2 pays only on a receipt,
   and was paid on that one.
@@ -750,11 +772,13 @@ pnpm test          # every package, then the evidence builder
 pnpm typecheck
 ```
 
-On the same day: `packages/shared` 397 tests, `bots/runner` 431, `bots/keeper` 324,
-`apps/indexer` 213, `apps/web` 680 and the evidence builder 100, none failed. Those are the counts
+On 20 October 2026, in a fresh clone: `packages/shared` 397 tests (22 of them skipped), `bots/runner` 431,
+`bots/keeper` 326, `apps/indexer` 213, `apps/web` 769 and the evidence builder 100, none failed.
+GitHub Actions runs these suites and `forge test` in each launch on every push to `main` (the CI
+badge at the top). Those are the counts
 each suite reports as `Tests  N passed (N)`. By each package's own account no test reaches the
 internet; the tests of the indexer, the site and the evidence builder make `fetch` throw to be
-sure. Of the keeper's 324, 296 are unit tests (`test:unit`) and 28 start a local node; those 28
+sure. Of the keeper's 326, 296 are unit tests (`test:unit`) and 30 start a local node; those 30
 are skipped, with a message, when Foundry is missing or the launch projects are not built, and the
 suite then reports them as skipped.
 

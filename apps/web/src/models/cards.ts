@@ -244,7 +244,8 @@ export function potCard(pot: Pot, now: Date): PotCard {
   const percent = target && target > 0n && raised !== null ? Number((raised * 100n) / target) : null;
   let stamp: Stamp | null = null;
   if (pot.stage === "Delivered") stamp = { text: "FILLED", tone: "filled" };
-  else if (pot.stage === "Refundable") stamp = { text: "REFUNDABLE", tone: "void" };
+  else if (pot.stage === "Refundable")
+    stamp = { text: pot.allClaimed ? "REFUNDED" : "REFUNDABLE", tone: "void" };
   else if (pot.stage === "Hiring") stamp = { text: "HIRING", tone: "live" };
   const deadlineWords =
     pot.deadline && pot.stage === "Funding"
@@ -252,9 +253,7 @@ export function potCard(pot: Pot, now: Date): PotCard {
         ? `Collecting for another ${formatDuration(pot.deadline * 1000 - now.getTime())}.`
         : "Collection time is over."
       : pot.stage === "Refundable"
-        ? pot.orderId === null
-          ? "Time ran out before it filled: every chip can be claimed back."
-          : "Its order ended undelivered: every chip can be claimed back."
+        ? `${pot.orderId === null ? "Time ran out before it filled" : "Its order ended undelivered"}: ${pot.allClaimed ? "every chip has been paid back." : "every chip can be claimed back."}`
         : null;
   return {
     id: pot.id,
