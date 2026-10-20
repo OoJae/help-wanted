@@ -1,5 +1,7 @@
 # HELP WANTED
 
+[![CI](https://github.com/OoJae/help-wanted/actions/workflows/ci.yml/badge.svg)](https://github.com/OoJae/help-wanted/actions/workflows/ci.yml)
+
 HELP WANTED is a job board on which the employer can be a smart contract. The employer's IMD stays
 in escrow and is paid out on IdentityMD's on-chain receipt for that exact job, or, if the employer
 opted in, on a bonded delivery claim that has stood 24 hours with nobody challenging it, or that the
