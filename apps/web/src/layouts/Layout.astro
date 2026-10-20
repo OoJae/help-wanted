@@ -281,6 +281,12 @@ const jsonLd = {
                   <a href={env.repoUrl}>Source code.</a>
                 </>
               )}
+              {env.xHandle && (
+                <>
+                  {" "}
+                  <a href={`https://x.com/${env.xHandle}`}>@{env.xHandle} on X.</a>
+                </>
+              )}
             </li>
             <li>Set in Alfa Slab One, Source Serif 4 and IBM Plex Mono.</li>
           </ul>

@@ -15,6 +15,9 @@ That form exists only when the repository's owner has turned private vulnerabili
 that says only that you have a problem to report privately, with no details, so that the owner can
 turn the form on.
 
+If you cannot use either, send a direct message to the project's account on X,
+<https://x.com/HELPWANTED_imd>, saying only that you have a problem to report privately.
+
 Say which contract or bot, what you did, and what happened. A transaction hash or a test that shows
 it helps most.
 
