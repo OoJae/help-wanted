@@ -1,0 +1,46 @@
+# Every suite that needs no network, on every push to main: the TypeScript workspace (typecheck,
+# tests, the evidence checks, the site's build) and each launch's Foundry tests. The fork tests need
+# a mainnet RPC and are left out here, as they are by default (FOUNDRY_PROFILE=fork runs them).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  typescript:
+    name: TypeScript (typecheck, tests, site build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm --filter @help-wanted/web build
+
+  contracts:
+    name: Contracts (${{ matrix.launch }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        launch: [a-payroll, b-desk, c-company]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.3
+      - run: forge test
+        working-directory: launches/${{ matrix.launch }}
