@@ -14,7 +14,16 @@
  * interface and add what the chain alone cannot give cheaply (the job text of old orders, the
  * events of rounds older than the RPC's log window, contributor lists).
  */
-import { decodeEventLog, encodeEventTopics, hexToString, keccak256, toHex, type Abi, type Hex } from "viem";
+import {
+  decodeEventLog,
+  encodeEventTopics,
+  encodeFunctionData,
+  hexToString,
+  keccak256,
+  toHex,
+  type Abi,
+  type Hex,
+} from "viem";
 import {
   abandonStepName,
   answerDelivery,
@@ -41,7 +50,7 @@ import {
   type RoundStatusName,
 } from "@help-wanted/shared";
 import type { ContractKey, Deployments } from "~/config/deployments";
-import { pinnedRings, pinnedRounds } from "~/config/history";
+import { pinnedRings, pinnedRounds, type PinnedRings } from "~/config/history";
 import { messageOf } from "~/lib/cache";
 import {
   ENDOWMENT_KINDS,
@@ -55,7 +64,7 @@ import {
 } from "~/lib/contracts";
 import type { RawLog } from "~/lib/jsonrpc";
 import type { ViewCall, ViewResult } from "~/lib/multicall";
-import type { ChainSource } from "./chain";
+import type { ChainSource, GasCost } from "./chain";
 
 export type Live<T> =
   | { live: false; contract: ContractKey }
@@ -224,6 +233,48 @@ export interface DoorbellRingers {
   pinned: number;
   /** The day those kept rings were read. Null when none are kept. */
   pinnedOn: string | null;
+  /**
+   * The rings whose log this server read itself (not the kept ones), newest first, at most
+   * `RECENT_RINGS`: who rang, which ring it was and the transaction.
+   */
+  recent: DoorbellRing[];
+}
+
+/** One ring, from its `Rang(ringer, count)` log. */
+export interface DoorbellRing {
+  /** Lowercase. */
+  ringer: string;
+  /** The ring count after this ring: the ring's number. */
+  count: number;
+  block: number;
+  tx: string;
+}
+
+/** One of the four desk events a runner's own work writes. */
+export type RunnerEventName = "Claimed" | "Registered" | "DeliveryClaimed" | "Delivered";
+
+/** A desk event of one runner, from its log. */
+export interface RunnerEvent {
+  name: RunnerEventName;
+  orderId: number;
+  block: number;
+  tx: string;
+  /** The block's time in seconds; null when it could not be read. */
+  at: number | null;
+}
+
+/**
+ * A runner's newest action on the desk in the blocks this server reads logs for: `Claimed` and
+ * `Delivered` name the runner; `Registered` and `DeliveryClaimed` can be sent only by the runner
+ * that holds the order, so they are the holder's.
+ */
+export interface RunnerBeat {
+  /** Lowercase. */
+  runner: string;
+  /** Null when none of its events is in the blocks read. */
+  last: RunnerEvent | null;
+  fromBlock: number;
+  toBlock: number;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -528,6 +579,10 @@ export interface HouseSource {
   pots(limit?: number): Promise<Live<PotBook>>;
   pot(id: number): Promise<Live<Pot | null>>;
   doorbell(): Promise<Live<DoorbellState>>;
+  /** What the Doorbell's next ring would cost in gas now: `estimateGas` of ring() and the gas price. */
+  ringCost(): Promise<Live<GasCost>>;
+  /** A runner's newest action on the desk, from the desk's logs over the blocks this server reads. */
+  runnerBeat(runner: string): Promise<Live<RunnerBeat>>;
   ledger(): Promise<Live<PayrollLedger>>;
   seatPay(tokenId: number): Promise<Live<SeatPay>>;
   tipOwed(agentId: string): Promise<Live<bigint>>;
@@ -548,6 +603,10 @@ const ZERO_ADDRESS = /^0x0{40}$/;
 /** How many feeds beyond the three house feeds are read, and how many rounds of each house feed. */
 const OTHER_FEEDS_READ = 9;
 const ROUNDS_READ = 20;
+/** How many of the rings read from logs are handed on with their ringer and transaction. */
+export const RECENT_RINGS = 200;
+/** The most ring logs this process keeps once the RPC no longer serves them. */
+const RINGS_KEPT_MAX = 100_000;
 
 function addr(value: unknown): string | null {
   return typeof value === "string" && !ZERO_ADDRESS.test(value) ? value.toLowerCase() : null;
@@ -594,6 +653,14 @@ export class ChainHouseSource implements HouseSource {
   readonly #deployments: Deployments;
   /** Round events seen so far, by `feedId:round`. Kept while the process runs, so they outlive the log window. */
   readonly #roundEvents = new Map<string, RoundEvents>();
+  /**
+   * The Doorbell's ring logs this process has read, by `tx:logIndex`, after the kept history. Kept
+   * while it runs, so a ring is still counted, and still named HOUSE or OUTSIDE, once its block has
+   * left the RPC's log window.
+   */
+  readonly #rings = new Map<string, DoorbellRing>();
+  /** The newest block the ring logs were read to. */
+  #ringsReadTo: number | null = null;
 
   constructor(chain: ChainSource, deployments: Deployments) {
     this.#chain = chain;
@@ -932,17 +999,6 @@ export class ChainHouseSource implements HouseSource {
   async #ringers(address: string): Promise<DoorbellRingers | null> {
     // The rings this site keeps are counted from the history; the logs are read only after them.
     const kept = pinnedRings(address);
-    const fromKept = (): DoorbellRingers | null =>
-      kept
-        ? {
-            read: kept.rings,
-            fromBlock: kept.fromBlock,
-            toBlock: kept.toBlock,
-            byRinger: kept.byRinger.map((r) => ({ ...r })),
-            pinned: kept.rings,
-            pinnedOn: kept.read,
-          }
-        : null;
     try {
       const topics = encodeEventTopics({ abi: doorbellAbi, eventName: "Rang" });
       const launched = this.#launchBlock("doorbell");
@@ -955,36 +1011,157 @@ export class ChainHouseSource implements HouseSource {
         },
         60_000,
       );
-      const count = new Map<string, number>();
-      for (const r of kept?.byRinger ?? []) count.set(r.ringer, r.rings);
-      let live = 0;
+      // Inside the blocks just read, the RPC's answer stands (a ring a reorganisation took away goes
+      // with it); a ring read earlier whose block has since left the log window stays as it was read.
+      const { fromBlock, toBlock } = read.value;
+      for (const [key, ring] of this.#rings) {
+        if (ring.block >= fromBlock && ring.block <= toBlock) this.#rings.delete(key);
+      }
       for (const log of read.value.logs) {
+        const block = Number(BigInt(log.blockNumber));
         // A ring the history already counts is never counted twice.
-        if (kept && Number(BigInt(log.blockNumber)) <= kept.toBlock) continue;
+        if (kept && block <= kept.toBlock) continue;
         const { args } = decodeEventLog({
           abi: doorbellAbi,
           eventName: "Rang",
           topics: log.topics as [Hex, ...Hex[]],
           data: log.data as Hex,
         });
-        const ringer = args.ringer.toLowerCase();
-        count.set(ringer, (count.get(ringer) ?? 0) + 1);
-        live += 1;
+        if (this.#rings.size >= RINGS_KEPT_MAX) this.#rings.clear();
+        const tx = log.transactionHash.toLowerCase();
+        this.#rings.set(`${tx}:${Number(BigInt(log.logIndex))}`, {
+          ringer: args.ringer.toLowerCase(),
+          count: Number(args.count),
+          block,
+          tx,
+        });
+      }
+      this.#ringsReadTo = Math.max(this.#ringsReadTo ?? 0, read.value.toBlock);
+      return this.#ringersSoFar(kept, read.value.fromBlock);
+    } catch {
+      // The kept rings, and the rings this process read before, stand on their own when the log
+      // cannot be read now. With neither, who rang is unread: never "nobody".
+      return kept || this.#rings.size > 0 ? this.#ringersSoFar(kept, null) : null;
+    }
+  }
+
+  /** The kept rings and every ring this process has read, as one count by ringer. */
+  #ringersSoFar(kept: PinnedRings | null, windowFrom: number | null): DoorbellRingers {
+    const count = new Map<string, number>();
+    for (const r of kept?.byRinger ?? []) count.set(r.ringer, r.rings);
+    const live = [...this.#rings.values()].sort((a, b) => b.block - a.block || b.count - a.count);
+    for (const ring of live) count.set(ring.ringer, (count.get(ring.ringer) ?? 0) + 1);
+    const starts = [windowFrom, live.at(-1)?.block ?? null].filter((n): n is number => n !== null);
+    return {
+      read: (kept?.rings ?? 0) + live.length,
+      fromBlock: kept ? kept.fromBlock : starts.length > 0 ? Math.min(...starts) : 0,
+      toBlock: Math.max(this.#ringsReadTo ?? 0, kept?.toBlock ?? 0),
+      byRinger: [...count.entries()]
+        .map(([ringer, rings]) => ({ ringer, rings }))
+        .sort((a, b) => b.rings - a.rings || a.ringer.localeCompare(b.ringer)),
+      pinned: kept?.rings ?? 0,
+      pinnedOn: kept?.read ?? null,
+      recent: live.slice(0, RECENT_RINGS).map((ring) => ({ ...ring })),
+    };
+  }
+
+  ringCost(): Promise<Live<GasCost>> {
+    return this.#live("doorbell", async (address) => {
+      // Asked with no sender: ring() checks none, and the estimate is the same for any wallet.
+      const read = await this.#chain.gasCost("doorbell:ring", {
+        to: address,
+        data: encodeFunctionData({ abi: doorbellAbi, functionName: "ring" }),
+      });
+      return { data: read.value, fetchedAt: read.fetchedAt, stale: read.stale, error: read.error };
+    });
+  }
+
+  runnerBeat(runner: string): Promise<Live<RunnerBeat>> {
+    return this.#live("workOrders", async (address) => {
+      const names: RunnerEventName[] = ["Claimed", "Registered", "DeliveryClaimed", "Delivered"];
+      const read = await this.#chain.recentLogs(
+        "desk:runner-events",
+        {
+          address,
+          topics: [
+            names.map((eventName) => encodeEventTopics({ abi: workOrdersAbi, eventName })[0] as string),
+          ],
+          fromBlock: this.#launchBlock("workOrders"),
+        },
+        60_000,
+      );
+      const logs = [...read.value.logs].sort(
+        (a, b) =>
+          Number(BigInt(a.blockNumber) - BigInt(b.blockNumber)) ||
+          Number(BigInt(a.logIndex) - BigInt(b.logIndex)),
+      );
+      // Who held each order when its later events were written: the runner of its newest Claimed.
+      const holder = new Map<number, string>();
+      const seen: (RunnerEvent & { by: string | null; stamp: string | undefined })[] = [];
+      for (const log of logs) {
+        let decoded;
+        try {
+          decoded = decodeEventLog({
+            abi: workOrdersAbi,
+            topics: log.topics as [Hex, ...Hex[]],
+            data: log.data as Hex,
+          });
+        } catch {
+          continue;
+        }
+        const name = decoded.eventName as string;
+        if (!(names as string[]).includes(name)) continue;
+        const args = decoded.args as { id: bigint; runner?: string };
+        const id = Number(args.id);
+        let by: string | null = null;
+        if (name === "Claimed" || name === "Delivered") by = args.runner?.toLowerCase() ?? null;
+        else by = holder.get(id) ?? null;
+        if (name === "Claimed" && by) holder.set(id, by);
+        seen.push({
+          name: name as RunnerEventName,
+          orderId: id,
+          block: Number(BigInt(log.blockNumber)),
+          tx: log.transactionHash.toLowerCase(),
+          at: null,
+          by,
+          stamp: log.blockTimestamp,
+        });
+      }
+      // An order whose claim is older than the blocks read: the desk's own record names its runner,
+      // unless the order was claimed again inside them (then the earlier holder is not known here).
+      const open = [
+        ...new Set(seen.filter((e) => e.by === null && !holder.has(e.orderId)).map((e) => e.orderId)),
+      ];
+      if (open.length > 0) {
+        const claims = await this.#chain.views(
+          `desk:holders:${open.join(",")}`,
+          open.map((id) => ({
+            to: address,
+            abi: workOrdersAbi,
+            functionName: "claimOf",
+            args: [BigInt(id)],
+          })),
+        );
+        open.forEach((id, index) => {
+          const claim = ok<Record<string, unknown>>(claims.value[index]);
+          const by = claim ? addr(claim.runner) : null;
+          for (const e of seen) if (e.orderId === id && e.by === null) e.by = by;
+        });
+      }
+      const who = runner.toLowerCase();
+      const newest = seen.filter((e) => e.by === who).at(-1) ?? null;
+      let last: RunnerEvent | null = null;
+      if (newest) {
+        const at = newest.stamp ? Number(BigInt(newest.stamp)) : await this.#chain.blockTime(newest.block);
+        last = { name: newest.name, orderId: newest.orderId, block: newest.block, tx: newest.tx, at };
       }
       return {
-        read: (kept?.rings ?? 0) + live,
-        fromBlock: kept ? kept.fromBlock : read.value.fromBlock,
-        toBlock: Math.max(read.value.toBlock, kept?.toBlock ?? 0),
-        byRinger: [...count.entries()]
-          .map(([ringer, rings]) => ({ ringer, rings }))
-          .sort((a, b) => b.rings - a.rings || a.ringer.localeCompare(b.ringer)),
-        pinned: kept?.rings ?? 0,
-        pinnedOn: kept?.read ?? null,
+        data: { runner: who, last, fromBlock: read.value.fromBlock, toBlock: read.value.toBlock },
+        fetchedAt: read.fetchedAt,
+        stale: read.stale,
+        error: read.error,
       };
-    } catch {
-      // The kept rings stand on their own when the log cannot be read.
-      return fromKept();
-    }
+    });
   }
 
   doorbell(): Promise<Live<DoorbellState>> {

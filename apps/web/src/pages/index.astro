@@ -2,6 +2,7 @@
 import JobCard from "~/components/JobCard.astro";
 import OrderCard from "~/components/OrderCard.astro";
 import Recorder from "~/components/Recorder.astro";
+import RingStrip from "~/components/RingStrip.astro";
 import Stamp from "~/components/Stamp.astro";
 import TimeCard, { type TimeCardLine, type TimeCardOrder } from "~/components/TimeCard.astro";
 import Layout from "~/layouts/Layout.astro";
@@ -206,6 +207,42 @@ const specimenText = specimen
   </section>
   <script src="../scripts/clockin.ts"></script>
 
+  {
+    bell && (
+      <section class="section bell" aria-labelledby="bell" data-reveal>
+        <div class="section__head">
+          <h2 id="bell">The Doorbell</h2>
+          <p>{bell.note}</p>
+        </div>
+        <div class="bell__body">
+          <div class="bell__words">
+            <p class="bell__what">{bell.what}</p>
+            <p>{bell.count}</p>
+            <p class="actions">
+              <a class="btn" href={bell.key.path}>
+                {bell.key.label}
+              </a>
+            </p>
+          </div>
+          <div class="bell__tally">
+            {bell.rung !== null && <RingStrip rung={bell.rung} every={bell.every} class="bell__strip" />}
+            {bell.tally.length > 0 && (
+              <dl class="figures bell__figures">
+                {bell.tally.map((t) => (
+                  <div class="figure">
+                    <dt>{t.label}</dt>
+                    <dd>{t.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+            <p class="small">{bell.splitWords}</p>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
   <section class="section wire-lead" aria-labelledby="lead" data-reveal>
     <div class="section__head">
       <h2 id="lead">{lead ? lead.headline : m.headline}</h2>
@@ -334,14 +371,6 @@ const specimenText = specimen
         <h3 class="ad__head">
           <a href={m.actions.ring.path}>{m.actions.ring.label}</a>
         </h3>
-        {
-          bell && bell.rung !== null && (
-            <p class="ad__pay">
-              {bell.rung} of {bell.every} rings
-              <span>{bell.funded === null ? "" : bell.funded ? " · funded" : " · not funded"}</span>
-            </p>
-          )
-        }
         <p class="ad__text">{m.actions.ring.words}</p>
         <div class="ad__foot">
           <p class="ad__links">

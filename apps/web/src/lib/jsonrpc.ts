@@ -43,6 +43,13 @@ export interface EthReader {
    * the asker holds. Optional: a reader without it cannot quote.
    */
   callWith?(request: CallRequest, overrides?: StateOverrides): Promise<Hex>;
+  /**
+   * `eth_estimateGas` for a call at the latest block: the gas it would use now. Optional: a reader
+   * without it cannot estimate, and nothing is said of the cost.
+   */
+  estimateGas?(request: CallRequest): Promise<bigint>;
+  /** `eth_gasPrice`: the node's suggested price of one unit of gas, in wei. Optional, as above. */
+  gasPrice?(): Promise<bigint>;
   blockNumber(): Promise<bigint>;
   getLogs(filter: LogFilter): Promise<RawLog[]>;
   /** The timestamp of a block in seconds, or null when the node does not have the block. */
@@ -105,6 +112,18 @@ export function createEthReader(url: string, options: RpcOptions = {}): EthReade
         "latest",
         ...(overrides ? [overrides] : []),
       ]),
+    estimateGas: async (call) =>
+      BigInt(
+        await request<string>("eth_estimateGas", [
+          {
+            to: call.to,
+            data: call.data,
+            ...(call.from ? { from: call.from } : {}),
+            ...(call.value !== undefined ? { value: toQuantity(call.value) } : {}),
+          },
+        ]),
+      ),
+    gasPrice: async () => BigInt(await request<string>("eth_gasPrice", [])),
     blockNumber: async () => BigInt(await request<string>("eth_blockNumber", [])),
     getLogs: (filter) =>
       request<RawLog[]>("eth_getLogs", [
@@ -164,11 +183,15 @@ export function guardReader(reader: EthReader, guards: ReaderGuards): EthReader 
     }
   }
   const callWith = reader.callWith?.bind(reader);
+  const estimateGas = reader.estimateGas?.bind(reader);
+  const gasPrice = reader.gasPrice?.bind(reader);
   return {
     call: (to, data) => run(() => reader.call(to, data)),
     ...(callWith
       ? { callWith: (call: CallRequest, overrides?: StateOverrides) => run(() => callWith(call, overrides)) }
       : {}),
+    ...(estimateGas ? { estimateGas: (call: CallRequest) => run(() => estimateGas(call)) } : {}),
+    ...(gasPrice ? { gasPrice: () => run(() => gasPrice()) } : {}),
     blockNumber: () => run(() => reader.blockNumber()),
     getLogs: (filter) => run(() => reader.getLogs(filter)),
     blockTimestamp: (block) => run(() => reader.blockTimestamp(block)),

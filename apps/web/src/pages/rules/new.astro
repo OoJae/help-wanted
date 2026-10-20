@@ -2,6 +2,8 @@
 import Commands from "~/components/Commands.astro";
 import FlowBlock from "~/components/FlowBlock.astro";
 import NotLaunched from "~/components/NotLaunched.astro";
+import QrCode from "~/components/QrCode.astro";
+import RingStrip from "~/components/RingStrip.astro";
 import Layout from "~/layouts/Layout.astro";
 import { pageData } from "~/lib/page";
 import type { RulesNewModel } from "~/models/money";
@@ -196,35 +198,44 @@ const sinceHire = rings === null ? null : rings % 25;
       <h2>The Doorbell: a rule you can ring</h2>
       <p>Doorbell · {m.doorbell.label}</p>
     </div>
-    <p>
-      The Doorbell is a contract with no owner and one job text in its own code. Anyone calls{" "}
-      <code>ring()</code>. Every 25th ring, if it holds enough IMD, it opens an order on the hire desk: a
-      contract hiring the swarm, on demand, in front of you.
-    </p>
-    {m.doorbellState ? (
-      <>
-        <p class="label">Read from the contract for this page</p>
-        <div class="doorbell-read">
-          {/* The ring strip: one square a ring, 25 to a hire, the rings since the last 25th filled.
-               A picture of what the first lines below say in words, so it is hidden from readers
-               that do not see it. */}
-          {sinceHire !== null && (
-            <div class="ringstrip" aria-hidden="true">
-              {Array.from({ length: 25 }, (_, index) => (
-                <span class:list={["ringstrip__ring", index < sinceHire && "is-rung"]} />
-              ))}
-            </div>
-          )}
-          <ul>
-            {m.doorbellFacts.map((fact) => (
-              <li>{fact}</li>
-            ))}
-          </ul>
+    <p>{m.doorbellIntro}</p>
+    {m.doorbellNext && <p class="bellnext">{m.doorbellNext}</p>}
+    {m.ringCost && <p class="small">{m.ringCost}</p>}
+
+    {/* Ringing is one step: the wallet form first, then the same call as a link for a phone. */}
+    <FlowBlock flow={m.ringFlow} repeat />
+
+    {m.ringPhone && (
+      <div class="ringphone">
+        <div class="ringphone__words">
+          <h3 class="sub sub--first">On a phone</h3>
+          <p>{m.ringPhone.words}</p>
+          <p class="actions">
+            <a class="btn btn--ghost" href={m.ringPhone.url}>
+              {m.ringPhone.key}
+            </a>
+          </p>
+          <p class="small ringphone__link">
+            <code class="break">{m.ringPhone.url}</code>
+          </p>
+          <p class="small">{m.ringPhone.note}</p>
         </div>
-        <p class="small">
-          <a href="/judges#limit-B-D1">The Doorbell's disclosed limits, D1 to D5, are on the judges page.</a>
-        </p>
-      </>
+        <figure class="ringphone__code">
+          <QrCode text={m.ringPhone.url} label={m.ringPhone.qrLabel} />
+        </figure>
+      </div>
+    )}
+
+    <h3 class="sub">Where it stands</h3>
+    {m.doorbellState ? (
+      <div class="doorbell-read">
+        {sinceHire !== null && <RingStrip rung={sinceHire} />}
+        <ul>
+          {m.doorbellFacts.map((fact) => (
+            <li>{fact}</li>
+          ))}
+        </ul>
+      </div>
     ) : m.doorbell.address ? (
       <p class="small spot">
         The Doorbell could not be read just now{m.doorbellError ? `: ${m.doorbellError}` : ""}. Nothing is
@@ -236,6 +247,28 @@ const sinceHire = rings === null ? null : rings % 25;
         IdentityMD's receipts are arriving that day, and will be printed here.
       </p>
     )}
-    <FlowBlock flow={m.ringFlow} repeat />
+
+    {m.doorbellWho && (
+      <>
+        <h3 class="sub">Who rang</h3>
+        {m.doorbellWho.words && <p>{m.doorbellWho.words}</p>}
+        {m.doorbellWho.listWords && <p>{m.doorbellWho.listWords}</p>}
+        {m.doorbellWho.outside.length > 0 && (
+          <ul class="ringers">
+            {m.doorbellWho.outside.map((r) => (
+              <>
+                {/* prettier-ignore */}
+                <li><a class="addr" href={r.url} rel="noopener">{r.short}</a>{r.words.slice(r.short.length)} (<a href={r.txUrl} rel="noopener">its transaction</a>)</li>
+              </>
+            ))}
+          </ul>
+        )}
+      </>
+    )}
+    {m.doorbellState && (
+      <p class="small">
+        <a href="/judges#limit-B-D1">{m.doorbellLimits}</a>
+      </p>
+    )}
   </section>
 </Layout>

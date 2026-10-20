@@ -256,6 +256,11 @@ export interface FakeChainOptions {
   views?: Record<string, { abi: Abi; result: unknown }>;
   failCalls?: boolean;
   /**
+   * What `eth_estimateGas` answers for any call and what `eth_gasPrice` answers. Left out, the node
+   * has neither method, as a reader that cannot estimate; a page then says the cost is unread.
+   */
+  gas?: { estimate: bigint; priceWei: bigint };
+  /**
    * IMD-wei that one ETH buys through Zap, for the simulated `buy` a page quotes with. By default
    * the rate read on mainnet on 15 October 2026 (0.01 ETH bought 3.5475 IMD); null makes every
    * quote revert, as on an RPC that cannot simulate it.
@@ -376,7 +381,22 @@ export function fakeChain(options: FakeChainOptions = {}): FakeChain {
     return null;
   }
 
+  const gas = options.gas;
   const reader: EthReader = {
+    ...(gas
+      ? {
+          async estimateGas(request: { to: string }) {
+            calls.push(`eth_estimateGas ${request.to.toLowerCase()}`);
+            if (options.failCalls) throw new Error("the RPC is down");
+            return gas.estimate;
+          },
+          async gasPrice() {
+            calls.push("eth_gasPrice");
+            if (options.failCalls) throw new Error("the RPC is down");
+            return gas.priceWei;
+          },
+        }
+      : {}),
     async callWith(request) {
       calls.push(`eth_call ${request.to.toLowerCase()} with value`);
       if (options.failCalls) throw new Error("the RPC is down");

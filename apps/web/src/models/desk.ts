@@ -28,9 +28,9 @@ import {
 } from "@help-wanted/shared";
 import { etherscanAddress, etherscanTx, explorerJob, IMD_LINK } from "~/config/chain";
 import { NOT_OFFERED, TEMPLATES, templateBySlug, type JobTemplate } from "~/config/templates";
-import type { Live, Order, OrderBook } from "~/data/house";
+import type { Live, Order, OrderBook, RunnerBeat, RunnerEventName } from "~/data/house";
 import { GAS_LIMIT } from "~/lib/contracts";
-import { formatDuration, formatImd, formatUtc, parseUnits, plural } from "~/lib/format";
+import { ago, formatDuration, formatImd, formatInt, formatUtc, parseUnits, plural } from "~/lib/format";
 import { ethFor, zapPreset, type ZapQuote } from "~/lib/zapQuote";
 import { hashNo0x, jobIdToBytes16, parseIndex } from "~/lib/ids";
 import { hashServedRecord } from "~/lib/verify";
@@ -124,6 +124,198 @@ export const RUNNER_STATEMENT = {
 
 /** The swarm kinds the team says its runner takes, as the job templates name them. */
 export const RUNNER_TAKES: readonly string[] = ["skill:research-report", "skill:create-image"];
+
+/**
+ * What the team's runner serves today, as figures: the kinds, one order at a time, at most one
+ * swarm fee a UTC day. The team's statement (`RUNNER_STATEMENT`), set out plainly; not a reading.
+ */
+export const RUNNER_SERVES: readonly HeartbeatFigure[] = [
+  { value: RUNNER_TAKES.join(", "), label: "kinds it takes: reports, pictures" },
+  { value: "1", label: "order at a time" },
+  { value: "1", label: "swarm fee per UTC day", note: "at most; 0.5 IMD each" },
+];
+
+/** A runner's desk events, in the few words the heartbeat's figure uses. */
+const RUNNER_DID: Record<RunnerEventName, (orderId: number) => string> = {
+  Claimed: (id) => `took order ${id}`,
+  Registered: (id) => `registered order ${id}'s job`,
+  DeliveryClaimed: (id) => `claimed delivery of order ${id}`,
+  Delivered: (id) => `paid for order ${id}`,
+};
+
+/** One figure of the heartbeat: the value, what it is, and a note under it. */
+export interface HeartbeatFigure {
+  value: string;
+  label: string;
+  note?: string;
+}
+
+/** The pinned history's steps that are a runner's own transactions, as desk events. */
+const TRAIL_EVENT: Partial<Record<TrailKey, RunnerEventName>> = {
+  claimed: "Claimed",
+  registered: "Registered",
+  asserted: "DeliveryClaimed",
+  settled: "Delivered",
+};
+
+/** The figures of the heartbeat, as the page sets them: the value, then what it is. */
+export function heartbeatFigures(h: RunnerHeartbeat): HeartbeatFigure[] {
+  return [
+    ...(h.seenAt
+      ? [{ value: h.seenAt, label: "last seen on the desk", ...(h.seenNote ? { note: h.seenNote } : {}) }]
+      : []),
+    ...h.serves,
+  ];
+}
+
+/** The heartbeat in a twin: the figures as a table, then the words. */
+function heartbeatMarkdown(h: RunnerHeartbeat): string {
+  const figures = heartbeatFigures(h);
+  return doc(
+    "## The team's runner, now",
+    figures.length > 0
+      ? table(
+          ["Figure", "What it is"],
+          figures.map((f) => [f.value, f.note ? `${f.label} (${f.note})` : f.label]),
+        )
+      : null,
+    `${h.words}${h.tx ? ` ${link(h.tx.label[0]!.toUpperCase() + h.tx.label.slice(1), h.tx.url)}.` : ""}`,
+    h.servesNote,
+    `House wallet H1: ${link(h.wallet.address, h.wallet.url)}`,
+  ).trimEnd();
+}
+
+/** The hosted runner's heartbeat: its wallet's newest action on the desk, read live where it can be. */
+export interface RunnerHeartbeat {
+  wallet: { label: string; address: string; url: string };
+  /** When it was last seen on the desk; null when no action of its was found. */
+  seenAt: string | null;
+  /** How long before this page was made. */
+  seenAgo: string | null;
+  /** What it did then, and how long ago, in a few words: "paid for order 2, 4 d ago". */
+  seenNote: string | null;
+  /** The event, and where it was read, in a sentence. */
+  words: string;
+  /** The transaction, when the event was read from a log or the kept history. */
+  tx: { label: string; url: string } | null;
+  /** What it serves today, as the team states it; empty on a book whose desk is not mainnet's. */
+  serves: readonly HeartbeatFigure[];
+  /** Whose words the figures are. Null when there are none. */
+  servesNote: string | null;
+}
+
+/**
+ * The newest action of house wallet H1 on the desk, from three places: the desk's logs over the
+ * blocks this server reads (Claimed, Registered, DeliveryClaimed, Delivered), the desk's own record
+ * of each claim (when it was taken, registered and claimed delivered, read live whatever its age),
+ * and, for an event older than the logs this server reads, the history kept with the site.
+ */
+export function runnerHeartbeat(
+  beat: Live<RunnerBeat>,
+  orders: Live<OrderBook>,
+  deskAddress: string | null,
+  now: Date,
+  windowBlocks: number,
+): RunnerHeartbeat | null {
+  if (!beat.live || !deskAddress) return null;
+  const h1 = HOUSE_WALLETS.find((w) => w.label === "H1")!;
+  const who = h1.address.toLowerCase();
+  type Seen = {
+    name: RunnerEventName;
+    orderId: number;
+    at: number;
+    block: number | null;
+    tx: string | null;
+    from: "logs" | "desk" | "kept";
+  };
+  const seen: Seen[] = [];
+  const last = beat.data?.last ?? null;
+  if (last && last.at !== null)
+    seen.push({
+      name: last.name,
+      orderId: last.orderId,
+      at: last.at,
+      block: last.block,
+      tx: last.tx,
+      from: "logs",
+    });
+  if (orders.live && orders.data && !("sample" in orders && orders.sample)) {
+    for (const order of orders.data.orders) {
+      const claim = order.claim;
+      if (!claim || claim.runner !== who) continue;
+      const add = (name: RunnerEventName, at: number) =>
+        at > 0 && seen.push({ name, orderId: order.id, at, block: null, tx: null, from: "desk" });
+      add("Claimed", claim.claimedAt);
+      add("Registered", claim.registeredAt);
+      add("DeliveryClaimed", claim.assertedAt);
+    }
+  }
+  for (const order of ORDER_HISTORY.orders) {
+    if (!pinnedOrder(deskAddress, order.id)) continue;
+    for (const step of order.trail) {
+      const name = TRAIL_EVENT[step.key];
+      if (!name || step.tx.from.toLowerCase() !== who) continue;
+      seen.push({
+        name,
+        orderId: order.id,
+        at: Math.floor(Date.parse(step.tx.at) / 1000),
+        block: step.tx.block,
+        tx: step.tx.hash,
+        from: "kept",
+      });
+    }
+  }
+  // The newest; at the same second a log or a kept transaction is preferred to the desk's record.
+  const rank = { logs: 0, kept: 1, desk: 2 } as const;
+  const newest = seen.sort((a, b) => b.at - a.at || rank[a.from] - rank[b.from])[0] ?? null;
+  const read = beat.data;
+  const range = read ? `blocks ${formatInt(read.fromBlock)} to ${formatInt(read.toBlock)}` : null;
+  const statement = runnerStatement(deskAddress);
+  const wallet = { label: "H1", address: h1.address, url: etherscanAddress(h1.address) };
+  const serves = statement ? RUNNER_SERVES : [];
+  const servesNote = statement
+    ? `The last three figures are the team's statement of ${statement.asOf}, not a reading.`
+    : null;
+  // What the desk's own record of its orders added, or that it could not be read.
+  const ordersRead = orders.live && orders.data !== null;
+  if (!newest) {
+    return {
+      wallet,
+      seenAt: null,
+      seenAgo: null,
+      seenNote: null,
+      words: read
+        ? `No event of house wallet H1 was found on the desk: none in its logs over the newest ${formatInt(windowBlocks)} blocks this server reads (${range})${ordersRead ? ", and none in the desk's record of the orders read." : "; the desk's record of its orders could not be read just now."}`
+        : `Its newest event on the desk could not be read just now${beat.error ? ` (${beat.error})` : ""}.`,
+      tx: null,
+      serves,
+      servesNote,
+    };
+  }
+  const when = new Date(newest.at * 1000);
+  const event = `${newest.name} on order ${newest.orderId}`;
+  const block = formatInt(newest.block ?? 0);
+  const older = read !== null && newest.block !== null && newest.block < read.fromBlock;
+  const words =
+    newest.from === "logs"
+      ? `${event}, block ${block}, read live from the desk's logs.`
+      : newest.from === "desk"
+        ? `${event}, read live from the desk's own record of the claim, which keeps the time and not the transaction.`
+        : older
+          ? `${event}, block ${block}, from the history kept with this site: nothing newer of H1's is in the desk's logs of the newest ${formatInt(windowBlocks)} blocks${ordersRead ? " or in its record of its orders." : "; the desk's record of its orders could not be read just now."}`
+          : `${event}, block ${block}, as the history kept with this site records it.${read ? "" : " The desk's logs could not be read just now to look for a newer one."}`;
+  const seenAgo = ago(when, now);
+  return {
+    wallet,
+    seenAt: formatUtc(when),
+    seenAgo,
+    seenNote: `${RUNNER_DID[newest.name](newest.orderId)}, ${seenAgo}`,
+    words,
+    tx: newest.tx ? { label: "the transaction", url: etherscanTx(newest.tx) } : null,
+    serves,
+    servesNote,
+  };
+}
 
 /** The team's statement as a page shows it: dated, and said to be the team's. */
 export interface RunnerStatementView {
@@ -1206,6 +1398,8 @@ export interface RunnersModel {
   whoTakes: string;
   /** What the team says of its own runner, and of its keeper, dated; null where the book's desk is not mainnet's. */
   runnerStatement: RunnerStatementView | null;
+  /** The hosted runner's heartbeat and what it serves; null while the desk is not launched. */
+  heartbeat: RunnerHeartbeat | null;
   whoFor: readonly string[];
   sources: SourceNote[];
 }
@@ -1242,7 +1436,8 @@ export const runnersPage: PageDef<RunnersModel> = {
   pattern: "/runners",
   async load({ sources, now }) {
     const { house, chain, deployments } = sources;
-    const read = await house.orders(40);
+    const h1 = HOUSE_WALLETS.find((w) => w.label === "H1")!.address;
+    const [read, beat] = await Promise.all([house.orders(40), house.runnerBeat(h1)]);
     const desk = contractStatus(deployments, "workOrders");
     const houseAddresses = houseSet(deployments);
     const openOrders = read.live && read.data ? read.data.orders.filter((o) => o.state === "Open") : [];
@@ -1349,8 +1544,9 @@ export const runnersPage: PageDef<RunnersModel> = {
       ],
       whoTakes: whoTakesOrders(read, houseAddresses),
       runnerStatement: runnerStatement(desk.address, true),
+      heartbeat: runnerHeartbeat(beat, read, desk.address, now, chain.logWindowBlocks),
       whoFor: RUNNING_IS_FOR,
-      sources: [liveNote("Open orders", read)],
+      sources: [liveNote("Open orders", read), liveNote("The runner's desk events", beat)],
     };
   },
   meta: () => ({
@@ -1362,6 +1558,7 @@ export const runnersPage: PageDef<RunnersModel> = {
     return doc(
       `${m.why} ${m.whoRuns}`,
       m.openWords,
+      m.heartbeat ? heartbeatMarkdown(m.heartbeat) : null,
       "## Who takes orders today",
       ...whoTakesMarkdown(m.whoTakes, m.runnerStatement),
       "## Who this is for",

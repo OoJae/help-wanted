@@ -1,0 +1,32 @@
+---
+/**
+ * A QR code drawn on the server as SVG (lib/qr.ts), so it is in the HTML with scripts off and asks
+ * no other host. Dark modules on a light ground in both editions, as a reader's camera expects:
+ * the ground is Newsprint by day and Enamel by night, the modules the other ink.
+ */
+import { encodeQr, qrPath } from "~/lib/qr";
+
+interface Props {
+  text: string;
+  /** The accessible name: what the code holds, in words. */
+  label: string;
+}
+
+const { text, label } = Astro.props;
+const code = encodeQr(text, "M");
+const border = 4;
+const side = code.size + border * 2;
+---
+
+<svg
+  class="qr"
+  viewBox={`0 0 ${side} ${side}`}
+  role="img"
+  aria-label={label}
+  shape-rendering="crispEdges"
+  xmlns="http://www.w3.org/2000/svg"
+  data-qr-version={code.version}
+>
+  <rect class="qr__ground" width={side} height={side}></rect>
+  <path class="qr__ink" d={qrPath(code, border)}></path>
+</svg>

@@ -1,0 +1,21 @@
+---
+/**
+ * The Doorbell's ring strip: one square a ring, 25 to a hire, five by five, the rings since its last
+ * 25th filled in Enamel. A picture of what the words beside it say, so it is hidden from readers
+ * that do not see it. Static: it moves only when the page is made again.
+ */
+interface Props {
+  /** Rings since the last 25th. */
+  rung: number;
+  every?: number;
+  class?: string;
+}
+
+const { rung, every = 25, class: extra } = Astro.props;
+---
+
+<div class:list={["ringstrip", extra]} aria-hidden="true">
+  {Array.from({ length: every }, (_, index) => (
+    <span class:list={["ringstrip__ring", index < rung && "is-rung"]} />
+  ))}
+</div>

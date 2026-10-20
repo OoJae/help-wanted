@@ -11,7 +11,7 @@ import { kindHash, MAINNET, PAID_ACTION_PRICE } from "@help-wanted/shared";
 import { etherscanTx, explorerJob, REFERENCE_JOB } from "~/config/chain";
 import type { SwarmHealth } from "~/data/api";
 import { messageOf, within } from "~/lib/cache";
-import { formatImd, formatInt, formatUtc, plural } from "~/lib/format";
+import { formatImd, formatInt, formatUtc, ordinal, plural } from "~/lib/format";
 import { jobIdToBytes16 } from "~/lib/ids";
 import { bullets, doc, link, numbered, table, untrusted } from "~/lib/md";
 import { jobCard, jobEnded, orderCard, type JobCard, type OrderCard } from "./cards";
@@ -80,7 +80,10 @@ export interface WireAction {
   words: string;
 }
 
-/** The Doorbell as the front page counts it: rings toward its next hire, and whether it can hire. */
+/**
+ * The Doorbell as the front page's band shows it, right under the hero: what it is, the rings toward
+ * its next hire and whether it can hire, and who has rung it so far, HOUSE or OUTSIDE.
+ */
 export interface WireDoorbell {
   /** Rings since its last hire, of `every`. Null when unread. */
   rung: number | null;
@@ -88,8 +91,25 @@ export interface WireDoorbell {
   funded: boolean | null;
   balanceImd: string | null;
   priceImd: string | null;
-  words: string;
+  /** What it is, in one line. */
+  what: string;
+  /** "0 of 25 rings toward its next hire. Not funded: …", funded or not, from its own views. */
+  count: string;
+  /** The rings whose log was read, by who rang. Null when who rang could not be read. */
+  split: { read: number; house: number; outside: number } | null;
+  /** The split as the band's two figures, OUTSIDE first. Empty when there is no split. */
+  tally: { label: string; value: string }[];
+  /** Where the split comes from, or why there is none, in one sentence. */
+  splitWords: string;
+  /** The note beside the band's heading. */
+  note: string;
+  /** The key under the band. */
+  key: { label: string; path: string };
 }
+
+/** What the Doorbell is, in the front page's one line. */
+export const DOORBELL_LINE =
+  "The Doorbell is a contract with no owner. Anyone may ring it for the gas alone, and every 25th ring hires the swarm for a picture of the day, paid from the Doorbell's own IMD.";
 
 /** What is new here, in four lines. */
 export const WHAT_IS_NEW = [
@@ -158,6 +178,22 @@ export interface WireModel {
   /** The reference job's check; null when it did not finish in time or could not run. */
   proof: WireProof | null;
   sources: SourceNote[];
+}
+
+/** The band in the twin: the same words and figures, and the key as a link. */
+function doorbellMarkdown(d: WireDoorbell): string {
+  return doc(
+    "## The Doorbell",
+    `${d.what} ${d.count}`,
+    d.tally.length > 0
+      ? table(
+          ["Rings so far", "Count"],
+          d.tally.map((t) => [`${t.label[0]?.toUpperCase()}${t.label.slice(1)}`, t.value]),
+        )
+      : null,
+    d.splitWords,
+    link(d.key.label, d.key.path),
+  ).trimEnd();
 }
 
 /** How many recent jobs are read for the receipt figures, and how many of them are shown as cards. */
@@ -341,45 +377,56 @@ export const wirePage: PageDef<WireModel> = {
       };
     }
 
-    // ---- The three actions. ----
+    // ---- The Doorbell's band, and the three actions. ----
     const bell = bellRead.live ? bellRead.data : null;
     const every = 25;
     let doorbell: WireDoorbell | null = null;
+    // The ad under "Three things to do" says what the band does not: what it needs, and how it pays.
+    let ringWords: string | null = null;
     if (bell) {
-      const needs = doorbellNeeds(bell);
       const split =
         bell.ringers && bell.ringers.read > 0 ? ringsByOrigin(bell.ringers, houseSet(deployments)) : null;
-      const counted =
-        bell.rings === null || bell.rings === 0
-          ? "Every ring is counted on chain, and each ring's log names who rang."
-          : `Every ring is counted on chain, and each ring's log names who rang: ${
-              split
-                ? `of the ${plural(split.read, "ring")} read, ${formatInt(split.house)} ${split.house === 1 ? "was" : "were"} the team's own (HOUSE) and ${formatInt(split.outside)} ${split.outside === 1 ? "was" : "were"} anyone else's (OUTSIDE).`
-                : "who rang could not be read just now."
-            }`;
+      const unread = split && bell.rings !== null && bell.rings > split.read ? bell.rings - split.read : 0;
+      const hireRing = bell.rings === null ? null : bell.rings + bell.ringsUntilHire;
       doorbell = {
         rung: bell.rings === null ? null : bell.rings % every,
         every,
         funded: bell.funded,
         balanceImd: bell.balanceWei === null ? null : formatImd(bell.balanceWei),
         priceImd: bell.maxPayWei === null ? null : formatImd(bell.maxPayWei),
-        words: [
-          `${bell.rings === null ? "Its ring count could not be read" : `${formatInt(bell.rings % every)} of ${every} rings toward its next hire`}. ${
-            bell.funded === null
-              ? "Whether it is funded could not be read."
-              : bell.funded
-                ? `Funded: it holds ${bell.balanceWei === null ? "enough" : `${formatImd(bell.balanceWei)} IMD`}, so the next 25th ring opens an order.`
-                : `Not funded: it holds ${bell.balanceWei === null ? "too little" : `${formatImd(bell.balanceWei)} IMD`}${bell.maxPayWei === null ? "" : ` and a hire needs ${formatImd(bell.maxPayWei)} IMD`}, so a 25th ring now would hire nothing.`
-          }`,
-          needs,
-          counted,
+        what: DOORBELL_LINE,
+        count: `${bell.rings === null ? "Its ring count could not be read" : `${formatInt(bell.rings % every)} of ${every} rings toward its next hire`}. ${
+          bell.funded === null
+            ? "Whether it is funded could not be read."
+            : bell.funded
+              ? `Funded: it holds ${bell.balanceWei === null ? "enough" : `${formatImd(bell.balanceWei)} IMD`}, so ${hireRing === null ? "the next 25th ring" : `the ${ordinal(hireRing)} ring`} opens an order.`
+              : `Not funded: it holds ${bell.balanceWei === null ? "too little" : `${formatImd(bell.balanceWei)} IMD`}${bell.maxPayWei === null ? "" : ` and a hire needs ${formatImd(bell.maxPayWei)} IMD`}, so a 25th ring now would hire nothing.`
+        }`,
+        split: split ? { read: split.read, house: split.house, outside: split.outside } : null,
+        tally: split
+          ? [
+              { label: "rings from anyone else (OUTSIDE)", value: formatInt(split.outside) },
+              { label: "rings from the team's own wallets (HOUSE)", value: formatInt(split.house) },
+            ]
+          : [],
+        note: "read from the contract for this page",
+        splitWords:
+          bell.rings === 0
+            ? "Nobody has rung it yet."
+            : split
+              ? `Counted from the Rang log of each of the ${plural(split.read, "ring")} read, which names who rang: HOUSE is the team's own wallets, OUTSIDE is anyone else.${unread > 0 ? ` The logs of ${plural(unread, "other ring")} are older than this server could read, so ${unread === 1 ? "it is" : "they are"} not counted here.` : ""}`
+              : "Who rang could not be read just now, so the rings are not split between HOUSE and OUTSIDE here.",
+        key: { label: "Ring the Doorbell", path: "/rules/new#doorbell" },
+      };
+      ringWords =
+        [
+          doorbellNeeds(bell),
           bell.allowClaimed === true
             ? "Its orders also pay on a bonded delivery claim nobody challenges for 24 hours. No watcher is running: the team runs nothing that would challenge an untrue one."
             : null,
         ]
           .filter((line): line is string => line !== null)
-          .join(" "),
-      };
+          .join(" ") || "Every ring is counted on chain, and each ring's log names who rang.";
     }
     const actions: WireModel["actions"] = {
       hire: {
@@ -392,7 +439,7 @@ export const wirePage: PageDef<WireModel> = {
         label: "Ring the Doorbell",
         path: "/rules/new#doorbell",
         words: bellRead.live
-          ? (doorbell?.words ?? "The Doorbell could not be read just now.")
+          ? (ringWords ?? "The Doorbell could not be read just now.")
           : `The Doorbell (launch B) is ${NOT_LAUNCHED}.`,
         doorbell,
       },
@@ -495,6 +542,7 @@ export const wirePage: PageDef<WireModel> = {
             m.lead.next ? m.lead.next.now : null,
           ).trimEnd()
         : `**${m.headline}**`,
+      a.ring.doorbell ? doorbellMarkdown(a.ring.doorbell) : null,
       "## What is new",
       numbered([...m.whatIsNew]),
       "## One order, in five steps",

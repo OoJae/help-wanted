@@ -764,7 +764,15 @@ describe("the front page on mainnet's book", () => {
     );
     expect(model.whatIsNew[2]).not.toContain("it must carry");
     expect(model.actions.ring.doorbell).toMatchObject({ rung: 0, every: 25, funded: false });
-    expect(model.actions.ring.words).toContain("0 of 25 rings toward its next hire. Not funded");
+    // The band under the hero carries the count, funded or not, and its twin says the same; the ad
+    // under "Three things to do" says what the band does not: what it needs, and how its orders pay.
+    expect(model.actions.ring.doorbell?.count).toContain("0 of 25 rings toward its next hire. Not funded");
+    expect(markdown).toContain(
+      `## The Doorbell\n\n${model.actions.ring.doorbell!.what} ${model.actions.ring.doorbell!.count}`,
+    );
+    expect(markdown).toContain("[Ring the Doorbell](/rules/new#doorbell)");
+    expect(model.actions.ring.words).toContain("To hire again it needs 1 IMD and 25 more rings");
+    expect(model.actions.ring.words).not.toContain("rings toward its next hire");
     expect(model.houseStatus).toContain(
       "1 was opened by our own wallets and contracts (HOUSE) and 0 by anyone else",
     );
@@ -1588,9 +1596,17 @@ describe("what a mock judging found, on mainnet's book", () => {
     expect(facts).toContain(
       "The contract counts every ring (rings()), and each ring's Rang log names who rang.",
     );
-    expect(facts).toContain(
-      "Of the 25 rings whose log was read (blocks 26,184,821 to 26,184,854; the logs of the first 25 are older than the public RPC serves, so they were read from the chain on 15 October 2026 and are kept with this site), 25 were sent by our own wallets (HOUSE) and 0 by others (OUTSIDE).",
-    );
+    // Who rang has its own heading under the facts, with the newest outside ringers (none yet).
+    const who =
+      "Of the 25 rings whose log was read (blocks 26,184,821 to 26,184,854; the logs of the first 25 are older than the public RPC serves, so they were read from the chain on 15 October 2026 and are kept with this site), 25 were sent by our own wallets (HOUSE) and 0 by others (OUTSIDE).";
+    expect(rules.model.doorbellWho).toEqual({
+      words: who,
+      listWords:
+        "No ring from outside the team has been read yet. The first will be listed here, with its address and its transaction.",
+      outside: [],
+    });
+    expect(rules.markdown).toContain(`### Who rang\n\n${who}`);
+    expect(facts).not.toContain(who);
     expect(facts).toContain("No watcher is running");
     expect(facts).not.toMatch(/nothing is lost|lose nothing/i);
 
@@ -1606,9 +1622,19 @@ describe("what a mock judging found, on mainnet's book", () => {
 
     const wire = await page<WireModel>(world, "/");
     expect(wire.model.actions.ring.words).toContain("To hire again it needs 1 IMD and 25 more rings");
-    expect(wire.model.actions.ring.words).toContain(
-      "Every ring is counted on chain, and each ring's log names who rang: of the 25 rings read, 25 were the team's own (HOUSE) and 0 were anyone else's (OUTSIDE).",
+    // The front page's band says who rang, OUTSIDE first, and where the split comes from.
+    const band = wire.model.actions.ring.doorbell!;
+    expect(band.split).toEqual({ read: 25, house: 25, outside: 0 });
+    expect(band.tally).toEqual([
+      { label: "rings from anyone else (OUTSIDE)", value: "0" },
+      { label: "rings from the team's own wallets (HOUSE)", value: "25" },
+    ]);
+    expect(band.splitWords).toBe(
+      "Counted from the Rang log of each of the 25 rings read, which names who rang: HOUSE is the team's own wallets, OUTSIDE is anyone else.",
     );
+    expect(wire.markdown).toContain("| Rings from anyone else (OUTSIDE) | 0 |");
+    expect(wire.markdown).toContain("| Rings from the team's own wallets (HOUSE) | 25 |");
+    expect(wire.markdown).toContain(band.splitWords);
     expect(wire.model.actions.ring.words).toContain(
       "No watcher is running: the team runs nothing that would challenge an untrue one.",
     );

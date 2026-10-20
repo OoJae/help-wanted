@@ -96,6 +96,12 @@ time card whose live desk read is Delivered and proven, a hash group that differ
 compared with, and a warning set in type. Hover, focus, navigation, keys, links and headings are
 never red. The first screen of the day edition has no red until the card is paid.
 
+**A QR code is read by a camera.** The Doorbell's phone link on `/rules/new#doorbell` is drawn on the
+server as an SVG ([`src/components/QrCode.astro`](src/components/QrCode.astro), from
+[`src/lib/qr.ts`](src/lib/qr.ts)), and a camera wants dark modules on a light ground in both editions.
+By day the modules are Enamel on Newsprint; by night the two inks swap, so the code is a light slip
+with Newsprint modules on the dark page. It is the one thing the night edition does not redraw.
+
 **Brass is a material.** Brass is the clock's metal: the bezel, the throat lip, the lever's arm and
 hub, the second hand, its counterweight and centre cap, the sign's frame. It is never type, never a
 control, never a background, never a gradient, and it does not appear in HTML at all.

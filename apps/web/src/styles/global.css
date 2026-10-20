@@ -2500,6 +2500,131 @@ details.plain--inline[open] > summary {
   }
 }
 
+/* The Doorbell's band on the front page, under the hero: what it is and where it stands beside the
+   key, then the ring strip and who has rung it, OUTSIDE first. */
+.bell__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.4rem 2.6rem;
+  align-items: start;
+}
+
+.bell__what {
+  font-style: italic;
+  font-size: var(--s4);
+  line-height: 1.36;
+  color: var(--carbon);
+  margin: 0 0 0.7rem;
+  max-width: 46ch;
+}
+
+.bell__words > p {
+  max-width: 58ch;
+}
+
+.bell__words .actions {
+  margin-top: 1.1rem;
+}
+
+.bell__figures {
+  margin-top: 1rem;
+}
+
+.bell__tally .small {
+  margin: 0.6rem 0 0;
+}
+
+@media (min-width: 48rem) {
+  .bell__body {
+    grid-template-columns: minmax(0, 1.3fr) minmax(17rem, 1fr);
+  }
+}
+
+/* /rules/new#doorbell: the next hire in one sentence, set heavier than the lines around it. */
+.bellnext {
+  font-weight: 600;
+  max-width: 66ch;
+}
+
+/* Ringing from a phone: the words and the key, and the same link as a QR code drawn on the server. */
+.ringphone {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem 2.6rem;
+  align-items: start;
+  margin: 1.6rem 0 0;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
+}
+
+.ringphone__words > p {
+  max-width: 62ch;
+}
+
+/* The link itself, whole on one line where the column allows. */
+.ringphone__words > p.ringphone__link {
+  max-width: none;
+}
+
+.ringphone__code {
+  margin: 0;
+  width: min(13rem, 62vw);
+}
+
+/* A code is read by a camera, which wants dark modules on a light ground in both editions. */
+.qr {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.qr__ground {
+  fill: var(--newsprint);
+}
+
+.qr__ink {
+  fill: var(--enamel);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .qr__ground {
+    fill: var(--enamel);
+  }
+
+  :root:not([data-theme="light"]) .qr__ink {
+    fill: var(--newsprint);
+  }
+}
+
+:root[data-theme="dark"] .qr__ground {
+  fill: var(--enamel);
+}
+
+:root[data-theme="dark"] .qr__ink {
+  fill: var(--newsprint);
+}
+
+/* On a wide screen the code stands beside the words, where a phone held up to it finds it. */
+@media (min-width: 48rem) {
+  .ringphone {
+    grid-template-columns: minmax(0, 38rem) 13rem;
+    justify-content: start;
+  }
+}
+
+/* /runners: the hosted runner's heartbeat, then what it serves, as figures. */
+.beat__kind {
+  display: block;
+  overflow-wrap: normal;
+}
+.beat__words {
+  margin: 0.8rem 0 0;
+}
+
+.beat__words + .small {
+  margin: 0.35rem 0 0;
+}
+
 .meter {
   height: 0.7rem;
   border: 1px solid var(--ink);

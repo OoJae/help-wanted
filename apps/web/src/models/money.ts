@@ -8,7 +8,9 @@
  * reads its contract with the ABI the compiler wrote for it, and when that read fails it says the
  * contract could not be read, never that it is not launched.
  */
+import { getAddress } from "viem";
 import {
+  CHAIN_ID,
   crowdPotsAbi,
   endowmentsAbi,
   HOUSE_FEED_NAMES,
@@ -21,7 +23,7 @@ import {
 } from "@help-wanted/shared";
 import { NOT_LAUNCHED } from "~/config/deployments";
 import { REFERENCE_JOB, etherscanAddress, etherscanTx } from "~/config/chain";
-import type { AgentBinding, StakingFacts } from "~/data/chain";
+import type { AgentBinding, GasCost, StakingFacts } from "~/data/chain";
 import {
   HISTORY_READ_ON,
   ORDER_HISTORY,
@@ -30,13 +32,14 @@ import {
   pinnedTipClaims,
 } from "~/config/history";
 import { HOUSE_WALLETS, houseSet } from "~/config/house";
-import type {
-  DoorbellRingers,
-  DoorbellState,
-  EndowmentRead,
-  PayrollLedger,
-  Pot,
-  RuleRead,
+import {
+  RECENT_RINGS,
+  type DoorbellRingers,
+  type DoorbellState,
+  type EndowmentRead,
+  type PayrollLedger,
+  type Pot,
+  type RuleRead,
 } from "~/data/house";
 import { messageOf } from "~/lib/cache";
 import { COMPARISONS, ENDOWMENT, PAYROLL_SPLIT, RULE } from "~/lib/contracts";
@@ -46,8 +49,11 @@ import {
   formatInt,
   formatUnits,
   formatUtc,
+  ordinal,
   parseUnits,
   plural,
+  shortAddress,
+  significant,
 } from "~/lib/format";
 import { parseIndex } from "~/lib/ids";
 import { bullets, doc, fence, inline, link, numbered, table, untrusted } from "~/lib/md";
@@ -1523,6 +1529,18 @@ export interface RulesNewModel {
   doorbellError: string | null;
   /** Where the Doorbell stands, one sentence each, from what was read for this page. */
   doorbellFacts: string[];
+  /** What the Doorbell is, in a few sentences. */
+  doorbellIntro: string;
+  /** Which ring hires next, what it buys and how it is paid; null when that could not be read. */
+  doorbellNext: string | null;
+  /** What one ring costs in gas now, an estimate; null while the Doorbell is not launched. */
+  ringCost: string | null;
+  /** Ringing from a phone: the EIP-681 link and its QR code. Null while the Doorbell is not launched. */
+  ringPhone: RingPhone | null;
+  /** Who rang: HOUSE and OUTSIDE, and the newest outside ringers. Null until it can be said. */
+  doorbellWho: { words: string | null; listWords: string | null; outside: OutsideRinger[] } | null;
+  /** The pointer to the Doorbell's disclosed limits. */
+  doorbellLimits: string;
   presets: RulePreset[];
   activePreset: string | null;
   /** The standing rule: `Rules.createRule` (launch C). */
@@ -1679,8 +1697,136 @@ export function ringersWords(state: DoorbellState, ours: ReadonlySet<string>): s
     pinned > 0
       ? `whose log was read (blocks ${formatInt(split.fromBlock)} to ${formatInt(split.toBlock)}; the logs of the first ${formatInt(pinned)} are older than the public RPC serves, so they were read from the chain on ${pinnedOn ?? "an earlier day"} and are kept with this site)`
       : `whose log this server read (blocks ${formatInt(split.fromBlock)} to ${formatInt(split.toBlock)})`;
-  return `Of the ${plural(split.read, "ring")} ${where}, ${formatInt(split.house)} ${split.house === 1 ? "was" : "were"} sent by our own wallets (HOUSE) and ${formatInt(split.outside)} by others (OUTSIDE).`;
+  // Rings the contract counts whose log this server never saw are said to be unsplit, not given to anyone.
+  const unread = state.rings !== null && state.rings > split.read ? state.rings - split.read : 0;
+  return `Of the ${plural(split.read, "ring")} ${where}, ${formatInt(split.house)} ${split.house === 1 ? "was" : "were"} sent by our own wallets (HOUSE) and ${formatInt(split.outside)} by others (OUTSIDE).${unread > 0 ? ` The logs of ${plural(unread, "other ring")} are older than this server could read, so ${unread === 1 ? "it is" : "they are"} not split.` : ""}`;
 }
+
+/** One of the newest ringers from outside the team, as the page lists them. */
+export interface OutsideRinger {
+  /** Checksummed. */
+  address: string;
+  short: string;
+  url: string;
+  /** The number of its newest ring. */
+  ring: number;
+  /** How many of the rings read it sent. */
+  rings: number;
+  txUrl: string;
+  /** "0x1a2b…3c4d rang ring 31, the newest of its 2 rings" */
+  words: string;
+}
+
+/** How many outside ringers /rules/new lists. */
+export const OUTSIDE_RINGERS_LISTED = 5;
+
+/**
+ * The newest ringers from outside the team (OUTSIDE), newest first, each once, from the ring logs
+ * this server read itself. The kept history holds only the team's own rings.
+ */
+export function outsideRingers(
+  ringers: DoorbellRingers | null,
+  ours: ReadonlySet<string>,
+  limit = OUTSIDE_RINGERS_LISTED,
+): OutsideRinger[] {
+  if (!ringers) return [];
+  const out = new Map<string, OutsideRinger>();
+  for (const ring of ringers.recent) {
+    if (out.size >= limit) break;
+    if (ours.has(ring.ringer) || out.has(ring.ringer)) continue;
+    const address = getAddress(ring.ringer);
+    const rings = ringers.byRinger.find((r) => r.ringer === ring.ringer)?.rings ?? 1;
+    out.set(ring.ringer, {
+      address,
+      short: shortAddress(address),
+      url: etherscanAddress(address),
+      ring: ring.count,
+      rings,
+      txUrl: etherscanTx(ring.tx),
+      words: `${shortAddress(address)} rang ring ${formatInt(ring.count)}${rings > 1 ? `, the newest of its ${formatInt(rings)} rings` : ""}`,
+    });
+  }
+  return [...out.values()];
+}
+
+/** What is said over the list of outside ringers, or in its place. Null before anybody has rung. */
+export function outsideRingersWords(
+  state: DoorbellState,
+  ours: ReadonlySet<string>,
+  listed: number,
+): string | null {
+  if (state.rings === 0 || !state.ringers) return null;
+  const split = ringsByOrigin(state.ringers, ours);
+  if (split.read === 0) return null;
+  if (listed > 0)
+    return listed === 1
+      ? "The newest ringer from outside the team:"
+      : `The ${formatInt(listed)} newest ringers from outside the team, newest first:`;
+  return split.outside === 0
+    ? "No ring from outside the team has been read yet. The first will be listed here, with its address and its transaction."
+    : `None of the newest ${formatInt(RECENT_RINGS)} rings this server read came from outside the team.`;
+}
+
+/** The EIP-681 link that asks a wallet to call ring() on the Doorbell, on Ethereum mainnet. */
+export function ringLink(doorbell: string): string {
+  return `ethereum:${getAddress(doorbell)}@${CHAIN_ID}/ring`;
+}
+
+/**
+ * The next hire, said plainly: which ring it is, what it buys, whose IMD pays and how the order is
+ * settled. Null when the ring count or whether it is funded could not be read.
+ */
+export function doorbellNextHire(state: DoorbellState): string | null {
+  if (state.rings === null || state.funded === null) return null;
+  const ring = `The ${ordinal(state.rings + state.ringsUntilHire)} ring`;
+  const pay = state.maxPayWei === null ? "the escrow of one order" : `${formatImd(state.maxPayWei)} IMD`;
+  const settled =
+    state.allowClaimed === true
+      ? " The order pays its runner on proof, the job's receipt on chain, or on a bonded delivery claim nobody challenges for 24 hours, the path a runner takes while IdentityMD's receipts are late."
+      : state.allowClaimed === false
+        ? " The order pays its runner only on proof: the job's receipt on chain."
+        : "";
+  return state.funded
+    ? `${ring} hires the swarm for a picture of the day: it opens an order on the hire desk and escrows ${pay} of the Doorbell's own IMD.${settled}`
+    : `${ring} hires the swarm for a picture of the day only if the Doorbell holds ${pay} by then, paid from its own IMD; it does not hold it now.${settled}`;
+}
+
+/** What one ring costs in gas now, in one sentence, from the estimate read for the page. */
+export function ringCostWords(cost: GasCost | null, state: DoorbellState | null): string {
+  if (!cost) return "What a ring costs in gas could not be estimated just now.";
+  const hires = state?.ringsUntilHire === 1;
+  return `One ring costs about ${significant(cost.costWei, 18)} ETH in gas now. That is an estimate: ${formatInt(cost.gas)} gas (estimateGas of ring()) at ${significant(cost.gasPriceWei, 9)} gwei (the network's gas price), read for this page.${hires ? " The next ring is the one that hires, so it uses more gas than an ordinary ring." : ""} A ring sends no ETH and no IMD.`;
+}
+
+/** Ringing from a phone, as /rules/new offers it. */
+export interface RingPhone {
+  /** The EIP-681 link, which the page also draws as a QR code. */
+  url: string;
+  words: string;
+  key: string;
+  note: string;
+  /** The QR code's accessible name. */
+  qrLabel: string;
+}
+
+export function ringPhone(doorbell: string): RingPhone {
+  const url = ringLink(doorbell);
+  return {
+    url,
+    words:
+      "Open the link in a wallet app on your phone, or scan the code with one. It asks your wallet to call ring() on the Doorbell on Ethereum mainnet; you pay only the gas.",
+    key: "Open in a wallet",
+    note: "The link is an EIP-681 request. A wallet that does not read one may open nothing: open this page in the wallet's own browser and use the key above instead.",
+    qrLabel: `QR code of the link ${url}`,
+  };
+}
+
+/** What the Doorbell is, said once at the head of its section and in its twin. */
+export const DOORBELL_INTRO =
+  "The Doorbell is a contract with no owner and one job text in its own code. Anyone calls ring(). Every 25th ring, if it holds enough IMD, it opens an order on the hire desk: a contract hiring the swarm, on demand.";
+
+/** The link to the Doorbell's limits, in the words the page and its twin print. */
+export const DOORBELL_LIMITS = "The Doorbell's disclosed limits, D1 to D5, are on the judges page.";
 
 /**
  * What the Doorbell needs before it can hire again, in one sentence: the IMD it lacks for one
@@ -1700,11 +1846,11 @@ export function doorbellNeeds(state: DoorbellState): string | null {
 export const NO_WATCHER = `No watcher is running: the team runs nothing that watches the Doorbell's orders to challenge an untrue delivery claim. Its keeper (bots/keeper) can challenge one, but it is run by hand, not hosted (the team's statement, ${RUNNER_STATEMENT.asOf}).`;
 
 /**
- * Where a launched Doorbell stands, one sentence each, from its own views, its ring logs and the
- * token's balance. A figure that was not read is said to be unread: a silent view is never printed
- * as zero, as "not funded" or as "no hires". `ours` is the set of HOUSE addresses.
+ * Where a launched Doorbell stands, one sentence each, from its own views and the token's balance.
+ * A figure that was not read is said to be unread: a silent view is never printed as zero, as "not
+ * funded" or as "no hires".
  */
-export function doorbellFacts(state: DoorbellState, ours: ReadonlySet<string>): string[] {
+export function doorbellFacts(state: DoorbellState): string[] {
   const times = (count: number) => `${formatInt(count)} time${count === 1 ? "" : "s"}`;
   const rung =
     state.rings === null
@@ -1734,11 +1880,11 @@ export function doorbellFacts(state: DoorbellState, ours: ReadonlySet<string>): 
       : state.funded
         ? `It is funded: it holds ${holds}, and the next 25th ring opens an order for ${needs}.`
         : `It is not funded: it holds ${holds} and one order needs ${needs}, so a 25th ring that comes now is counted and hires nothing. Anyone may fund it with a plain IMD transfer; what it holds can never be withdrawn and leaves only as the escrow of its own orders.`;
-  const who = ringersWords(state, ours);
+  // Who rang is said under its own heading (doorbellWho), with the newest outside ringers.
   const toHire = doorbellNeeds(state);
   const facts = [
     ...(toHire ? [toHire] : []),
-    `${formatInt(state.ringsUntilHire)} ring${state.ringsUntilHire === 1 ? "" : "s"} until the next hire. ${rung}, and ${hired}. The contract counts every ring (rings()), and each ring's Rang log names who rang.${who ? ` ${who}` : ""}`,
+    `${formatInt(state.ringsUntilHire)} ring${state.ringsUntilHire === 1 ? "" : "s"} until the next hire. ${rung}, and ${hired}. The contract counts every ring (rings()), and each ring's Rang log names who rang.`,
     price,
     money,
     `Its orders pay on ${doorbellPaysOn(state.allowClaimed)} (fixed when it was launched).`,
@@ -1794,7 +1940,14 @@ export const rulesNewPage: PageDef<RulesNewModel> = {
     const { house, deployments } = sources;
     const slug = url.searchParams.get("preset");
     const preset = PRESETS.find((p) => p.slug === slug) ?? null;
-    const [doorbell, rulesRead] = await Promise.all([house.doorbell(), house.rules(20)]);
+    const [doorbell, rulesRead, ringCostRead] = await Promise.all([
+      house.doorbell(),
+      house.rules(20),
+      house.ringCost(),
+    ]);
+    const bell = doorbell.live ? doorbell.data : null;
+    const ours = houseSet(deployments);
+    const outside = bell ? outsideRingers(bell.ringers, ours) : [];
     const example = {
       condTarget: MAINNET.IMD,
       ...(preset?.values ?? PRESETS[0]?.values ?? {}),
@@ -1836,10 +1989,22 @@ export const rulesNewPage: PageDef<RulesNewModel> = {
       desk: contractStatus(deployments, "workOrders"),
       rules,
       doorbell: contractStatus(deployments, "doorbell"),
-      doorbellState: doorbell.live ? doorbell.data : null,
+      doorbellState: bell,
       doorbellError: doorbell.live && doorbell.data === null ? doorbell.error : null,
-      doorbellFacts:
-        doorbell.live && doorbell.data ? doorbellFacts(doorbell.data, houseSet(deployments)) : [],
+      doorbellFacts: bell ? doorbellFacts(bell) : [],
+      doorbellIntro: DOORBELL_INTRO,
+      doorbellNext: bell ? doorbellNextHire(bell) : null,
+      ringCost: doorbell.live ? ringCostWords(ringCostRead.live ? ringCostRead.data : null, bell) : null,
+      ringPhone: doorbell.live ? ringPhone(doorbell.address) : null,
+      doorbellWho:
+        bell && bell.rings !== 0
+          ? {
+              words: ringersWords(bell, ours),
+              listWords: outsideRingersWords(bell, ours, outside.length),
+              outside,
+            }
+          : null,
+      doorbellLimits: DOORBELL_LIMITS,
       presets: PRESETS,
       activePreset: preset?.slug ?? null,
       ruleFlow: previewFlow("create-rule", deployments, now, {}, FIRST_RULE_EXAMPLE),
@@ -1869,7 +2034,20 @@ export const rulesNewPage: PageDef<RulesNewModel> = {
           command: castView(rules.address, "RULES", rulesAbi, "getRule", ["<ruleId>"]),
         },
       ],
-      sources: [liveNote("Rules", rulesRead), liveNote("Doorbell", doorbell)],
+      sources: [
+        liveNote("Rules", rulesRead),
+        liveNote("Doorbell", doorbell),
+        ...(ringCostRead.live
+          ? [
+              sourceNote(
+                "Gas for one ring",
+                `eth_estimateGas of ring() at ${ringCostRead.address}, and eth_gasPrice`,
+                ringCostRead,
+                ringCostRead.error,
+              ),
+            ]
+          : []),
+      ],
     };
   },
   meta: () => ({
@@ -1916,13 +2094,40 @@ export const rulesNewPage: PageDef<RulesNewModel> = {
       "The example watches the IMD token itself, so the commands are concrete. Replace the target with the contract you mean.",
       flowMarkdown(m.flow),
       "## The Doorbell: a rule you can ring",
-      `The Doorbell is a contract with no owner and one job text in its own code. Anyone calls ring(). Every 25th ring, if it holds enough IMD, it opens an order on the hire desk: a contract hiring the swarm, on demand. ${m.doorbell.address ? `It is at ${link(m.doorbell.address, m.doorbell.url)}.` : `It is ${m.doorbell.label}.`}`,
+      `${m.doorbellIntro} ${m.doorbell.address ? `It is at ${link(m.doorbell.address, m.doorbell.url)}.` : `It is ${m.doorbell.label}.`}`,
+      m.doorbellNext ? `**${m.doorbellNext}**` : null,
+      m.ringCost,
+      flowMarkdown(m.ringFlow),
+      m.ringPhone
+        ? doc(
+            "### On a phone",
+            m.ringPhone.words,
+            `${m.ringPhone.key}: ${link(m.ringPhone.url, m.ringPhone.url)}`,
+            m.ringPhone.note,
+          ).trimEnd()
+        : null,
+      "### Where it stands",
       m.doorbellState
         ? bullets(m.doorbellFacts)
         : m.doorbell.address
           ? `**The Doorbell could not be read just now${m.doorbellError ? `: ${m.doorbellError}` : ""}.** Nothing is said here about its rings, its money or how its orders pay until it answers.`
           : "Whether its orders accept a bonded delivery claim is fixed when it is launched, by whether IdentityMD's receipts are arriving that day, and will be printed here.",
-      flowMarkdown(m.ringFlow),
+      m.doorbellWho
+        ? doc(
+            "### Who rang",
+            m.doorbellWho.words,
+            m.doorbellWho.listWords,
+            m.doorbellWho.outside.length > 0
+              ? bullets(
+                  m.doorbellWho.outside.map(
+                    (r) =>
+                      `${r.words.replace(r.short, link(r.short, r.url))} (${link("its transaction", r.txUrl)})`,
+                  ),
+                )
+              : null,
+          ).trimEnd()
+        : null,
+      m.doorbellState ? `${m.doorbellLimits} (${link("/judges#limit-B-D1", "/judges#limit-B-D1")})` : null,
     );
   },
 };

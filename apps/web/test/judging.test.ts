@@ -324,8 +324,25 @@ describe("rings after the kept history are read live and added to it", () => {
         { ringer: OUTSIDER, rings: 1 },
       ],
     });
-    expect(model.doorbellFacts.join(" ")).toContain(
+    expect(model.doorbellWho?.words).toContain(
       "25 were sent by our own wallets (HOUSE) and 1 by others (OUTSIDE).",
+    );
+    // The ring from outside is listed by its short address, its ring number and its transaction.
+    expect(model.doorbellWho?.listWords).toBe("The newest ringer from outside the team:");
+    expect(model.doorbellWho?.outside).toEqual([
+      {
+        address: OUTSIDER,
+        short: "0x2222…2222",
+        url: `https://etherscan.io/address/${OUTSIDER}`,
+        ring: 26,
+        rings: 1,
+        txUrl: `https://etherscan.io/tx/0x${"26".repeat(32)}`,
+        words: "0x2222…2222 rang ring 26",
+      },
+    ]);
+    const markdown = markdownTwin((await loadPath("/rules/new", ctxFor(world)))!);
+    expect(markdown).toContain(
+      `- [0x2222…2222](https://etherscan.io/address/${OUTSIDER}) rang ring 26 ([its transaction](https://etherscan.io/tx/0x${"26".repeat(32)}))`,
     );
   });
 });

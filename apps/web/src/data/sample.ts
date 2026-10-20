@@ -217,6 +217,8 @@ export function withSampleData(real: HouseSource): HouseSource {
     endowments: (limit) => real.endowments(limit),
     rules: (limit) => real.rules(limit),
     doorbell: () => real.doorbell(),
+    ringCost: () => real.ringCost(),
+    runnerBeat: (runner) => real.runnerBeat(runner),
     identity: (contract) => real.identity(contract),
   };
 }

@@ -177,6 +177,26 @@ export function excerpt(text: string, max: number): string {
   return `${(space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,;:.]+$/, "")}…`;
 }
 
+/**
+ * An amount in base units rounded to a few significant digits, for an estimate that should not look
+ * exact: `significant(2173400000000n, 18)` is `"0.0000022"` (ETH), `significant(75445729n, 9)` is
+ * `"0.075"` (gwei).
+ */
+export function significant(value: bigint, decimals: number, digits = 2): string {
+  if (value <= 0n) return "0";
+  const drop = value.toString().length - digits;
+  if (drop <= 0) return formatUnits(value, decimals);
+  const unit = 10n ** BigInt(drop);
+  return formatUnits(((value + unit / 2n) / unit) * unit, decimals);
+}
+
+/** `1st`, `2nd`, `3rd`, `11th`, `50th`. */
+export function ordinal(n: number): string {
+  const tens = n % 100;
+  const suffix = tens >= 11 && tens <= 13 ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th");
+  return `${formatInt(n)}${suffix}`;
+}
+
 /** Basis points as a percentage with one decimal, rounded down: `6115` is `61.1%`. */
 export function bpsPercent(bps: number): string {
   const tenths = Math.floor(Math.max(0, bps) / 10);

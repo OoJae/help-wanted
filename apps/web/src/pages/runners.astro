@@ -5,11 +5,14 @@ import NotLaunched from "~/components/NotLaunched.astro";
 import OrderCard from "~/components/OrderCard.astro";
 import Layout from "~/layouts/Layout.astro";
 import { pageData } from "~/lib/page";
-import type { RunnersModel } from "~/models/desk";
+import { heartbeatFigures, type RunnersModel } from "~/models/desk";
 
 const loaded = await pageData<RunnersModel>(Astro);
 if (loaded instanceof Response) return loaded;
 const { model: m, meta } = loaded;
+// The hosted runner's heartbeat: when its wallet last acted on the desk, and what it serves.
+const beat = m.heartbeat;
+const beatFigures = beat ? heartbeatFigures(beat) : [];
 ---
 
 <Layout title={meta.title} description={meta.description} sources={m.sources} generatedAt={m.generatedAt}>
@@ -31,8 +34,54 @@ const { model: m, meta } = loaded;
     <p class="small spot">The desk's last read came with an error: {m.error}</p>
   )}
 
+  {beat && (
+    <section class="section section--first beat" id="runner" aria-labelledby="runner-now">
+      <div class="section__head">
+        <h2 id="runner-now">The team's runner, now</h2>
+        <p>
+          house wallet{" "}
+          <a class="addr" href={beat.wallet.url} rel="noopener">
+            {beat.wallet.label}
+          </a>
+        </p>
+      </div>
+      {beatFigures.length > 0 && (
+        <dl class="figures beat__figures">
+          {beatFigures.map((f, index) => (
+            <div
+              class:list={[
+                "figure",
+                index === 0 && beat.seenAt && "beat__seen",
+                // The time and the list of kinds take a whole row on a phone; the two counts share one.
+                ((index === 0 && beat.seenAt) || f.value.includes(", ")) && "figure--wide",
+              ]}
+            >
+              <dt>{f.label}</dt>
+              {index === 0 && beat.seenAt ? (
+                <dd class="figure__words">{f.value}</dd>
+              ) : f.value.length > 3 ? (
+                <dd class="figure__data">
+                  {/* A list of kinds, one to a line, so no name breaks inside itself. */}
+                  {f.value.split(", ").map((part, i, all) => (
+                    <span class="beat__kind">{i < all.length - 1 ? `${part},` : part}</span>
+                  ))}
+                </dd>
+              ) : (
+                <dd>{f.value}</dd>
+              )}
+              {f.note && <span class="note">{f.note}</span>}
+            </div>
+          ))}
+        </dl>
+      )}
+      {/* prettier-ignore */}
+      <p class="small beat__words">{beat.words}{beat.tx && <> <a href={beat.tx.url} rel="noopener">{beat.tx.label[0]!.toUpperCase() + beat.tx.label.slice(1)}</a>.</>}</p>
+      {beat.servesNote && <p class="small">{beat.servesNote}</p>}
+    </section>
+  )}
+
   {m.open.length > 0 && (
-    <section class="section section--first">
+    <section class:list={["section", !beat && "section--first"]}>
       <div class="section__head">
         <h2>Open orders</h2>
         <p>{m.open.length} waiting for a runner</p>
@@ -45,7 +94,7 @@ const { model: m, meta } = loaded;
     </section>
   )}
 
-  <section class:list={["section", m.open.length === 0 && "section--first"]}>
+  <section class:list={["section", m.open.length === 0 && !beat && "section--first"]}>
     <div class="section__head">
       <h2>What a runner does</h2>
       <p>the open-source runner is in the repository under bots/runner</p>

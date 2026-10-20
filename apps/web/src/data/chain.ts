@@ -29,7 +29,7 @@ import {
   type IntakeRequest,
   type IntakeVersion,
 } from "~/lib/intake";
-import { guardReader, type EthReader, type LogFilter, type RawLog } from "~/lib/jsonrpc";
+import { guardReader, type CallRequest, type EthReader, type LogFilter, type RawLog } from "~/lib/jsonrpc";
 import { readMany, readOne, type ViewCall, type ViewResult } from "~/lib/multicall";
 import { decodePayment, uniquePayments, type Payment, type TallyWindow } from "~/lib/tally";
 import { decodeZapQuote, zapQuoteRequest } from "~/lib/zapQuote";
@@ -188,6 +188,14 @@ export interface ChainSource {
    */
   zapQuote(zap: string, ethWei: bigint): Promise<Cached<bigint>>;
   /**
+   * What one call would cost in gas if it were sent now: `eth_estimateGas` for it, times
+   * `eth_gasPrice`. An estimate, not a quote: the price moves block by block and a wallet sets its
+   * own. Cached; rejects when the RPC cannot answer either.
+   */
+  gasCost(cacheKey: string, request: CallRequest, ttlMs?: number): Promise<Cached<GasCost>>;
+  /** The timestamp of a block in seconds, kept once read; null when it could not be read. */
+  blockTime(block: number): Promise<number | null>;
+  /**
    * Cached logs of one contract over the newest blocks the RPC serves (or from `fromBlock`, when
    * that is newer). A page view never becomes a log query of its own.
    */
@@ -199,6 +207,13 @@ export interface ChainSource {
   /** How many blocks back this source's RPC serves logs. */
   readonly logWindowBlocks: number;
   usage(): RpcUsage;
+}
+
+/** The gas one call would use now, the network's gas price, and their product in wei. */
+export interface GasCost {
+  gas: bigint;
+  gasPriceWei: bigint;
+  costWei: bigint;
 }
 
 export interface RpcChainOptions {
@@ -878,6 +893,19 @@ export class RpcChainSource implements ChainSource {
         );
       },
     );
+  }
+
+  gasCost(cacheKey: string, request: CallRequest, ttlMs = 60 * SECOND): Promise<Cached<GasCost>> {
+    return this.#cache.get(`chain:gas:${cacheKey}`, { ttlMs }, async () => {
+      const { estimateGas, gasPrice } = this.#visitorReader;
+      if (!estimateGas || !gasPrice) throw new Error("this RPC reader cannot estimate gas");
+      const [gas, gasPriceWei] = await Promise.all([estimateGas(request), gasPrice()]);
+      return { gas, gasPriceWei, costWei: gas * gasPriceWei };
+    });
+  }
+
+  blockTime(block: number): Promise<number | null> {
+    return this.#timeOf(block);
   }
 
   recentLogs(
