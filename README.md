@@ -480,7 +480,7 @@ writes nothing if a read fails or a count disagrees. It holds no key and sends n
 no setting it reads from `https://ethereum-rpc.publicnode.com,https://rpc.mevblocker.io`, and asks
 the first node for each range of blocks before the second. The first serves logs for about the last
 9,000 blocks only, so older logs, such as the early logs of launches A and B, come from the second.
-Run this way on 19 October 2026, it pinned block 26,226,449, read logs in ranges of 2,000 blocks and
+Run this way on 20 October 2026, it pinned block 26,234,773, read logs in ranges of 2,000 blocks and
 found all 56 of its checks against the contracts in agreement. `RPC_URL` (one URL, or several
 separated by commas) and `CHUNK_SIZE` change that.
 

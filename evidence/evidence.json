@@ -3,10 +3,10 @@
   "about": "What exists on chain of HELP WANTED, read at one pinned block. Written by scripts/evidence/build.ts (pnpm evidence) and by nothing else; do not edit by hand.",
   "chainId": 1,
   "pinnedBlock": {
-    "number": 26226449,
-    "hash": "0xa386332898d4e9a3d8c11765029b14061d8e485224b35c7c3f97aa11f8ad727b",
-    "timestamp": 1792410839,
-    "time": "2026-10-19T11:53:59Z",
+    "number": 26234773,
+    "hash": "0xe4eb59164144028a4440e8664861b6207b3c888326dcfb8896b64c73584bba93",
+    "timestamp": 1792511063,
+    "time": "2026-10-20T15:44:23Z",
     "finality": "finalized"
   },
   "houseRule": "HOUSE is the activity of the wallets the team publishes in evidence/house-wallets.json and of HELP WANTED's own contracts; everything else is OUTSIDE. Each event is counted for one account: the one that made the call, the one the event pays, or the one an earlier event settled (the opener of a round, the employer of an order). When the account made the call itself, the count is HOUSE if that account or the sender of the transaction is on the list. scripts/evidence/contracts.ts holds the rule of every event.",
@@ -89,8 +89,8 @@
     "contractsLaunched": 10,
     "contractsWithCode": 10,
     "transactions": {
-      "total": 72,
-      "house": 71,
+      "total": 75,
+      "house": 74,
       "outside": 0,
       "byIdentityMd": 1
     }
@@ -354,7 +354,7 @@
       ],
       "logs": {
         "fromBlock": 26182869,
-        "toBlock": 26226449,
+        "toBlock": 26234773,
         "count": 49,
         "transactions": 35
       },
@@ -963,8 +963,8 @@
           "imdHeldWei": "0",
           "events": {
             "ChippedIn": {
-              "total": 0,
-              "house": 0,
+              "total": 1,
+              "house": 1,
               "outside": 0,
               "countedFor": "the payer of the chip"
             },
@@ -981,20 +981,20 @@
               "countedFor": "whoever launched the pot"
             },
             "PotOpened": {
-              "total": 0,
-              "house": 0,
+              "total": 1,
+              "house": 1,
               "outside": 0,
               "countedFor": "the pot's opener"
             },
             "PotSettled": {
-              "total": 0,
-              "house": 0,
+              "total": 1,
+              "house": 1,
               "outside": 0,
               "countedFor": "the pot's opener"
             },
             "RefundPaid": {
-              "total": 0,
-              "house": 0,
+              "total": 1,
+              "house": 1,
               "outside": 0,
               "countedFor": "the contributor, who is paid"
             },
@@ -1005,8 +1005,8 @@
               "countedFor": "the series' opener"
             },
             "SpecPinned": {
-              "total": 0,
-              "house": 0,
+              "total": 1,
+              "house": 1,
               "outside": 0,
               "countedFor": "the sender of the transaction"
             },
@@ -1050,8 +1050,8 @@
               "countedFor": "the ringer whose ring hired"
             },
             "Rang": {
-              "total": 25,
-              "house": 25,
+              "total": 26,
+              "house": 26,
               "outside": 0,
               "countedFor": "the ringer"
             }
@@ -1060,9 +1060,9 @@
       ],
       "logs": {
         "fromBlock": 26184581,
-        "toBlock": 26226449,
-        "count": 36,
-        "transactions": 33
+        "toBlock": 26234773,
+        "count": 42,
+        "transactions": 36
       },
       "evidence": {
         "workOrders": {
@@ -1204,8 +1204,8 @@
         },
         "crowdPots": {
           "potsOpened": {
-            "total": 0,
-            "house": 0,
+            "total": 1,
+            "house": 1,
             "outside": 0
           },
           "seriesOpened": {
@@ -1214,12 +1214,12 @@
             "outside": 0
           },
           "chips": {
-            "total": 0,
-            "house": 0,
+            "total": 1,
+            "house": 1,
             "outside": 0,
             "imd": {
-              "totalWei": "0",
-              "houseWei": "0",
+              "totalWei": "10000000000000000",
+              "houseWei": "10000000000000000",
               "outsideWei": "0"
             }
           },
@@ -1234,25 +1234,25 @@
             "outside": 0
           },
           "potsSettled": {
-            "total": 0,
-            "house": 0,
+            "total": 1,
+            "house": 1,
             "outside": 0
           },
           "refundsPaid": {
-            "total": 0,
-            "house": 0,
+            "total": 1,
+            "house": 1,
             "outside": 0,
             "imd": {
-              "totalWei": "0",
-              "houseWei": "0",
+              "totalWei": "10000000000000000",
+              "houseWei": "10000000000000000",
               "outsideWei": "0"
             }
           }
         },
         "doorbell": {
           "rings": {
-            "total": 25,
-            "house": 25,
+            "total": 26,
+            "house": 26,
             "outside": 0
           },
           "hires": {
@@ -1466,7 +1466,7 @@
       ],
       "logs": {
         "fromBlock": 26198165,
-        "toBlock": 26226449,
+        "toBlock": 26234773,
         "count": 13,
         "transactions": 9
       },
@@ -1842,16 +1842,16 @@
     },
     {
       "what": "CrowdPots: pots and series opened",
-      "expected": "0",
+      "expected": "1",
       "expectedFrom": "logs",
-      "contractSays": "0",
+      "contractSays": "1",
       "agree": true
     },
     {
       "what": "Doorbell: rings",
-      "expected": "25",
+      "expected": "26",
       "expectedFrom": "logs",
-      "contractSays": "25",
+      "contractSays": "26",
       "agree": true
     },
     {
@@ -2020,7 +2020,7 @@
     "read": true,
     "reason": null,
     "base": "https://api.imd.fun",
-    "fetchedAt": "2026-10-19T12:08:18.047Z",
+    "fetchedAt": "2026-10-20T16:01:00.311Z",
     "launches": [
       {
         "launch": "a",
@@ -2128,6 +2128,6 @@
       "rpc.mevblocker.io"
     ],
     "chunkSize": 2000,
-    "logChunks": 58
+    "logChunks": 71
   }
 }
