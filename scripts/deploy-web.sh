@@ -3,12 +3,13 @@
 #
 #   bash scripts/deploy-web.sh
 #
-# The first run creates a Railway project and a service in it; later runs deploy again to the
-# same service. Only what the site's Dockerfile copies is uploaded: the workspace files,
+# A first run with RAILWAY_CREATE=1 creates a Railway project and a service in it; later runs
+# deploy again to the same service, and never create anything. Only what the site's Dockerfile copies is uploaded: the workspace files,
 # apps/web and packages/shared. The site holds no key, so there is no secret to set.
 #
 # Needs the Railway CLI, signed in (`railway login`), and rsync.
 #
+#   RAILWAY_CREATE=1       create the project and the service when none is linked (first run only)
 #   RAILWAY_PROJECT_NAME   the project to create on the first run (default: help-wanted)
 #   RAILWAY_WORKSPACE      the workspace to create it in (needed when not run from a terminal)
 #   RAILWAY_SERVICE        the service's name (default: web)
@@ -26,7 +27,14 @@ cd "$ROOT"
 command -v railway >/dev/null || { echo "the Railway CLI is not installed" >&2; exit 1; }
 railway whoami >/dev/null 2>&1 || { echo "not signed in: run 'railway login' first" >&2; exit 1; }
 
+# A status that cannot be read is not taken to mean "no project": a slow answer once made a second
+# project here. A project or a service is created only on a first run that asks for it.
 if ! railway status >/dev/null 2>&1; then
+  if [ "${RAILWAY_CREATE:-}" != 1 ]; then
+    echo "could not read the Railway project this folder is linked to; try again in a moment" >&2
+    echo "(on a first run, set RAILWAY_CREATE=1 to create the project and its service)" >&2
+    exit 1
+  fi
   echo "== creating the Railway project '$PROJECT_NAME' and linking this folder to it"
   if [ -n "${RAILWAY_WORKSPACE:-}" ]; then
     railway init --name "$PROJECT_NAME" --workspace "$RAILWAY_WORKSPACE"
@@ -42,6 +50,11 @@ if ! SERVICES="$(railway service list --json 2>/dev/null)" || [ -z "$SERVICES" ]
   exit 1
 fi
 if ! jq -e --arg s "$SERVICE" 'any(.[]; .name == $s)' >/dev/null <<<"$SERVICES"; then
+  if [ "${RAILWAY_CREATE:-}" != 1 ]; then
+    echo "the linked project has no service '$SERVICE': is this folder linked to the right project?" >&2
+    echo "(on a first run, set RAILWAY_CREATE=1 to create it)" >&2
+    exit 1
+  fi
   echo "== creating the service '$SERVICE'"
   railway add --service "$SERVICE" --variables "REPO_URL=$REPO_URL"
 fi
