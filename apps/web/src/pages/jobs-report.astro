@@ -66,8 +66,10 @@ const maxShare = t?.topPayers[0]?.totalWei ?? 0n;
       <div>
         <h1 class="headline headline--wide">What the robots were paid.</h1>
         <p class="deck">
+          {/* Printed: the lede below gives the figure and says it is stored on chain, and the tally's own
+               heading says it is kept beside it, so the deck says only whose report it is. */}
           {o.printed
-            ? "The Robot Jobs Report: the IMD paid for swarm work, as a contract with no owner buys the figure from the swarm's own oracle and stores it on chain. This site's unofficial tally of the same logs is kept beside it."
+            ? "The Robot Jobs Report: a contract with no owner buys it from the swarm's own oracle."
             : "The Robot Jobs Report: a running count of the IMD paid for swarm work, from public Transfer logs. It becomes an on-chain release when a contract buys the same figures from the swarm itself; until that contract prints, this is an unofficial tally."}
         </p>
       </div>
@@ -107,24 +109,6 @@ const maxShare = t?.topPayers[0]?.totalWei ?? 0n;
         </p>
       </div>
       <p class="release__lede">{m.headline}</p>
-      {m.schedule && (
-        <aside class="notice" aria-label="The last print and the next">
-          <span class="label">The last print, and the next</span>
-          <p>
-            {m.schedule.lastPrintWords}
-            {m.schedule.lastPrintTxUrl && (
-              <>
-                {" "}
-                <a href={m.schedule.lastPrintTxUrl} rel="noopener">
-                  The print's transaction.
-                </a>
-              </>
-            )}{" "}
-            {m.schedule.nextWords}{" "}
-            {m.schedule.meter?.shortImd && <a href="/questions#fund">Fund the meter.</a>}
-          </p>
-        </aside>
-      )}
       {o.summary && (
         <dl class="figures">
           <div class="figure">
@@ -193,6 +177,26 @@ const maxShare = t?.topPayers[0]?.totalWei ?? 0n;
           ? `Employers of the week (round ${o.crown.round}, blocks ${formatInt(o.crown.fromBlock)} to ${formatInt(o.crown.toBlock)}): ${o.crown.places.join(", ")}. This list is settled by panel agreement; IdentityMD does not recompute it.`
           : "Employers of the week: no round has been crowned. That list comes from a feed a panel judges, and the report is complete without it."}
       </p>
+      {/* When the last print was made and what the next one waits for: after the release's own
+           figures and table, beside the commands that read the contract. */}
+      {m.schedule && (
+        <aside class="notice" aria-label="The last print and the next">
+          <span class="label">The last print, and the next</span>
+          <p>
+            {m.schedule.lastPrintWords}
+            {m.schedule.lastPrintTxUrl && (
+              <>
+                {" "}
+                <a href={m.schedule.lastPrintTxUrl} rel="noopener">
+                  The print's transaction.
+                </a>
+              </>
+            )}{" "}
+            {m.schedule.nextWords}{" "}
+            {m.schedule.meter?.shortImd && <a href="/questions#fund">Fund the meter.</a>}
+          </p>
+        </aside>
+      )}
       <Commands commands={m.officialCommands} />
     </section>
   )}
@@ -351,7 +355,7 @@ const maxShare = t?.topPayers[0]?.totalWei ?? 0n;
             </table>
           </div>
           <div class="tablewrap">
-            <table>
+            <table class="stack stack--grid">
               <caption>
                 Table B. By UTC day{" "}
                 <span>· the same range; a day is whole only if the range covers all of it</span>
@@ -371,10 +375,18 @@ const maxShare = t?.topPayers[0]?.totalWei ?? 0n;
                     <th scope="row" class="nowrap">
                       {day.day}
                     </th>
-                    <td class="num">{formatImd(day.totalWei)}</td>
-                    <td class="num">{formatInt(day.payments)}</td>
-                    <td class="num">{formatInt(day.payers)}</td>
-                    <td class="small">{day.partial ? "part of the day" : "whole day"}</td>
+                    <td class="num" data-label="IMD paid">
+                      {formatImd(day.totalWei)}
+                    </td>
+                    <td class="num" data-label="Payments">
+                      {formatInt(day.payments)}
+                    </td>
+                    <td class="num" data-label="Employers">
+                      {formatInt(day.payers)}
+                    </td>
+                    <td class="small" data-label="Coverage">
+                      {day.partial ? "part of the day" : "whole day"}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -383,7 +395,7 @@ const maxShare = t?.topPayers[0]?.totalWei ?? 0n;
         </div>
 
         <div class="tablewrap">
-          <table class="wide">
+          <table class="wide stack stack--grid">
             <caption>
               Table C. Employers of the period <span>· the ten largest payers</span>
             </caption>
@@ -406,22 +418,32 @@ const maxShare = t?.topPayers[0]?.totalWei ?? 0n;
               )}
               {t.topPayers.map((p) => (
                 <tr>
-                  <td class="num">{p.rank}</td>
-                  <td class="code">
+                  <td class="num" data-label="Rank">
+                    {p.rank}
+                  </td>
+                  <td class="code" data-label="Payer">
                     <a href={etherscanAddress(p.address)} title={p.address} rel="noopener">
                       {shortAddress(p.address)}
                     </a>
                   </td>
-                  <td class="num">{formatImd(p.totalWei)}</td>
-                  <td class="num">{formatInt(p.payments)}</td>
-                  <td class="num">{bpsPercent(p.shareBps)}</td>
-                  <td>
+                  <td class="num" data-label="IMD paid">
+                    {formatImd(p.totalWei)}
+                  </td>
+                  <td class="num" data-label="Payments">
+                    {formatInt(p.payments)}
+                  </td>
+                  <td class="num" data-label="Share">
+                    {bpsPercent(p.shareBps)}
+                  </td>
+                  <td class="stack__wide" data-label="Share of the total">
                     <span
                       class="sharebar"
                       style={`width:${maxShare > 0n ? Math.max(1, Number((p.totalWei * 100n) / maxShare)) : 0}%`}
                     />
                   </td>
-                  <td class="small">{p.house ? "HOUSE" : "OUTSIDE"}</td>
+                  <td class="small" data-label="Origin">
+                    {p.house ? "HOUSE" : "OUTSIDE"}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -486,7 +508,7 @@ const maxShare = t?.topPayers[0]?.totalWei ?? 0n;
         {m.earlier && m.earlier.days.length > 0 && (
           <>
             <div class="tablewrap">
-              <table>
+              <table class="stack stack--grid">
                 <caption>
                   Table F. Earlier days held by this server{" "}
                   <span>· not part of the release above; needs an archive RPC to reproduce</span>
@@ -506,10 +528,18 @@ const maxShare = t?.topPayers[0]?.totalWei ?? 0n;
                       <th scope="row" class="nowrap">
                         {day.day}
                       </th>
-                      <td class="num">{formatImd(day.totalWei)}</td>
-                      <td class="num">{formatInt(day.payments)}</td>
-                      <td class="num">{formatInt(day.payers)}</td>
-                      <td class="small">{day.partial ? "part of the day" : "whole day"}</td>
+                      <td class="num" data-label="IMD paid">
+                        {formatImd(day.totalWei)}
+                      </td>
+                      <td class="num" data-label="Payments">
+                        {formatInt(day.payments)}
+                      </td>
+                      <td class="num" data-label="Employers">
+                        {formatInt(day.payers)}
+                      </td>
+                      <td class="small" data-label="Coverage">
+                        {day.partial ? "part of the day" : "whole day"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

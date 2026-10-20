@@ -1345,7 +1345,7 @@ const FEED_FIELDS: FlowField[] = [
   },
   {
     name: "feedId",
-    label: "Feed id, for another feed",
+    label: "Another feed's id",
     kind: "bytes32",
     placeholder: "0x… (32 bytes); leave empty for a house feed",
   },
@@ -1849,16 +1849,22 @@ const createRule: FlowDef = {
       },
       { ...TEMPLATE_FIELD, label: "hire" },
       { ...SPEC_FIELD, required: false },
+      // A rule's pay fields are each order's: their labels say so, as the plan's problems do.
       ...payFields(preset)
         .filter((f) => f.name !== "expiresDays" && f.name !== "arbiter")
         .map((f) =>
           f.name === "maxPay"
-            ? { ...f, initial: "5", required: false }
+            ? { ...f, label: "The most each order pays", initial: "5", required: false }
             : f.name === "minPay"
               ? { ...f, initial: "2", required: false }
               : f.name === "rampHours"
                 ? { ...f, initial: "24", required: false }
-                : f,
+                : f.name === "allowClaimed"
+                  ? {
+                      ...f,
+                      label: "Each order also accepts a bonded delivery claim when no receipt is available",
+                    }
+                  : f,
         ),
       {
         name: "orderDays",

@@ -16,13 +16,20 @@ interface Props {
   /** Shown above the example: what the example values are. */
   exampleNote?: string;
   /**
-   * True for the second and later forms on a page. The two notes every form shares (what happens
-   * without JavaScript, what a `$NAME` stands for) are then left to the first.
+   * True for the second and later forms on a page. What every form says alike (what happens without
+   * JavaScript, what a `$NAME` stands for, that a read sends nothing, that nothing is sent before the
+   * wallet confirms) is then said in full by the first and in fewer words here.
    */
   repeat?: boolean;
+  /**
+   * The forms printed above this one on the page. A field whose help one of them already gives, word
+   * for word, keeps its label here and leaves the help to that form.
+   */
+  above?: FlowPreview[];
 }
 
-const { flow, exampleNote, repeat = false } = Astro.props;
+const { flow, exampleNote, repeat = false, above = [] } = Astro.props;
+const said = [...new Set(above.flatMap((p) => p.fields.map((f) => f.help).filter((h): h is string => !!h)))];
 const sources = getSources();
 const addresses = addressesOf(sources.deployments);
 // Before any visitor is offered a button that approves IMD to an address, that address is asked to
@@ -61,11 +68,15 @@ if (flow.ready) {
     addresses={addresses}
     rpcUrl={PUBLIC_RPC}
     sendBlocked={sendBlocked}
+    repeat={repeat}
+    said={said}
   />
 
+  {/* The reason, once, under the form it switches off; the form itself only points to it. Each form
+       names itself, since a page whose reads fail switches off every form of that contract. */}
   {sendBlocked && (
     <p class="small spot" role="alert">
-      Sending is switched off: {sendBlocked}
+      {flow.title}: sending is switched off. {sendBlocked}
     </p>
   )}
 
@@ -89,15 +100,20 @@ if (flow.ready) {
         </ol>
         {flow.reads.length > 0 && (
           <>
-            <p class="label">Read first: nothing is sent</p>
+            <p class="label">{repeat ? "Read first" : "Read first: nothing is sent"}</p>
             <Commands
               commands={flow.reads.map((s) => ({ comment: s.label, command: s.command }))}
               label="Commands that read, to run first"
+              as="reads"
             />
             <p class="label">Then send</p>
           </>
         )}
-        <Commands commands={flow.steps.map((s) => ({ comment: s.label, command: s.command }))} />
+        <Commands
+          commands={flow.steps.map((s) => ({ comment: s.label, command: s.command }))}
+          label="The transactions, in order"
+          as="steps"
+        />
       </>
     )}
     {!repeat && (

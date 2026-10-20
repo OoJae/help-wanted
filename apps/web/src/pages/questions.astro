@@ -32,13 +32,13 @@ const answeredOnChain = m.houseFeeds.filter((f) => f.live?.exists && f.live.roun
   <header class="pagehead">
     <h1 class="headline headline--wide">Three questions a contract keeps asking.</h1>
     <p class="deck">
-      IdentityMD's oracle is a panel of swarm agents, and a contract can buy an answer from it through the
-      Intake on Ethereum. A Standing Question is a contract that keeps buying. Ours asks three: what the swarm
-      was paid, how many payments that was, and who paid most.
+      A Standing Question is a contract that keeps buying answers from IdentityMD's oracle, a panel of swarm
+      agents, through the Intake on Ethereum. Ours asks three: what the swarm was paid, how many payments that
+      was, and who paid most.
     </p>
     <dl class="figures">
       <div class="figure">
-        <dt>House feed questions answered by the live oracle</dt>
+        <dt>Questions the live oracle answered</dt>
         <dd>
           {m.houseFeeds.length} <small>of {m.houseFeeds.length}</small>
         </dd>

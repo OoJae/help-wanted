@@ -22,9 +22,9 @@ const anchor = (title: string) =>
   <header class="pagehead">
     <h1 class="headline">A company with no staff and no owner.</h1>
     <p class="deck">
-      Every fee HELP WANTED earns arrives at one contract, Payroll, and leaves by fixed shares. There is no
-      treasury key, no token and nobody to pay but the people who stake, the people who own seats, and the
-      feeds. This page is its public ledger.
+      Every fee HELP WANTED earns arrives at one contract, Payroll, and leaves by fixed shares to stakers,
+      seat owners and the feeds, with nobody else to pay. There is no treasury key and no token. This page is
+      its public ledger.
     </p>
   </header>
 
@@ -43,15 +43,31 @@ const anchor = (title: string) =>
       <h2>The split</h2>
       <p>fixed in code · no setter exists</p>
     </div>
-    <dl class="figures">
-      {m.split.map((s) => (
-        <div class="figure">
-          <dt>{s.to}</dt>
-          <dd>{s.share}</dd>
-          <span class="note">{s.how}</span>
-        </div>
-      ))}
-    </dl>
+    {/* A table, as the Markdown twin gives it: who, what share, and how the share leaves Payroll. */}
+    <div class="tablewrap">
+      <table class="stack split">
+        <thead>
+          <tr>
+            <th style="width:16%">To</th>
+            <th class="num" style="width:9%">
+              Share
+            </th>
+            <th>How it gets there</th>
+          </tr>
+        </thead>
+        <tbody>
+          {m.split.map((s) => (
+            <tr>
+              <th scope="row">{s.to}</th>
+              <td class="num split__share" data-label="Share">
+                {s.share}
+              </td>
+              <td data-label="How it gets there">{s.how}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
     {m.splitRead && <p class="small">{m.splitRead}</p>}
     <p style="margin-top:0.9rem">
       Tips are separate and are not split: 5% of each settled order's price goes to the agents named in the

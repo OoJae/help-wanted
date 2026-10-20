@@ -46,6 +46,26 @@ is served by the site. The served icons live in `public/` (`favicon.svg`, its PN
 Alfa Slab One and IBM Plex Mono are under the SIL Open Font License 1.1, which allows their outlines
 in a logo or a drawing. On the site the name stays live text.
 
+## Social
+
+The X (Twitter) profile images, in [`brand/social/`](brand/social/). The site does not serve them.
+
+| File                                           | What it is                                                                                                  | Pixels                  | Size           |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------- | -------------- |
+| `x-avatar.png`, `x-avatar-800.png`             | The profile picture: the HW mark on Newsprint, its frame's corners at 0.9 of the circle's radius            | 400 x 400, 800 x 800    | 5.5 / 5.6 kB   |
+| `x-avatar-clock.png`, `x-avatar-clock-800.png` | The alternate: the Recorder's dial at 10:37:35, the bezel at 0.93 of the radius, the case's Enamel round it | 400 x 400, 800 x 800    | 30.8 / 36.3 kB |
+| `x-banner.png`, `x-banner-3000.png`            | The header, day edition: the headline, the tagline, and the Recorder with order 2's card, PROVEN ON CHAIN   | 1500 x 500, 3000 x 1000 | 54.5 / 77.6 kB |
+| `x-banner-night.png`                           | The same header in the night edition                                                                        | 1500 x 500              | 58.3 kB        |
+
+The avatar is shown as a circle, so the mark's corners and the bezel sit well inside it. The header
+keeps X's safe zones: the words, the card, the dial and the clock's sign stand in the middle 360 px
+of its 500, since some screens crop the top and bottom (a crop there cuts only the bare foot of the
+case), and the left 400 px of the bottom 160 px, where the avatar covers it, is empty. The stamp is
+the one spot of red, so the card's settled line is printed in Enamel. The wordmark is left out: the
+headline and the clock's sign already name HELP WANTED. The card's lines and total come from the
+pinned history, as on `/og-card`. `scripts/brand-social.mjs` makes them (below); Chrome's raster can
+move a file's size by a few hundred bytes from one run to the next.
+
 ## Colour
 
 Two papers, two inks, one red, and brass for the clock alone. Every colour is a custom property in
@@ -398,13 +418,19 @@ node apps/web/scripts/brand-renders.mjs http://127.0.0.1:4406 recorder stills ca
 
 # Stop the development server by its port when done.
 kill $(lsof -ti tcp:4406)
+
+# The X images in brand/social/: nothing has to be running. With --check it also writes, to a
+# folder outside the repository, the avatars in a circle at 400, 128, 48 and 32 px and the header
+# under a stand-in avatar, cropped to its middle 360 px, and at 600 and 390 px wide.
+node apps/web/scripts/brand-social.mjs [--check <a folder outside the repository>]
 ```
 
 `brand-renders.mjs` finds Playwright as the probe does: the module named by `IMD_PLAYWRIGHT`, else an
 installed `playwright`, else the newest copy in npx's cache. It prints the GPU each still was drawn on;
 it should name the machine's GPU, not SwiftShader. Run `brand-kit.mjs` after a change to the tokens,
 the favicon or the stamp drawing, and `brand-renders.mjs` after a change to `geometry.ts`,
-`Recorder.astro`, the print or `og-card.astro`. Then open the files and look at them.
+`Recorder.astro`, the print or `og-card.astro`; run `brand-social.mjs` after either of them, and after
+a change to `timecard.css`. Then open the files and look at them.
 
 The stills: the WebGL canvas from `/dev/recorder?still=1` at 800 CSS px and a pixel ratio of 2 (so the
 hatch is the page's own 6 device px), with the SVG throat lip laid over it as the page lays it, then

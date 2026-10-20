@@ -49,22 +49,6 @@ const t = m.template;
 
   <NotLaunched contract={m.desk} consequence="This order cannot be posted today." />
 
-  {t.recordNote && (
-    <aside class="notice notice--quiet" aria-label="About this job's work record">
-      <span class="label">A large record</span>
-      <p>{t.recordNote}</p>
-    </aside>
-  )}
-
-  {m.runnerTakes && (
-    <aside class="notice notice--quiet" aria-label="Who would take this order">
-      <span class="label">Who would take it</span>
-      <p>
-        {m.runnerTakes} <a href="/runners">Who takes orders today.</a>
-      </p>
-    </aside>
-  )}
-
   <section class="section section--first">
     <div class="section__head">
       <h2>Write the order</h2>
@@ -79,6 +63,23 @@ const t = m.template;
       steps={HOW_AN_ORDER_FLOWS.map((x) => x.step)}
       note="The card this order gets. It stays blank until you post the order; each line is printed only when the chain does it."
     />
+    {/* Who would take the order, and, for a kind whose record is large, why a runner may pass on it:
+         below the form and its card, beside how the order pays. (A receipt-only plan for such a kind
+         already says in a line that a runner may pass on it.) */}
+    {t.recordNote && (
+      <aside class="notice notice--quiet" aria-label="About this job's work record">
+        <span class="label">A large record</span>
+        <p>{t.recordNote}</p>
+      </aside>
+    )}
+    {m.runnerTakes && (
+      <aside class="notice notice--quiet" aria-label="Who would take this order">
+        <span class="label">Who would take it</span>
+        <p>
+          {m.runnerTakes} <a href="/runners">Who takes orders today.</a>
+        </p>
+      </aside>
+    )}
     <h3 class="sub" id="claims">
       Before you choose how it pays
     </h3>

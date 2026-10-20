@@ -886,16 +886,11 @@ h3.sub {
   margin: 0;
 }
 
+/* The links keep to one line where they fit. Where they do not (three on the narrowest phones, four
+   on a request's card), they wrap, each one whole, rather than run past the card's edge. */
 .ad__foot .ad__links {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   white-space: nowrap;
-}
-
-/* On the narrowest phones three links do not fit on one line; they wrap, each one whole. */
-@media (max-width: 23.4rem) {
-  .ad__foot .ad__links {
-    flex-wrap: wrap;
-  }
 }
 
 /* The stamp sits at the right; where the links leave it no room it takes a line of its own. */
@@ -1293,6 +1288,14 @@ table.wide {
   min-width: 46rem;
 }
 
+/* The company's split: each share set as a figure, in the figures' own type. */
+table.split td.split__share {
+  font-family: var(--serif);
+  font-weight: 900;
+  font-size: var(--s5);
+  line-height: 1.05;
+}
+
 /* A wide table whose rows turn into cards on a narrow screen, each cell under its column's name,
    so no column is left out of sight to the right. The header row stays in the page for readers
    that do not draw it. */
@@ -1348,6 +1351,20 @@ table.wide {
   table.stack tbody tr:last-child > * {
     border-bottom: 0;
   }
+
+  /* A table of figures keeps its cards short: the figures sit two or three to a line, each under its
+     column's name; the row's heading, and a cell marked wide, take a line of their own. */
+  table.stack.stack--grid tbody tr {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+    column-gap: 1rem;
+  }
+
+  table.stack.stack--grid tbody tr > th,
+  table.stack.stack--grid tbody tr > .stack__wide,
+  table.stack.stack--grid tbody tr > [colspan] {
+    grid-column: 1 / -1;
+  }
 }
 
 .footnotes {
@@ -1372,6 +1389,19 @@ table.wide {
   margin: 0 0 1.2rem;
   background: var(--card);
   border-left: 3px solid var(--ink);
+}
+
+/* A form's transactions are an ordered list, and its reads a list: the same box as any command, with
+   no list markers. */
+ol.cmd,
+ul.cmd {
+  list-style: none;
+  padding: 0;
+  max-width: none;
+}
+
+.cmd > li {
+  margin: 0;
 }
 
 /* The note and the command share a column; the Copy key, when the script adds one, opens a column of
@@ -1415,7 +1445,8 @@ table.wide {
   user-select: none;
 }
 
-.cmd--plain pre::before {
+.cmd--plain pre::before,
+.cmd--script pre::before {
   content: none;
 }
 

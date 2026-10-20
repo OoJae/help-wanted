@@ -51,9 +51,14 @@ const { model: m, meta } = loaded;
                 <tr>
                   <th scope="row">#{row.id}</th>
                   <td class="break" data-label="Who created it">
+                    {/* The tag on its own line, the words under it, as the judges page sets a tag and its
+                         note: a wrapped line of words never runs under the tag. */}
                     {row.origin && (
-                      <span class:list={["tag", row.origin === "HOUSE" && "tag--solid"]}>{row.origin}</span>
-                    )}{" "}
+                      <>
+                        <span class:list={["tag", row.origin === "HOUSE" && "tag--solid"]}>{row.origin}</span>
+                        <br />
+                      </>
+                    )}
                     <span class="small">{row.originWords}</span>
                   </td>
                   <td class="break" data-label="Yield goes to">

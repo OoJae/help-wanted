@@ -400,7 +400,11 @@ export interface JudgesModel {
   headerJob: HeaderJobView;
   claims: Claim[];
   integration: IntegrationRow[];
-  reproduce: { title: string; note: string | null; commands: string }[];
+  /**
+   * Each block's commands as one script. A block whose commands the page already prints elsewhere has
+   * none of its own: `see` is the fragment of the page where they are, and the note says so.
+   */
+  reproduce: { title: string; note: string | null; commands: string | null; see?: string }[];
   limits: {
     total: number;
     documents: { launch: DisclosedLimit["launch"]; path: string; count: number }[];
@@ -2024,7 +2028,7 @@ export const judgesPage: PageDef<JudgesModel> = {
           command: `cast call ${MAINNET.SEATS} "ownerOf(uint256)(address)" ${tipClaim.tokenId} --rpc-url ${PUBLIC_RPC}`,
         },
         {
-          comment: "The claim's logs: TipClaimed(agent, seat, owner, amount) and the IMD transfer",
+          comment: `The claim's logs: TipClaimed(agent, seat, owner, amount) for agent ${tipClaim.agentId}, seat #${tipClaim.tokenId}, owner ${tipClaim.paidTo}, ${formatImd(tipClaim.amountWei, 18)} IMD; and the IMD transfer`,
           command: `cast receipt ${tipClaim.tx.hash} logs --rpc-url ${PUBLIC_RPC}`,
         },
       ],
@@ -2238,15 +2242,18 @@ export const judgesPage: PageDef<JudgesModel> = {
               },
             ]
           : []),
+        // Its commands are printed once, beside the proof they check (Proven on the live system, 3).
         {
           title: "Check the header job",
-          note:
+          note: `Its ${headerJobView.commands.length} commands are printed once, beside the proof they check, under "Proven on the live system", item 3. ${
             receiptOnChain === true
               ? "The first two need no chain. The third reads the receipt IdentityMD wrote for the job."
               : receiptOnChain === false
                 ? "The first two need no chain. The third reads the receipt, which held no hash of this record when this page was made."
-                : "The first two need no chain. The third reads the receipt, which could not be read for this page.",
-          commands: headerJobView.commands.map((c) => `# ${c.comment}\n${c.command}`).join("\n\n"),
+                : "The first two need no chain. The third reads the receipt, which could not be read for this page."
+          }`,
+          commands: null,
+          see: "#proven-header",
         },
         {
           title: "Read the three oracle answers and the two audit reports",
@@ -2600,7 +2607,9 @@ export const judgesPage: PageDef<JudgesModel> = {
         ]),
       ),
       "## Reproduce",
-      ...m.reproduce.map((r) => doc(`### ${r.title}`, r.note, fence(r.commands, "sh")).trimEnd()),
+      ...m.reproduce.map((r) =>
+        doc(`### ${r.title}`, r.note, r.commands === null ? null : fence(r.commands, "sh")).trimEnd(),
+      ),
       "## Every disclosed limit",
       `${m.limits.total} entries: ${m.limits.documents.map((d) => `launch ${d.launch}, ${d.count} (${d.path})`).join("; ")}. ${m.limits.note}`,
       table(

@@ -166,8 +166,10 @@ export interface ClaimDefault {
   preselected: boolean;
   /** What the registry's log showed: true stalled, false writing, null unread. */
   stalled: boolean | null;
-  /** The reason, as the form and the page print it. */
+  /** The reason, as the page prints it once, under the form. */
   why: string;
+  /** What the box itself says: the choice and its cause in a line, pointing to the reason in full. */
+  box: string;
   /** The same test, for a reader to run. */
   command: string;
 }
@@ -192,6 +194,7 @@ export function claimDefault(read: ReceiptWriterRead, rpcUrl: string): ClaimDefa
     return {
       preselected: true,
       stalled: true,
+      box: "Ticked for you, because IdentityMD's receipts are stalled. What was read, and the test, are below the form.",
       why: `Ticked for you, because IdentityMD's receipts are stalled: its WorkRegistry recorded no receipt in the last six hours (no WorkRecorded event in ${range}). While that lasts, an order that pays only on a receipt cannot be paid and is refunded at its deadline. Untick the box to wait for receipts all the same.`,
       command,
     };
@@ -201,6 +204,7 @@ export function claimDefault(read: ReceiptWriterRead, rpcUrl: string): ClaimDefa
     return {
       preselected: false,
       stalled: false,
+      box: "Left unticked, because IdentityMD's receipts are arriving. What was read, and the test, are below the form.",
       why: `Left unticked, because IdentityMD's receipts are arriving: its WorkRegistry recorded ${formatInt(events)} receipt${events === 1 ? "" : "s"} in the last six hours (${range}${read.newestBlock !== null ? `, the newest in block ${formatInt(read.newestBlock)}` : ""}). An order can wait for its receipt, so only a receipt pays unless you tick the box.`,
       command,
     };
@@ -208,6 +212,7 @@ export function claimDefault(read: ReceiptWriterRead, rpcUrl: string): ClaimDefa
   return {
     preselected: false,
     stalled: null,
+    box: "Left unticked: whether IdentityMD's receipts are arriving could not be read just now. The test is below the form.",
     why: `Left unticked: whether IdentityMD's receipts are arriving could not be read just now${read.error ? ` (${read.error})` : ""}, so the form starts with the stricter choice. Run the command to see for yourself before you decide.`,
     command,
   };

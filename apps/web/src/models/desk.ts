@@ -400,11 +400,12 @@ export const hireTemplatePage: PageDef<HireTemplateModel> = {
     const example = EXAMPLES[template.slug] ?? {};
     const [receipts, writer] = await Promise.all([loadReceiptFlow(sources), sources.chain.receiptWriter()]);
     const claim = claimDefault(writer, PUBLIC_RPC);
-    // The form starts as the rule says, and carries the reason to the box itself.
+    // The form starts as the rule says. The box says which way and why in a line; what was read, and
+    // the test, are printed once, under the form.
     const preset = {
       template: template.slug,
       allowClaimed: claim.preselected ? "true" : "false",
-      claimNote: claim.why,
+      claimNote: claim.box,
     };
     return {
       generatedAt: now.toISOString(),

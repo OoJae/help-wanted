@@ -33,6 +33,13 @@ interface Props {
    * to identify itself and it did not answer as the contract. Null when it did.
    */
   sendBlocked?: string | null;
+  /**
+   * True for the second and later forms on a page: what every form says alike is said in full by the
+   * first, and in fewer words here.
+   */
+  repeat?: boolean;
+  /** Field help a form above this one on the page already gives, word for word; it is not repeated. */
+  said?: string[];
 }
 
 function Field({
@@ -40,13 +47,17 @@ function Field({
   value,
   onChange,
   id,
+  said,
 }: {
   field: FlowField;
   value: string;
   onChange: (value: string) => void;
   id: string;
+  said: readonly string[];
 }) {
   const wide = field.kind === "longtext" || field.kind === "checkbox" || field.kind === "bytes32";
+  // The label stays on every form; help already given in full by a form above is left to it.
+  field = field.help && said.includes(field.help) ? { ...field, help: undefined } : field;
   if (field.kind === "checkbox") {
     return (
       <div className="field field--check field--wide">
@@ -110,7 +121,15 @@ function Field({
   );
 }
 
-export default function FlowRunner({ flowId, preset, addresses, rpcUrl, sendBlocked = null }: Props) {
+export default function FlowRunner({
+  flowId,
+  preset,
+  addresses,
+  rpcUrl,
+  sendBlocked = null,
+  repeat = false,
+  said = [],
+}: Props) {
   const flow = flowById(flowId);
   const [values, setValues] = useState<Record<string, string>>(() =>
     flow ? initialValues(flow, preset) : {},
@@ -245,6 +264,7 @@ export default function FlowRunner({ flowId, preset, addresses, rpcUrl, sendBloc
               field={field}
               value={values[field.name] ?? ""}
               onChange={set(field.name)}
+              said={said}
             />
           ))}
         </div>
@@ -258,7 +278,9 @@ export default function FlowRunner({ flowId, preset, addresses, rpcUrl, sendBloc
             ))}
           </ul>
         ) : (
-          <p className="small">Fill in the form to see exactly what would be sent.</p>
+          <p className="small">
+            {repeat ? "Fill in the form." : "Fill in the form to see exactly what would be sent."}
+          </p>
         )
       ) : (
         <>
@@ -270,31 +292,31 @@ export default function FlowRunner({ flowId, preset, addresses, rpcUrl, sendBloc
           </ol>
           {plan.reads && plan.reads.length > 0 && (
             <>
-              <p className="label">Read first: nothing is sent</p>
-              <div className="cmd">
+              <p className="label">{repeat ? "Read first" : "Read first: nothing is sent"}</p>
+              <ul className="cmd" aria-label="Commands that read, to run first">
                 {plan.reads.map((item) => (
-                  <div className="cmd__row" key={`${item.signature}-${item.label}`}>
+                  <li className="cmd__row" key={`${item.signature}-${item.label}`}>
                     <p className="cmd__note">{item.label}</p>
                     <pre>{castReadCommand(item, rpcUrl)}</pre>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </>
           )}
           <p className="label">
             {plan.calls.length === 1 ? "One transaction" : `${plan.calls.length} transactions`}
             {touched ? ", for what you typed" : ""}
           </p>
-          <div className="cmd">
+          <ol className="cmd" aria-label="The transactions, in order">
             {plan.calls.map((call, index) => (
-              <div className="cmd__row" key={`${call.signature}-${index}`}>
+              <li className="cmd__row" key={`${call.signature}-${index}`}>
                 <p className="cmd__note">
                   {index + 1}. {call.label}
                 </p>
                 <pre>{castCommand(call, rpcUrl)}</pre>
-              </div>
+              </li>
             ))}
-          </div>
+          </ol>
 
           {refusal && (
             <ul className="problems" role="status">
@@ -315,14 +337,15 @@ export default function FlowRunner({ flowId, preset, addresses, rpcUrl, sendBloc
               <button className="btn" type="button" disabled>
                 {flow.action}
               </button>
-              <span className="small spot">Sending is switched off: see why above.</span>
+              <span className="small spot">Switched off: see above.</span>
             </div>
           ) : sendBlocked ? (
             <div className="walletline">
               <button className="btn" type="button" disabled>
                 {flow.action}
               </button>
-              <span className="small spot">Sending is switched off: {sendBlocked}</span>
+              {/* The reason is printed once, under the form, by the page itself. */}
+              <span className="small spot">Switched off: see below.</span>
             </div>
           ) : wallet ? (
             <Suspense fallback={<p className="small">Loading the wallet connection…</p>}>
@@ -341,7 +364,9 @@ export default function FlowRunner({ flowId, preset, addresses, rpcUrl, sendBloc
                 {flow.action} with a wallet
               </button>
               <span className="small">
-                Or run the commands above from a terminal. Nothing is sent until you confirm in your wallet.
+                {repeat
+                  ? "Or run the commands."
+                  : "Or run the commands above from a terminal. Nothing is sent until you confirm in your wallet."}
               </span>
             </div>
           )}

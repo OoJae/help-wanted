@@ -1523,6 +1523,20 @@ describe("what a mock judging found, on mainnet's book", () => {
     expect(tip?.commands.map((c) => c.command).join("\n")).toContain(
       `cast call ${MAINNET.SEATS} "ownerOf(uint256)(address)" 1049`,
     );
+    // Each tip's log note names its own agent, seat, owner and amount, so the two do not read alike.
+    expect(tip?.commands[2]?.comment).toBe(
+      "The claim's logs: TipClaimed(agent, seat, owner, amount) for agent 51519, seat #1049, owner 0x6eE77E931C6154E4752C5Bf832Ce51f7897f105A, 0.05 IMD; and the IMD transfer",
+    );
+    expect(secondTip?.commands[2]?.comment).toContain(
+      "for agent 52142, seat #1978, owner 0x5C7d92736A6Db05b85eF1aEBBc3190f05cff3008",
+    );
+    // The header job's commands are printed once, beside its proof; Reproduce points to them.
+    const headerBlock = model.reproduce.find((block) => block.title === "Check the header job");
+    expect(headerBlock).toMatchObject({ commands: null, see: "#proven-header" });
+    expect(headerBlock?.note).toContain(`Its ${model.headerJob.commands.length} commands are printed once`);
+    for (const c of model.headerJob.commands) {
+      expect(markdown.split(c.command).length - 1).toBe(1);
+    }
     expect(markdown).toContain("### 4. Our contracts and IdentityMD's, working together on mainnet");
     // The callback's answer is no longer said to be shown only in a test.
     expect(model.feedProofs.limit).toContain(

@@ -17,8 +17,11 @@ const { model: m, meta } = loaded;
     <h1 class="headline headline--wide">
       Take an order. Carry it to the swarm. Get paid on proof, or on a claim that stands.
     </h1>
+    {/* The deck says it in a line; the reasoning in full, and who runs one, follow what a runner
+         does, under "Why there are runners". */}
     <p class="deck">
-      {m.why} {m.whoRuns}
+      IdentityMD bills up front; the desk pays later. A runner fronts the swarm's fee in between, under bond,
+      for a margin.
     </p>
   </header>
 
@@ -27,36 +30,6 @@ const { model: m, meta } = loaded;
   {m.error && m.count !== null && (
     <p class="small spot">The desk's last read came with an error: {m.error}</p>
   )}
-
-  <div class="cols cols--ruled">
-    <aside class="notice" aria-label="Who takes orders today">
-      <span class="label">Who takes orders today</span>
-      <p>
-        {m.runnerStatement && <strong>What the chain shows: </strong>}
-        {m.whoTakes}
-      </p>
-      {m.runnerStatement && (
-        <>
-          <p class="small">
-            <strong>{m.runnerStatement.heading}.</strong> A statement, not a reading:
-          </p>
-          <ul class="small">
-            {m.runnerStatement.lines.map((line) => (
-              <li>{line}</li>
-            ))}
-          </ul>
-        </>
-      )}
-    </aside>
-    <aside class="notice notice--quiet" aria-label="Who this is for">
-      <span class="label">Who this is for</span>
-      <ul>
-        {m.whoFor.map((line) => (
-          <li>{line}</li>
-        ))}
-      </ul>
-    </aside>
-  </div>
 
   {m.open.length > 0 && (
     <section class="section section--first">
@@ -72,7 +45,7 @@ const { model: m, meta } = loaded;
     </section>
   )}
 
-  <section class="section">
+  <section class:list={["section", m.open.length === 0 && "section--first"]}>
     <div class="section__head">
       <h2>What a runner does</h2>
       <p>the open-source runner is in the repository under bots/runner</p>
@@ -97,6 +70,45 @@ const { model: m, meta } = loaded;
           ))}
         </ul>
       </div>
+    </div>
+  </section>
+
+  <section class="section" id="why">
+    <div class="section__head">
+      <h2>Why there are runners</h2>
+      <p>and who takes orders today</p>
+    </div>
+    <p>
+      {m.why} {m.whoRuns}
+    </p>
+    <div class="cols cols--ruled">
+      <aside class="notice" aria-label="Who takes orders today">
+        <span class="label">Who takes orders today</span>
+        <p>
+          {m.runnerStatement && <strong>What the chain shows: </strong>}
+          {m.whoTakes}
+        </p>
+        {m.runnerStatement && (
+          <>
+            <p class="small">
+              <strong>{m.runnerStatement.heading}.</strong> A statement, not a reading:
+            </p>
+            <ul class="small">
+              {m.runnerStatement.lines.map((line) => (
+                <li>{line}</li>
+              ))}
+            </ul>
+          </>
+        )}
+      </aside>
+      <aside class="notice notice--quiet" aria-label="Who this is for">
+        <span class="label">Who this is for</span>
+        <ul>
+          {m.whoFor.map((line) => (
+            <li>{line}</li>
+          ))}
+        </ul>
+      </aside>
     </div>
   </section>
 

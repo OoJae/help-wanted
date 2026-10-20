@@ -181,10 +181,11 @@ const sinceHire = rings === null ? null : rings % 25;
       flow={m.ruleFlow}
       exampleNote="a rule on a view call, from launch C's launch document"
       repeat
+      above={[m.flow]}
     />
     <h3 class="sub">Fire, reconcile, cancel</h3>
     {m.ruleFlows.map((flow) => (
-      <FlowBlock flow={flow} exampleNote="rule 1" repeat />
+      <FlowBlock flow={flow} exampleNote="rule 1" repeat above={[m.flow, m.ruleFlow]} />
     ))}
     <h3 class="sub">Read a rule</h3>
     <Commands commands={m.commands} />

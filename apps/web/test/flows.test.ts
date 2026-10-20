@@ -1006,6 +1006,17 @@ describe("rules and endowments (launch C)", () => {
     expect(short.summary.join(" ")).toContain(
       "which is less than one fire, so the rule waits until it is topped up",
     );
+    // A rule's pay fields are each order's, and their labels say so (the one-off order's say "you").
+    const fields = flow.fields({});
+    expect(fields.find((f) => f.name === "maxPay")?.label).toBe("The most each order pays");
+    expect(fields.find((f) => f.name === "allowClaimed")?.label).toBe(
+      "Each order also accepts a bonded delivery claim when no receipt is available",
+    );
+    const once = flowById("say-when")!.fields({});
+    expect(once.find((f) => f.name === "maxPay")?.label).toBe("The most you will pay");
+    expect(once.find((f) => f.name === "allowClaimed")?.label).toBe(
+      "Also accept a bonded delivery claim when no receipt is available",
+    );
   });
 
   it("fires a HIRE rule with the gas limit the launch document names", () => {

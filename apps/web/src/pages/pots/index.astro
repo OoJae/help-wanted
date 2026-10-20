@@ -50,11 +50,8 @@ const { model: m, meta } = loaded;
         <div class="ad ad--blank">
           <p class="ad__head">The collection box is empty.</p>
           <p>
-            {m.launched
-              ? "CrowdPots is live and no pot has been opened on it yet: its own counter read 0 for this page. "
-              : ""}
-            When a pot is open it appears here with what it has raised, what it still needs and how long it
-            collects.
+            {m.launched ? "CrowdPots' own counter read 0 for this page: no pot has been opened yet. " : ""}
+            An open pot shows here what it has raised, what it still needs and how long it collects.
           </p>
         </div>
       </div>

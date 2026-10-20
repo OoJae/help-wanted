@@ -137,7 +137,8 @@ export const TEMPLATES: readonly JobTemplate[] = [
       {
         name: "baseCommit",
         label: "Commit",
-        help: "The full 40-character commit hash to audit, so the order pins exactly what is read.",
+        // Why it is pinned is the page's deck: the agents read the repository at one pinned commit.
+        help: "The full 40-character commit hash.",
         kind: "commit",
         placeholder: "0123456789abcdef0123456789abcdef01234567",
         required: true,

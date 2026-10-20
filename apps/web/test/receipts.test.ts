@@ -223,12 +223,18 @@ describe("the hire form's claim box follows the registry's own log", () => {
     expect(model?.claim.why).toContain("Ticked for you, because IdentityMD's receipts are stalled");
     expect(model?.claim.why).toContain("recorded no receipt in the last six hours");
     expect(model?.claim.why).toContain("Untick the box to wait for receipts all the same");
-    expect(model?.flow.preset).toMatchObject({ allowClaimed: "true", claimNote: model?.claim.why });
+    // The box says the choice and its cause in a line; the reading in full (above) is printed once,
+    // under the form, with the test.
+    expect(model?.claim.box).toBe(
+      "Ticked for you, because IdentityMD's receipts are stalled. What was read, and the test, are below the form.",
+    );
+    expect(model?.flow.preset).toMatchObject({ allowClaimed: "true", claimNote: model?.claim.box });
     // The worked example the page prints without JavaScript carries the same choice.
     expect(model?.flow.exampleValues.allowClaimed).toBe("true");
     expect(model?.flow.summary.join(" ")).toMatch(/bonded delivery claim/);
     const box = model?.flow.fields.find((field) => field.name === "allowClaimed");
     expect(box?.help).toContain("Ticked for you, because IdentityMD's receipts are stalled");
+    expect(box?.help).toContain("What was read, and the test, are below the form.");
 
     const index = await hireIndexPage.load(ctxFor(world, "/hire"), {});
     expect(index?.claim.preselected).toBe(true);
@@ -249,6 +255,8 @@ describe("the hire form's claim box follows the registry's own log", () => {
     expect(model?.claim.why).toContain("recorded 2 receipts in the last six hours");
     expect(model?.claim.why).toContain(`the newest in block ${(head - 20).toLocaleString("en-US")}`);
     expect(model?.flow.preset.allowClaimed).toBe("false");
+    expect(model?.flow.preset.claimNote).toBe(model?.claim.box);
+    expect(model?.claim.box).toContain("Left unticked, because IdentityMD's receipts are arriving");
     expect(model?.flow.exampleValues.allowClaimed).toBe("false");
     const runners = await runnersPage.load(ctxFor(world, "/runners"), {});
     expect(runners?.receiptsNow).toContain("Receipts are arriving");

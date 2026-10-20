@@ -2,16 +2,51 @@
 interface Props {
   commands: { comment?: string | null; command: string }[];
   label?: string;
+  /**
+   * How the commands relate. "steps": the transactions of a form, in the order they are sent, an
+   * ordered list. "reads": the reads a form makes first, a list. "script": one recipe whose commands
+   * run top to bottom (a later one reads the file an earlier one wrote), printed as one shell script
+   * with each comment as a `#` line, exactly as the page's Markdown twin prints it. Left out: separate
+   * commands, one row each.
+   */
+  as?: "steps" | "reads" | "script";
 }
 
-const { commands, label = "Commands to run in a terminal" } = Astro.props;
+const { commands, label = "Commands to run in a terminal", as } = Astro.props;
+const script = commands.map((c) => (c.comment ? `# ${c.comment}\n${c.command}` : c.command)).join("\n\n");
 ---
 
-<div class="cmd" role="group" aria-label={label}>
-  {commands.map((c) => (
+{as === "script" ? (
+  <div class="cmd cmd--script" role="group" aria-label={label}>
     <div class="cmd__row" data-copy>
-      {c.comment && <p class="cmd__note">{c.comment}</p>}
-      <pre>{c.command}</pre>
+      <pre>{script}</pre>
     </div>
-  ))}
-</div>
+  </div>
+) : as === "steps" ? (
+  <ol class="cmd" aria-label={label}>
+    {commands.map((c) => (
+      <li class="cmd__row" data-copy>
+        {c.comment && <p class="cmd__note">{c.comment}</p>}
+        <pre>{c.command}</pre>
+      </li>
+    ))}
+  </ol>
+) : as === "reads" ? (
+  <ul class="cmd" aria-label={label}>
+    {commands.map((c) => (
+      <li class="cmd__row" data-copy>
+        {c.comment && <p class="cmd__note">{c.comment}</p>}
+        <pre>{c.command}</pre>
+      </li>
+    ))}
+  </ul>
+) : (
+  <div class="cmd" role="group" aria-label={label}>
+    {commands.map((c) => (
+      <div class="cmd__row" data-copy>
+        {c.comment && <p class="cmd__note">{c.comment}</p>}
+        <pre>{c.command}</pre>
+      </div>
+    ))}
+  </div>
+)}

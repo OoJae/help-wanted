@@ -126,7 +126,11 @@ const parts = [
       {m.live.prove && (
         <>
           <h3 class="sub">The proof, in one call</h3>
-          <Commands commands={m.live.prove.commands} />
+          <Commands
+            commands={m.live.prove.commands}
+            as="script"
+            label="The proof for order 1, as one script"
+          />
           <div class="cmd cmd--plain">
             <div class="cmd__row">
               <pre class="break">{m.live.prove.answer}</pre>
@@ -138,7 +142,11 @@ const parts = [
       {m.live.proveSecond && (
         <>
           <h3 class="sub">The same proof for order 2, a research report</h3>
-          <Commands commands={m.live.proveSecond.commands} />
+          <Commands
+            commands={m.live.proveSecond.commands}
+            as="script"
+            label="The proof for order 2, as one script"
+          />
           <div class="cmd cmd--plain">
             <div class="cmd__row">
               <pre class="break">{m.live.proveSecond.answer}</pre>
@@ -604,7 +612,7 @@ const parts = [
         </dd>
       </div>
     </dl>
-    <Commands commands={h.commands} />
+    <Commands commands={h.commands} as="script" label="The header job, checked, as one script" />
 
     {m.provenOnChain.length > 0 && (
       <>
@@ -620,7 +628,7 @@ const parts = [
               </a>
             </p>
             <p>{p.words}</p>
-            <Commands commands={p.commands} />
+            <Commands commands={p.commands} as="script" label={`The checks for: ${p.title}`} />
           </>
         ))}
       </>
@@ -754,18 +762,20 @@ const parts = [
       <h2>Reproduce</h2>
       <p>no key and no account needed for any of it</p>
     </div>
+    {/* Each block is one script, printed as the Markdown twin prints it; a block whose commands are
+         printed elsewhere on the page links to them instead of printing them twice. */}
     {m.reproduce.map((block) => (
       <>
         <h3 class="sub">{block.title}</h3>
         {block.note && <p>{block.note}</p>}
-        <Commands
-          commands={block.commands.split(/\n\n/).flatMap((chunk) => {
-            const lines = chunk.split("\n");
-            const comment = lines[0]?.startsWith("# ") ? lines[0].slice(2) : null;
-            const rest = comment ? lines.slice(1) : lines;
-            return comment ? [{ comment, command: rest.join("\n") }] : rest.map((command) => ({ command }));
-          })}
-        />
+        {block.see && (
+          <p class="small">
+            <a href={block.see}>Go to the commands</a>
+          </p>
+        )}
+        {block.commands !== null && (
+          <Commands commands={[{ command: block.commands }]} as="script" label={block.title} />
+        )}
       </>
     ))}
   </section>
