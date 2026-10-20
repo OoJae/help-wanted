@@ -13,6 +13,8 @@
 #   RAILWAY_WORKSPACE      the workspace to create it in (needed when not run from a terminal)
 #   RAILWAY_SERVICE        the service's name (default: web)
 #   REPO_URL               the repository the site links to
+#   GIT_COMMIT             the commit to stamp (default: the public commit with this tree, else HEAD)
+#   ALLOW_DIRTY=1          deploy uncommitted changes too (otherwise the script refuses)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -43,6 +45,30 @@ if ! jq -e --arg s "$SERVICE" 'any(.[]; .name == $s)' >/dev/null <<<"$SERVICES";
   echo "== creating the service '$SERVICE'"
   railway add --service "$SERVICE" --variables "REPO_URL=$REPO_URL"
 fi
+
+# Only committed source goes live, so the commit the site names is the code it runs.
+BUILT_FROM=(apps/web packages/shared package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json railway.toml)
+if [ -n "$(git status --porcelain -- "${BUILT_FROM[@]}")" ] && [ "${ALLOW_DIRTY:-}" != 1 ]; then
+  echo "refusing to deploy: what the site is built from has uncommitted changes" >&2
+  echo "(commit them first, or set ALLOW_DIRTY=1 to deploy them anyway)" >&2
+  exit 1
+fi
+
+# The commit /api/v1/status names: GIT_COMMIT when set, else the public commit with this exact
+# tree (origin/main or the local public-main), else HEAD.
+COMMIT="${GIT_COMMIT:-}"
+if [ -z "$COMMIT" ]; then
+  TREE="$(git rev-parse 'HEAD^{tree}')"
+  for ref in origin/main public-main; do
+    if git rev-parse -q --verify "$ref" >/dev/null && [ "$(git rev-parse "$ref^{tree}")" = "$TREE" ]; then
+      COMMIT="$(git rev-parse "$ref")"
+      break
+    fi
+  done
+fi
+COMMIT="${COMMIT:-$(git rev-parse HEAD)}"
+echo "== stamping commit $COMMIT"
+railway variable set "GIT_COMMIT=$COMMIT" --service "$SERVICE" --skip-deploys >/dev/null
 
 # What the Dockerfile copies, and nothing else.
 STAGE="$(mktemp -d)"

@@ -218,6 +218,7 @@ describe("our own addresses", () => {
       "SITE_ORIGIN",
       "RPC_URL",
       "ARCHIVE_RPC_URL",
+      "HISTORY_RPC_URL",
       "IMD_API_BASE",
       "IMD_API_MAX_PER_MINUTE",
       "HW_SAMPLE_DATA",
@@ -277,6 +278,7 @@ describe("the environment", () => {
       siteOrigin: null,
       rpcUrl: "https://ethereum-rpc.publicnode.com",
       archiveRpcUrl: null,
+      historyRpcUrl: "https://ethereum-rpc.publicnode.com",
       logWindowBlocks: 7200,
       tallyDays: 14,
       imdApiBase: "https://api.imd.fun",
@@ -330,11 +332,16 @@ describe("the environment", () => {
       siteOrigin: "https://helpwanted.example",
       rpcUrl: "https://rpc.example/v2/secret-key",
       archiveRpcUrl: null,
+      historyRpcUrl: "https://rpc.example/v2/secret-key",
       sampleData: true,
       xHandle: "helpwanted",
       logWindowBlocks: 9000,
       commit: "abc123",
     });
+    // The receipt search asks its own RPC only when one is set.
+    expect(
+      readEnv({ RPC_URL: "https://a.example", HISTORY_RPC_URL: "https://b.example" }).historyRpcUrl,
+    ).toBe("https://b.example");
     // A page names the host an answer came from, never the URL, which may carry a key.
     expect(hostOf(env.rpcUrl)).toBe("rpc.example");
     expect(readEnv({ RAILWAY_PUBLIC_DOMAIN: "hw.up.railway.app" }).siteOrigin).toBe(

@@ -16,6 +16,11 @@ export interface AppEnv {
    * tally covers only what the public RPC serves (about one day) plus what this process has seen.
    */
   archiveRpcUrl: string | null;
+  /**
+   * The RPC asked for the WorkRegistry's log further back than `rpcUrl` serves, when looking for
+   * IdentityMD's newest receipt. Defaults to `rpcUrl`. Nothing else reads it.
+   */
+  historyRpcUrl: string;
   /** How many blocks back `rpcUrl` serves logs. */
   logWindowBlocks: number;
   /** How many days of history the tally asks an archive RPC for. */
@@ -89,6 +94,7 @@ export function readEnv(env: Record<string, string | undefined> = process.env): 
       url(env.SITE_ORIGIN) ?? (env.RAILWAY_PUBLIC_DOMAIN ? `https://${env.RAILWAY_PUBLIC_DOMAIN}` : null),
     rpcUrl: url(env.RPC_URL) ?? DEFAULT_RPC_URL,
     archiveRpcUrl: url(env.ARCHIVE_RPC_URL),
+    historyRpcUrl: url(env.HISTORY_RPC_URL) ?? url(env.RPC_URL) ?? DEFAULT_RPC_URL,
     logWindowBlocks: int(env.RPC_LOG_WINDOW_BLOCKS, PUBLIC_LOG_WINDOW_BLOCKS, 100, 1_000_000),
     tallyDays: int(env.TALLY_DAYS, 14, 1, 60),
     imdApiBase: url(env.IMD_API_BASE) ?? IMD_API_BASE,
