@@ -595,6 +595,34 @@ describe("a pot's page shows what the pot will order", () => {
     // With no log in reach, the page says the text is missing instead of leaving a silent gap.
     expect(model.specMissing).not.toBeNull();
   });
+
+  it("offers the refund, not a chip, once a pot has run out of time", async () => {
+    const world = testSources({
+      env: { HW_ADDR_CROWD_POTS: POTS },
+      chain: {
+        views: {
+          ...views(potOf()),
+          [`${POTS}:remaining`]: { abi: crowdPotsAbi, result: 0n },
+          [`${POTS}:stageOf`]: { abi: crowdPotsAbi, result: 4 },
+        },
+      },
+    });
+    const loaded = await loadPath("/pots/1", ctxFor(world, "/pots/1"));
+    const model = loaded!.model as PotPage & {
+      flows: { id: string }[];
+      flowsHeading: { title: string } | null;
+      card: { deadlineWords: string | null };
+    };
+    expect(model.flows.map((f) => f.id)).toEqual(["claim-refund"]);
+    expect(model.flowsHeading?.title).toBe("Claim a refund");
+    expect(model.facts.find((f) => f.label === "Still needed")?.value).toBe(
+      "none: it takes no more chips (stage Refundable)",
+    );
+    expect(model.card.deadlineWords).toContain("every chip can be claimed back");
+    const markdown = markdownTwin(loaded!);
+    expect(markdown).toContain("Claim a pot refund");
+    expect(markdown).not.toContain("Chip in with ETH");
+  });
 });
 
 describe("the address in the configuration is asked to identify itself", () => {

@@ -92,16 +92,14 @@ const c = m.card;
   {m.ethNote && <p class="small">{m.ethNote}</p>}
 
   <section class="section">
-    <div class="section__head">
-      <h2>Chip in</h2>
-      <p>with IMD, or with ETH through Zap</p>
-    </div>
+    {m.flowsHeading && (
+      <div class="section__head">
+        <h2>{m.flowsHeading.title}</h2>
+        <p>{m.flowsHeading.note}</p>
+      </div>
+    )}
     {m.flows.map((flow, index) => (
-      <FlowBlock
-        flow={flow}
-        exampleNote={index === 0 ? `0.5 IMD and pot ${m.id}` : `0.01 ETH and pot ${m.id}`}
-        repeat={index > 0}
-      />
+      <FlowBlock flow={flow} exampleNote={m.flowNotes[index] ?? `pot ${m.id}`} repeat={index > 0} />
     ))}
     <Commands commands={m.commands} />
   </section>

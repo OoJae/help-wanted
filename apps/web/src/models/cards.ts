@@ -251,7 +251,11 @@ export function potCard(pot: Pot, now: Date): PotCard {
       ? pot.deadline * 1000 > now.getTime()
         ? `Collecting for another ${formatDuration(pot.deadline * 1000 - now.getTime())}.`
         : "Collection time is over."
-      : null;
+      : pot.stage === "Refundable"
+        ? pot.orderId === null
+          ? "Time ran out before it filled: every chip can be claimed back."
+          : "Its order ended undelivered: every chip can be claimed back."
+        : null;
   return {
     id: pot.id,
     path: `/pots/${pot.id}`,

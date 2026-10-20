@@ -292,7 +292,12 @@ export interface PotModel {
   spec: string | null;
   /** Said beside the chip-in form when the text cannot be shown. Null when it is shown, or there is no pot. */
   specMissing: string | null;
+  /** The forms that fit the pot's stage: chipping in while it collects, a refund once it has settled. */
   flows: FlowPreview[];
+  /** The heading over those forms, and the line beside it. Null when no form fits the stage. */
+  flowsHeading: { title: string; note: string } | null;
+  /** The example each form is worked through with, in words, one per form. */
+  flowNotes: string[];
   /** How the ETH beside IMD amounts on this page was worked out. Null without a quote. */
   ethNote: string | null;
   commands: { comment: string; command: string }[];
@@ -318,6 +323,9 @@ export const potPage: PageDef<PotModel> = {
     const known = templateForKindHash(pot?.kindHash);
     const kind = pot?.kind ?? known?.kind ?? null;
     const facts: PotModel["facts"] = [];
+    // A pot takes chips only while it collects; once it has settled, what it holds goes back.
+    const collecting = !pot || pot.stage === "Funding" || pot.stage === "Series";
+    const settled = pot?.stage === "Refundable" || pot?.stage === "Delivered";
     if (pot) {
       facts.push({ label: "Stage", value: pot.stage });
       facts.push({
@@ -326,7 +334,10 @@ export const potPage: PageDef<PotModel> = {
       });
       if (pot.targetWei !== null) facts.push({ label: "Target", value: imdWords(pot.targetWei) });
       if (pot.raisedWei !== null) facts.push({ label: "Raised", value: `${formatImd(pot.raisedWei)} IMD` });
-      facts.push({ label: "Still needed", value: imdWords(pot.remainingWei) });
+      facts.push({
+        label: "Still needed",
+        value: collecting ? imdWords(pot.remainingWei) : `none: it takes no more chips (stage ${pot.stage})`,
+      });
       if (pot.deadline) facts.push({ label: "Collects until", value: formatUtc(pot.deadline * 1000) });
       if (pot.minPayWei !== null)
         facts.push({ label: "Order's opening price", value: imdWords(pot.minPayWei) });
@@ -372,10 +383,36 @@ export const potPage: PageDef<PotModel> = {
         pot && !pot.spec
           ? "The job text of this pot could not be read from the chain just now: its SpecPinned log is older than the public RPC serves, or the RPC did not answer. Only its hash is shown. Read the text (the command below finds it on an archive RPC) before you chip in."
           : null,
-      flows: [
-        previewFlow("chip-in", deployments, now, { potId: String(id) }, { amount: "0.5" }),
-        previewFlow("zap-chip-in", deployments, now, { potId: String(id), ...zapPreset(quote) }),
-      ],
+      flows: settled
+        ? [
+            previewFlow(
+              "claim-refund",
+              deployments,
+              now,
+              { potId: String(id) },
+              { contributor: "0x0000000000000000000000000000000000000001" },
+            ),
+          ]
+        : collecting
+          ? [
+              previewFlow("chip-in", deployments, now, { potId: String(id) }, { amount: "0.5" }),
+              previewFlow("zap-chip-in", deployments, now, { potId: String(id), ...zapPreset(quote) }),
+            ]
+          : [],
+      flowsHeading: settled
+        ? {
+            title: "Claim a refund",
+            note:
+              pot?.stage === "Refundable"
+                ? "every chip goes back to whoever sent it; anyone may make the call"
+                : "what the order did not spend goes back in proportion; anyone may make the call",
+          }
+        : collecting
+          ? { title: "Chip in", note: "with IMD, or with ETH through Zap" }
+          : null,
+      flowNotes: settled
+        ? [`pot ${id} and a contributor's address`]
+        : [`0.5 IMD and pot ${id}`, `0.01 ETH and pot ${id}`],
       ethNote: ethNote(quote),
       commands: [
         {
