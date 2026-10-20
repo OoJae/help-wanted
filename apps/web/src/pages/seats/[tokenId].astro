@@ -6,6 +6,7 @@ import NotLive from "~/components/NotLive.astro";
 import Layout from "~/layouts/Layout.astro";
 import { pageData } from "~/lib/page";
 import { seatTipPaidWords, type SeatModel } from "~/models/money";
+import { imdReviewWords, seatReviewWaitingWords, seatReviewWords } from "~/models/reviews";
 
 const loaded = await pageData<SeatModel>(Astro);
 if (loaded instanceof Response) return loaded;
@@ -130,6 +131,96 @@ const { model: m, meta } = loaded;
           </li>
         ))}
       </ul>
+    </section>
+  )}
+
+  {m.reviews && (
+    <section class="section">
+      <div class="section__head">
+        <h2>Reviews on ERC-8004</h2>
+        <p>IdentityMD's first, then ours · read live</p>
+      </div>
+      <p>{m.reviewsNote}</p>
+      <p class="small">
+        <a href={m.reviews.registryUrl} rel="noopener">
+          The registry
+        </a>{" "}
+        ·
+        <a href={m.reviews.imdClientUrl} rel="noopener">
+          IdentityMD's WorkRegistry
+        </a>
+      </p>
+      <h3 class="sub">IdentityMD's</h3>
+      {m.reviews.imd.map((imd) => (
+        <>
+          <p>{imdReviewWords(imd)}</p>
+          {imd.categories.length > 0 && (
+            <div class="tablewrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Category (tag1)</th>
+                    <th class="num">Reviews</th>
+                    <th class="num">Value 1</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {imd.categories.map((c) => (
+                    <tr>
+                      <td class="code">{c.category}</td>
+                      <td class="num">{c.count}</td>
+                      <td class="num">{c.accepted}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      ))}
+      {m.reviews.ours && (
+        <>
+          <h3 class="sub">Ours</h3>
+          {m.reviews.ours.error ? (
+            <p class="small spot">Our reviews could not be read just now: {m.reviews.ours.error}</p>
+          ) : m.reviews.ours.entries.length === 0 ? (
+            <p>None yet.</p>
+          ) : (
+            <ul>
+              {m.reviews.ours.entries.map((e) => (
+                <li>
+                  <span class:list={["tag", e.origin === "HOUSE" && "tag--solid"]}>{e.origin}</span>{" "}
+                  {seatReviewWords(e)} <a href={e.fileUrl}>Feedback file</a> ·
+                  <a href={e.paymentTxUrl} rel="noopener">
+                    payment
+                  </a>{" "}
+                  ·
+                  <a href={e.settlementTxUrl} rel="noopener">
+                    settlement
+                  </a>
+                  {e.log && (
+                    <>
+                      ·{" "}
+                      <a href={e.log.txUrl} rel="noopener">
+                        review
+                      </a>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {m.reviews.ours.waiting.length > 0 && (
+            <ul>
+              {m.reviews.ours.waiting.map((w) => (
+                <li>
+                  {seatReviewWaitingWords(w)} <a href={w.fileUrl}>Feedback file</a>.
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
     </section>
   )}
 

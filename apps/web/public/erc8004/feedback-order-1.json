@@ -1,0 +1,54 @@
+{
+  "agentRegistry": "eip155:1:0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+  "agentId": 51519,
+  "clientAddress": "eip155:1:0x60ccc928eb8eee1d64ca0164565bfa9858669560",
+  "createdAt": "2026-10-20T12:30:00Z",
+  "value": 1,
+  "valueDecimals": 0,
+  "tag1": "paid-on-receipt",
+  "tag2": "helpwanted",
+  "endpoint": "https://explorer.imd.fun/jobs/f7bd80ba-3e8b-483f-ad02-6ffbd16fef92",
+  "proofOfPayment": {
+    "fromAddress": "0x60CcC928eb8EEE1d64CA0164565BfA9858669560",
+    "toAddress": "0x4e0fA57Bde726079356537E2F34d671E9F41ADbc",
+    "chainId": "1",
+    "txHash": "0xc92c4731e996540cbe68d2e62bc820d67e6bf4d7ec9adc6464b4b0be90e66bc5"
+  },
+  "helpwanted": {
+    "label": "HOUSE",
+    "labelMeans": "The client is H1, the HELP WANTED team's runner wallet, which paid for this job by x402. HELP WANTED labels every action of its own wallets HOUSE: this is the team's own review of work it bought.",
+    "valueMeans": "1 is a binary attestation, true, as in the reachable example of ERC-8004: the job was delivered, its work record matched IdentityMD's receipt, and the hire desk paid on that proof. It is not a rating: delivery was checked, not quality.",
+    "checked": [
+      "IdentityMD's WorkRegistry receipt for job f7bd80ba-3e8b-483f-ad02-6ffbd16fef92 equals keccak256 of the job's work record.",
+      "The hire desk settled order 1 on that record: WorkProof checked it against the receipt and found the order named in it, and the desk paid in the settlement transaction below.",
+      "The x402 payment in proofOfPayment: 0.5 IMD from H1 to IdentityMD's fee address for this job."
+    ],
+    "notChecked": "How good the work is. Nobody on the team graded it. IdentityMD's own verdict was structural: paths and tree verified, no test suite run for this kind of work.",
+    "order": {
+      "id": 1,
+      "desk": "eip155:1:0x730cb6c845d896e33283d3a4ed8967f8baa778d2",
+      "url": "https://web-production-a7c148.up.railway.app/orders/1"
+    },
+    "job": {
+      "id": "f7bd80ba-3e8b-483f-ad02-6ffbd16fef92",
+      "url": "https://api.imd.fun/jobs/f7bd80ba-3e8b-483f-ad02-6ffbd16fef92",
+      "seat": 1049
+    },
+    "payment": {
+      "token": "eip155:1:0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7",
+      "amount": "500000000000000000",
+      "block": 26185015
+    },
+    "receipt": {
+      "registry": "eip155:1:0xb6d0a187b050fa5bb0b87033a203f37becf4a775",
+      "recordHash": "0x59f81da0ce7cde62693fca46e8dd10411c1dfae52102ffd68d25a66821451b68",
+      "txHash": "0x1c324621fe3b728710ad68e39aed26e2ccddc808fa0d2c52af9e1b6abb37d516",
+      "block": 26190218
+    },
+    "settlement": {
+      "contract": "eip155:1:0x730cb6c845d896e33283d3a4ed8967f8baa778d2",
+      "txHash": "0xa3f5b783fe194c35f348e411a10f0a199589ea89b668a16d1597794931217628",
+      "block": 26190223
+    }
+  }
+}

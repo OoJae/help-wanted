@@ -66,6 +66,14 @@ import {
 import { zapPreset } from "~/lib/zapQuote";
 import { RUNNER_STATEMENT } from "./desk";
 import { flowMarkdown, previewFlow, type FlowPreview } from "./flowPreview";
+import {
+  imdReviewWords,
+  loadSeatReviews,
+  SEAT_REVIEWS_NOTE,
+  seatReviewWaitingWords,
+  seatReviewWords,
+  type SeatReviews,
+} from "./reviews";
 import { sourceNote, type PageDef, type SourceNote } from "./types";
 
 // ---------------------------------------------------------------------------------------------
@@ -951,6 +959,13 @@ export interface SeatModel {
   tipsPaidImd: string | null;
   /** What the tips list is and is not. */
   tipsPaidNote: string;
+  /**
+   * The seat's agents' ERC-8004 reviews, read live from the Reputation Registry (models/reviews.ts):
+   * IdentityMD's own, then ours for the desk orders they did. Null when no agent of the seat is known.
+   */
+  reviews: SeatReviews | null;
+  /** What the reviews are, said once. */
+  reviewsNote: string;
   /** One sentence for each launch this page leans on that is not live. Empty once all are. */
   notLive: string[];
   flows: FlowPreview[];
@@ -984,12 +999,15 @@ export const seatPage: PageDef<SeatModel> = {
       house.seatPay(tokenId),
     ]);
     const agents = chain.agentsSeenForSeat(tokenId);
-    const tips = await Promise.all(
-      agents.map(async (agentId) => {
-        const owed = await house.tipOwed(agentId);
-        return { agentId, owedImd: owed.live && owed.data !== null ? formatImd(owed.data) : null };
-      }),
-    );
+    const [tips, reviews] = await Promise.all([
+      Promise.all(
+        agents.map(async (agentId) => {
+          const owed = await house.tipOwed(agentId);
+          return { agentId, owedImd: owed.live && owed.data !== null ? formatImd(owed.data) : null };
+        }),
+      ),
+      loadSeatReviews(sources, agents),
+    ]);
     const payroll = contractStatus(deployments, "payroll");
     const tipClaims = pinnedTipClaims(deployments.contracts.workOrders.address, tokenId);
     return {
@@ -1022,6 +1040,8 @@ export const seatPage: PageDef<SeatModel> = {
             )
           : null,
       tipsPaidNote: SEAT_TIPS_PAID_NOTE,
+      reviews: reviews.reviews,
+      reviewsNote: SEAT_REVIEWS_NOTE,
       notLive: notLiveNotes(deployments, SEATS_NOT_LIVE),
       flows: [
         previewFlow("claim-seat", deployments, now, { tokenId: String(tokenId) }),
@@ -1043,6 +1063,7 @@ export const seatPage: PageDef<SeatModel> = {
             "An agent's tips: unpaid, the part that can be swept to the seat pool, and when the next part can.",
           command: castView(payroll.address, "PAYROLL", payrollAbi, "tipOf", [agents[0] ?? "<agentId>"]),
         },
+        ...reviews.commands,
       ],
       sources: [
         sourceNote(
@@ -1052,6 +1073,7 @@ export const seatPage: PageDef<SeatModel> = {
           owner.error,
         ),
         liveNote("Claimable", pay),
+        ...(reviews.source ? [reviews.source] : []),
       ],
     };
   },
@@ -1107,6 +1129,7 @@ export const seatPage: PageDef<SeatModel> = {
             bullets(m.tipsPaid.map((tip) => `${seatTipPaidWords(tip)} ${link("Transaction", tip.txUrl)}.`)),
           ).trimEnd()
         : null,
+      m.reviews ? seatReviewsMarkdown(m.reviews, m.reviewsNote) : null,
       m.claimRule,
       m.notLive.length > 0 ? doc("## What is not live", bullets(m.notLive)).trimEnd() : null,
       fence(m.commands.map((c) => `# ${c.comment}\n${c.command}`).join("\n\n"), "sh"),
@@ -1114,6 +1137,49 @@ export const seatPage: PageDef<SeatModel> = {
     );
   },
 };
+
+/** The seat page's reviews section, as its Markdown twin prints it: IdentityMD's first, then ours. */
+function seatReviewsMarkdown(r: SeatReviews, note: string): string {
+  return doc(
+    "## Reviews on ERC-8004",
+    `${note} Registry: ${link(r.registry, r.registryUrl)}; IdentityMD's reviews are those from its WorkRegistry, ${link(r.imdClient, r.imdClientUrl)}.`,
+    "### IdentityMD's",
+    ...r.imd.map((imd) =>
+      doc(
+        imdReviewWords(imd),
+        imd.categories.length > 0
+          ? table(
+              ["Category (tag1)", "Reviews", "Value 1"],
+              imd.categories.map((c) => [c.category, String(c.count), String(c.accepted)]),
+            )
+          : null,
+      ).trimEnd(),
+    ),
+    r.ours ? "### Ours" : null,
+    r.ours
+      ? r.ours.error
+        ? `Our reviews could not be read just now: ${r.ours.error}`
+        : r.ours.entries.length === 0
+          ? "None yet."
+          : bullets(
+              r.ours.entries.map(
+                (e) =>
+                  `${e.origin}: ${seatReviewWords(e)} ${[
+                    link("Feedback file", e.fileUrl),
+                    link("payment", e.paymentTxUrl),
+                    link("settlement", e.settlementTxUrl),
+                    ...(e.log ? [link("review", e.log.txUrl)] : []),
+                  ].join(" · ")}`,
+              ),
+            )
+      : null,
+    r.ours && r.ours.waiting.length > 0
+      ? bullets(
+          r.ours.waiting.map((w) => `${seatReviewWaitingWords(w)} ${link("Feedback file", w.fileUrl)}.`),
+        )
+      : null,
+  ).trimEnd();
+}
 
 // ---------------------------------------------------------------------------------------------
 // /endowments

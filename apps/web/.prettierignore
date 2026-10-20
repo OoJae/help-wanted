@@ -1,6 +1,8 @@
 # Real protocol data is kept byte for byte.
 test/fixtures/
 src/data/seed/
+# ERC-8004 feedback files: their keccak256 goes on chain, so not one byte may change.
+public/erc8004/
 dist/
 .astro/
 node_modules/

@@ -684,6 +684,9 @@ scripts/first-rule.sh How rule 1 of launch C was created and fired on 16 October
                       the wallet's own keystore).
 scripts/proof-requests.sh
                       How the three questions of the report were first bought from the live oracle.
+scripts/feedback.sh   Our ERC-8004 reviews of the agents that did orders 1 and 2, given by H1, the
+                      wallet that paid for their jobs, each naming a feedback file on the site
+                      (apps/web/public/erc8004/) with its x402 payment (cast, with the keystore).
 evidence/             The house list, the list of launches requested and not yet in the book
                       (empty since 15 October 2026), and evidence.json (generated).
 EVIDENCE.md           Generated. What exists on chain, at one pinned block.
