@@ -44,7 +44,7 @@ import {
   type OrdersModel,
 } from "~/models/desk";
 import { addressesOf } from "~/models/flowPreview";
-import { doorbellFacts, NO_WATCHER } from "~/models/money";
+import { doorbellFacts, NO_WATCHER, ringersWords } from "~/models/money";
 import { claimDefault, loadReceiptFlow, receiptFlowMeaning } from "~/models/receipts";
 import type { LoadContext } from "~/models/types";
 import type { VerifyJobModel } from "~/models/verify";
@@ -948,7 +948,8 @@ const planRingDoorbell: ToolDef = {
     if (!plan.ok) return problemOutput(plan.problems);
     const bell = await house.doorbell();
     const state = bell.live ? bell.data : null;
-    const facts = state ? doorbellFacts(state, houseSet(deployments)) : [];
+    const who = state ? ringersWords(state, houseSet(deployments)) : null;
+    const facts = state ? [...doorbellFacts(state), ...(who ? [who] : [])] : [];
     const transactions = plan.calls.map((c, i) => unsignedTx(c, i, from));
     const sendable = plan.calls.every((c) => c.to !== null);
     const data = {
