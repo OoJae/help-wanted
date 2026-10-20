@@ -637,6 +637,32 @@ sender of the transaction is on the list. A transaction sent by IdentityMD's own
 (its Intake's writer delivering an oracle answer, its WorkRegistry's writer) is counted apart from
 both: it delivers something that was paid for, and is nobody's use of the contracts.
 
+## Use it from an AI agent
+
+The site is also a remote MCP server, with no key and no account, at
+<https://web-production-a7c148.up.railway.app/mcp>. Its tools read the desk, quote an order, plan
+one and check any swarm job's receipt: `desk_status`, `list_orders`, `get_order`, `list_templates`,
+`quote_order`, `plan_order`, `plan_ring_doorbell`, `verify_job` and `receipts_status`. None of them
+signs or sends a transaction, and the server holds no key. An order is planned as unsigned
+transactions, an `approve` and then `createOrder`, which the user checks and signs with their own
+wallet.
+
+```sh
+# Claude Code
+claude mcp add --transport http help-wanted https://web-production-a7c148.up.railway.app/mcp
+
+# Codex
+codex mcp add help-wanted --url https://web-production-a7c148.up.railway.app/mcp
+```
+
+The skill an agent reads first, with the safe flow for an order and the limits, is
+[`apps/web/public/skill.md`](apps/web/public/skill.md), served at
+<https://web-production-a7c148.up.railway.app/skill.md>; a shorter orientation is
+[`apps/web/public/agents.md`](apps/web/public/agents.md). Without MCP, the same data is plain HTTP:
+the JSON API under `/api/v1` (described in `/openapi.json`; `/api/v1/flows` plans every
+transaction the site offers), every page as `.json` and `.md`, and `/llms.txt` to list them all.
+The server is `apps/web/src/lib/mcp.ts`, tested offline in `apps/web/test/mcp.test.ts`.
+
 ## Map of the repository
 
 ```text
@@ -651,7 +677,7 @@ bots/keeper/          The bot that makes the calls anyone may make: ask a feed, 
 bots/runner/          The bot that takes an order, buys the swarm job and collects.
 apps/indexer/         Copies chain events and public API data into a database; a read-only API.
 apps/web/             The site: the receipt checker, the report, the hire desk's pages. Every page
-                      also answers as JSON and as Markdown.
+                      also answers as JSON and as Markdown, and /mcp is its MCP server for agents.
 scripts/evidence/     The evidence builder (pnpm evidence) and its tests.
 scripts/repro.sh      The comparison of deployed code with a build of this source (pnpm repro).
 scripts/first-rule.sh How rule 1 of launch C was created and fired on 16 October 2026 (cast, with

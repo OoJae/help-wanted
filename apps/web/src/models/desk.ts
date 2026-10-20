@@ -123,7 +123,7 @@ export const RUNNER_STATEMENT = {
 } as const;
 
 /** The swarm kinds the team says its runner takes, as the job templates name them. */
-const RUNNER_TAKES: readonly string[] = ["skill:research-report", "skill:create-image"];
+export const RUNNER_TAKES: readonly string[] = ["skill:research-report", "skill:create-image"];
 
 /** The team's statement as a page shows it: dated, and said to be the team's. */
 export interface RunnerStatementView {

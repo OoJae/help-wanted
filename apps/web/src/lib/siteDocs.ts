@@ -23,6 +23,7 @@ import { messageOf } from "./cache";
 import { formatImd, formatInt, formatUtc, plural } from "./format";
 import { hashNo0x, jobIdToBytes16 } from "./ids";
 import { bullets, doc, fence, table, UNTRUSTED_BEGINS, UNTRUSTED_ENDS } from "./md";
+import { LEGACY_VERSIONS, MCP_PROTOCOL_VERSION, TOOLS } from "./mcp";
 import { loadPath, markdownTwin, SITE_NAME, SITE_TAGLINE } from "./twins";
 import { verifyCommands } from "./verify";
 
@@ -94,6 +95,31 @@ export const API_ROUTES: readonly { path: string; what: string }[] = [
 
 function abs(ctx: LoadContext, path: string): string {
   return `${ctx.sources.env.siteOrigin ?? ""}${path}`;
+}
+
+/**
+ * The front door for an AI agent: the MCP server at `/mcp`, the skill file and the orientation. A
+ * server that has not been told its public address prints `$SITE` in the command, and says what to
+ * set it to, rather than an address it made up.
+ */
+export function agentsSection(ctx: LoadContext): string[] {
+  const origin = ctx.sources.env.siteOrigin;
+  const endpoint = origin ? `${origin}/mcp` : "$SITE/mcp";
+  return [
+    "## For AI agents: MCP and a skill",
+    `A remote MCP server, with no key and no account, at ${abs(ctx, "/mcp")}: JSON-RPC 2.0 over HTTP POST (the Streamable HTTP transport, protocol revision ${MCP_PROTOCOL_VERSION}, and ${LEGACY_VERSIONS.join(", ")} through initialize). Its tools read, quote and plan; none signs or sends a transaction, and the server holds no key: ${TOOLS.map((t) => `\`${t.name}\``).join(", ")}. \`plan_order\` returns an order's unsigned transactions (an approve, then createOrder) for the user's own wallet.`,
+    fence(
+      [
+        ...(origin ? [] : ["# Set SITE to the address you are reading this at."]),
+        "# Claude Code",
+        `claude mcp add --transport http help-wanted ${endpoint}`,
+        "# Codex",
+        `codex mcp add help-wanted --url ${endpoint}`,
+      ].join("\n"),
+      "sh",
+    ),
+    `The skill for Claude Code and Codex, with the safe flow for an order and the limits: [/skill.md](${abs(ctx, "/skill.md")}). A short orientation: [/agents.md](${abs(ctx, "/agents.md")}).`,
+  ];
 }
 
 export async function llmsTxt(ctx: LoadContext): Promise<string> {
@@ -407,6 +433,7 @@ export async function llmsTxt(ctx: LoadContext): Promise<string> {
     "## JSON API",
     "Open CORS, GET only, cached for about 30 seconds.",
     bullets(API_ROUTES.map((r) => `\`${r.path}\`: ${r.what}`)),
+    ...agentsSection(ctx),
     "## Limits and what is not live",
     `Disclosed in full at ${abs(ctx, "/judges.md")}: all ${DISCLOSED_LIMITS.length} entries of the three launch projects' threat documents in one table (trust roots, the limits of each contract, what is not verified), and the list of what is not live yet.`,
     "## More",
@@ -451,6 +478,7 @@ export function robotsTxt(ctx: LoadContext): string {
       ? `Sitemap: ${origin}/sitemap.xml`
       : "# No sitemap: this server has not been told its public address. Every page is listed in /llms.txt.",
     "# For language models: /llms.txt and /llms-full.txt",
+    "# For AI agents: an MCP server at /mcp (POST), and /skill.md",
     "",
   ].join("\n");
 }
