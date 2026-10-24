@@ -78,7 +78,7 @@ it pays a completed job of the order's kind whose work record names the order, a
 verification of a research report is structural (for order 2's job: "paths and tree verified; no
 suite was run for this kind of work"). It is not for work only a person can judge.
 
-## Read this first: what is true on 20 October 2026
+## Read this first: what is true on 24 October 2026
 
 - **New on 20 October 2026, all of it the team's own use.** Anyone can now ring the Doorbell in one
   step from <https://web-production-a7c148.up.railway.app/rules/new#doorbell>, with a browser
@@ -93,10 +93,12 @@ suite was run for this kind of work"). It is not for work only a person can judg
   [`0x5e5eba6d…d5d6`](https://etherscan.io/tx/0x5e5eba6da6c34f7171b58863fdeeb4f4eb662d05d865896446447a6b0e53d5d6)).
   An AI agent can use the site through a key-free MCP server at `/mcp` ("Use it from an AI agent",
   below).
-- **IdentityMD's receipts are stalled again.** Its WorkRegistry has written no receipt since
-  19 October 2026, 06:39 UTC (block 26,224,887). Until it writes again, an order that pays only on
-  a receipt waits for one and is refunded at its deadline if none comes. The site says how long the
-  stall has lasted on every page that depends on it.
+- **IdentityMD's receipts stalled again, and are flowing again.** Its WorkRegistry wrote no
+  receipt from 19 October 2026, 06:39 UTC (block 26,224,887) until 23 October 2026, 21:17 UTC
+  (block 26,257,966), about four days and fifteen hours, then cleared its backlog. While a stall
+  lasts, an order that pays only on a receipt waits for one and is refunded at its deadline if none
+  comes. The site reads the registry live and says whether receipts are arriving on every page
+  that depends on it.
 - **Launch A is live on Ethereum mainnet** since 13 October 2026. Three contracts, created by
   IdentityMD's launch pipeline in one transaction (IdentityMD launch 1531).
 - **The first Robot Jobs Report was printed that day**: 112 IMD paid to the swarm in blocks
@@ -539,8 +541,8 @@ Stated as plainly as what is.
   during the stall with the desk's other path switched on, for good: a bonded delivery claim paid
   after 24 hours without a challenge, with its own limits (L1, L2 and D2 in the same file). Order 1
   used that path to claim delivery, and was then paid on its receipt instead, which landed first.
-  The writer then kept writing until 19 October 2026, 06:39 UTC (block 26,224,887), and has written
-  nothing since. On 16 October it wrote the receipt of order 2's job 16
+  The writer then kept writing until 19 October 2026, 06:39 UTC (block 26,224,887), stalled again,
+  and wrote again from 23 October 2026, 21:17 UTC (block 26,257,966). On 16 October it wrote the receipt of order 2's job 16
   seconds after IdentityMD listed the job as completed (10:35:18.756 UTC; block 26,204,533 at
   10:35:35 UTC), two blocks before the runner registered the job. Order 2 pays only on a receipt,
   and was paid on that one.
